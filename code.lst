@@ -1,0 +1,614 @@
+ AS V1.42 Beta [Bld 282] - Source File Sonic.asm - Page 1 - 5/14/2025 22:54:52
+
+
+       1/       0 :                     ; Naming conventions:
+       2/       0 :                     ; variableValue
+       3/       0 :                     ; CONSTANT_VALUE
+       4/       0 :                     ; MainRoutineAndLables
+       5/       0 :                     ; sub_routine
+       6/       0 :                     	
+       7/       0 :                     	cpu 68000
+       8/       0 :                     	
+       9/       0 :                     	supmode on ; We don't need warnings about privileged instructions
+      10/       0 :                     
+      11/       0 :                     	include "Variables.asm"
+(1)    1/       0 :                     ; It is recommended to fill padding spaces with byte variables for the 68k,
+(1)    2/       0 :                     ; to avoid wasting memory space and make it uneven. With padding on,
+(1)    3/       0 :                     ; the assembler will automatically fill odd words and longs to make them even and to avoid crashing.
+(1)    4/       0 :                     
+(1)    5/FFFF0000 :                     	org $FFFF0000
+(1)    6/FFFF0000 :                     ; 68000 variables
+(1)    7/FFFF0000 :                     sampleIndex:	ds.l 1	; Samples after Z80 routine execution
+(1)    8/FFFF0004 :                     
+(1)    9/     300 :                     	org $300
+(1)   10/     300 :                     ; Z80 variables (away from code)
+(1)   11/     300 :                     
+      12/     300 :                     	include "Constants.asm"
+(1)    1/     300 :                     ; Memory spaces
+(1)    2/     300 : =$FF0000            WRAM_ADDR:	equ $FF0000		; Work memory starting address
+(1)    3/     300 : =$A10009            JOY_CTRL:	equ $A10009		; 1P control port
+(1)    4/     300 : =$A10003            JOY_DATA:	equ $A10003   	; 1P data port
+(1)    5/     300 : =$0                 SYS_STACK:	equ $000000
+(1)    6/     300 :                     
+(1)    7/     300 :                     ; Various memory space sizes in bytes
+(1)    8/     300 : =$10000             WRAM_SIZE: 	equ 65536
+(1)    9/     300 : =$10000             VRAM_SIZE:	equ 65536
+(1)   10/     300 : =$50                VSRAM_SIZE:	equ 80
+(1)   11/     300 : =$80                CRAM_SIZE:	equ 128
+(1)   12/     300 :                     
+(1)   13/     300 :                     ; VDP memory spaces
+(1)   14/     300 : =$C00000            VDP_DATA:    	equ $C00000		; VDP data port
+(1)   15/     300 : =$C00004            VDP_CTRL:    	equ $C00004		; VDP control port
+(1)   16/     300 : =$C00008            VDP_HVCOUNTER:  equ $C00008		; H/V counter
+(1)   17/     300 :                     
+(1)   18/     300 : =$40000000          VRAM:	equ	$40000000	; Video memory address control
+(1)   19/     300 : =$40000010          VSRAM:	equ $40000010	; Vertical scroll memory address control
+(1)   20/     300 : =$C0000000          CRAM: 	equ $C0000000	; Color memory address control
+(1)   21/     300 :                     
+(1)   22/     300 : =$40000080          VRAM_DMA_CMD:   equ $40000080	; DMA VRAM control
+(1)   23/     300 : =$40000090          VSRAM_DMA_CMD:  equ $40000090	; DMA VSRAM control
+(1)   24/     300 : =$C0000080          CRAM_DMA_CMD:   equ $C0000080	; DMA CRAM control
+(1)   25/     300 :                     
+(1)   26/     300 : =$FFFF              PLANEA_ADDR:	equ $FFFF		; Plane A name table address
+(1)   27/     300 : =$FFFF              PLANEB_ADDR:	equ $FFFF		; Plane B name table address
+(1)   28/     300 : =$FFFF              SPRITE_ADDR:	equ $FFFF		; Sprite name table address
+(1)   29/     300 : =$FFFF              WINDOW_ADDR:	equ $FFFF		; Window plane name table address
+(1)   30/     300 : =$FFFF              HSCROLL_ADDR:	equ $FFFF		; Plane x coordinate
+(1)   31/     300 :                     
+(1)   32/     300 :                     ; VDP registers
+(1)   33/     300 : =$8000              VDPREG_MODE1:     equ $8000  ; Mode register #1
+(1)   34/     300 : =$8100              VDPREG_MODE2:     equ $8100  ; Mode register #2
+(1)   35/     300 : =$8B00              VDPREG_MODE3:     equ $8B00  ; Mode register #3
+(1)   36/     300 : =$8C00              VDPREG_MODE4:     equ $8C00  ; Mode register #4
+(1)   37/     300 :                     
+ AS V1.42 Beta [Bld 282] - Source File Sonic.asm(Constants.asm) - Page 2 - 5/14/2025 22:54:52
+
+
+(1)   38/     300 : =$8200              VDPREG_PLANEA:    equ $8200  ; Plane A table address
+(1)   39/     300 : =$8400              VDPREG_PLANEB:    equ $8400  ; Plane B table address
+(1)   40/     300 : =$8500              VDPREG_SPRITE:    equ $8500  ; Sprite table address
+(1)   41/     300 : =$8300              VDPREG_WINDOW:    equ $8300  ; Window table address
+(1)   42/     300 : =$8D00              VDPREG_HSCROLL:   equ $8D00  ; HScroll table address
+(1)   43/     300 :                     
+(1)   44/     300 : =$9000              VDPREG_SIZE:      equ $9000  ; Plane A and B size
+(1)   45/     300 : =$9100              VDPREG_WINX:      equ $9100  ; Window X split position
+(1)   46/     300 : =$9200              VDPREG_WINY:      equ $9200  ; Window Y split position
+(1)   47/     300 : =$8F00              VDPREG_INCR:      equ $8F00  ; Autoincrement
+(1)   48/     300 : =$8700              VDPREG_BGCOL:     equ $8700  ; Background color
+(1)   49/     300 : =$8A00              VDPREG_HRATE:     equ $8A00  ; HBlank interrupt rate
+(1)   50/     300 :                     
+(1)   51/     300 : =$9300              VDPREG_DMALEN_L:  equ $9300  ; DMA length (low)
+(1)   52/     300 : =$9400              VDPREG_DMALEN_H:  equ $9400  ; DMA length (high)
+(1)   53/     300 : =$9500              VDPREG_DMASRC_L:  equ $9500  ; DMA source (low)
+(1)   54/     300 : =$9600              VDPREG_DMASRC_M:  equ $9600  ; DMA source (mid)
+(1)   55/     300 : =$9700              VDPREG_DMASRC_H:  equ $9700  ; DMA source (high)
+(1)   56/     300 :                     
+(1)   57/     300 :                     ; VDP name table addresses
+(1)   58/     300 : =$0                 NOFLIP: equ $0000  ; Don't flip (default)
+(1)   59/     300 : =$800               HFLIP:  equ $0800  ; Flip horizontally
+(1)   60/     300 : =$1000              VFLIP:  equ $1000  ; Flip vertically
+(1)   61/     300 : =$1800              HVFLIP: equ $1800  ; Flip both ways (180° flip)
+(1)   62/     300 :                     
+(1)   63/     300 : =$0                 PAL0:   equ $0000  ; Use palette 0 (default)
+(1)   64/     300 : =$2000              PAL1:   equ $2000  ; Use palette 1
+(1)   65/     300 : =$4000              PAL2:   equ $4000  ; Use palette 2
+(1)   66/     300 : =$6000              PAL3:   equ $6000  ; Use palette 3
+(1)   67/     300 :                     
+(1)   68/     300 : =$0                 LOPRI:  equ $0000  ; Low priority (default)
+(1)   69/     300 : =$8000              HIPRI:  equ $8000  ; High priority
+(1)   70/     300 :                     
+(1)   71/     300 :                     ; Palette data sizes
+(1)   72/     300 : =$60                PAT_BodyFont_SIZE_T:	equ 96
+(1)   73/     300 : =$C00               PAT_BodyFont_SIZE_B:	equ 96*32
+(1)   74/     300 :                     
+(1)   75/     300 :                     ; Z80 control
+(1)   76/     300 : =$A00000            Z80_RAM:	equ $A00000	; Z80 RAM start
+(1)   77/     300 : =$A11100            Z80_BUSREQ:	equ $A11100	; Z80 bus request line
+(1)   78/     300 : =$A11200            Z80_RESET:	equ $A11200	; Z80 reset line
+(1)   79/     300 :                     
+(1)   80/     300 :                     ; Controller labels
+(1)   81/     300 : =$5                 JOY_C:	equ 5
+(1)   82/     300 : =$4                 JOY_B:	equ 4
+(1)   83/     300 : =$3                 JOY_R:	equ 3
+(1)   84/     300 : =$2                 JOY_L:	equ 2
+(1)   85/     300 : =$1                 JOY_D:	equ 1
+(1)   86/     300 : =$0                 JOY_U:	equ 0
+(1)   87/     300 :                     
+(1)   88/     300 :                     
+(1)   89/     300 : =$4000              YM2612_CONTROL:	equ $4000
+(1)   90/     300 : =$4001              YM2612_DATA:	equ $4001
+(1)   91/     300 : =$2A                DAC_IN:			equ $2A
+(1)   92/     300 : =$2B                DAC_ENABLE:		equ $2B
+      13/     300 :                     	include "Macros.asm"
+      15/     300 :                     	listing purecode ; We sure want the listing file, but only the final code in expanded macros
+      16/     300 :                     
+      17/       0 :                     	org 0
+      18/       0 :                     
+      19/       0 :                     RomStart ; Vectors
+      20/       0 : 0000 0000           		dc.l SYS_STACK			; Initial stack pointer value (SP value)
+      21/       4 : 0000 02C4           		dc.l EntryPoint			; Start of program (PC value)
+      22/       8 : 0000 0200           		dc.l BusError			; Bus error
+      23/       C : 0000 0206           		dc.l AddressError		; Address error
+      24/      10 : 0000 020C           		dc.l IllegalInstruction	; Illegal instruction
+      25/      14 : 0000 0212           		dc.l DivisionByZero		; Division by zero
+      26/      18 : 0000 0218           		dc.l CHKException		; CHK exception
+      27/      1C : 0000 021E           		dc.l TRAPVException		; TRAPV exception
+      28/      20 : 0000 0224           		dc.l PrivilegeViolation	; Privilege violation
+      29/      24 : 0000 022A           		dc.l TRACEException		; TRACE exception
+      30/      28 : 0000 0230           		dc.l LineAEmulator		; Line-A emulator
+      31/      2C : 0000 0236           		dc.l LineFEmulator		; Line-F emulator
+      32/      30 : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      33/      34 : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      34/      38 : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      35/      3C : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      36/      40 : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      37/      44 : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      38/      48 : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      39/      4C : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      40/      50 : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      41/      54 : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      42/      58 : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      43/      5C : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      44/      60 : 0000 023C           		dc.l SpuriousException	; Spurious exception
+      45/      64 : 0000 0242           		dc.l GenericError		; IRQ level 1
+      46/      68 : 0000 0242           		dc.l GenericError		; IRQ level 2
+      47/      6C : 0000 0242           		dc.l GenericError		; IRQ level 3 
+      48/      70 : 0000 0242           		dc.l GenericError		; IRQ level 4 (horizontal retrace interrupt)
+      49/      74 : 0000 0242           		dc.l GenericError		; IRQ level 5
+      50/      78 : 0000 0248           		dc.l VDP_VBlank			; IRQ level 6 (vertical retrace interrupt)
+      51/      7C : 0000 0242           		dc.l GenericError		; IRQ level 7
+      52/      80 : 0000 0242           		dc.l GenericError		; TRAP #00 exception
+      53/      84 : 0000 0242           		dc.l GenericError		; TRAP #01 exception
+      54/      88 : 0000 0242           		dc.l GenericError		; TRAP #02 exception
+      55/      8C : 0000 0242           		dc.l GenericError		; TRAP #03 exception
+      56/      90 : 0000 0242           		dc.l GenericError		; TRAP #04 exception
+      57/      94 : 0000 0242           		dc.l GenericError		; TRAP #05 exception
+      58/      98 : 0000 0242           		dc.l GenericError		; TRAP #06 exception
+      59/      9C : 0000 0242           		dc.l GenericError		; TRAP #07 exception
+      60/      A0 : 0000 0242           		dc.l GenericError		; TRAP #08 exception
+      61/      A4 : 0000 0242           		dc.l GenericError		; TRAP #09 exception
+      62/      A8 : 0000 0242           		dc.l GenericError		; TRAP #10 exception
+      63/      AC : 0000 0242           		dc.l GenericError		; TRAP #11 exception
+      64/      B0 : 0000 0242           		dc.l GenericError		; TRAP #12 exception
+      65/      B4 : 0000 0242           		dc.l GenericError		; TRAP #13 exception
+      66/      B8 : 0000 0242           		dc.l GenericError		; TRAP #14 exception
+      67/      BC : 0000 0242           		dc.l GenericError		; TRAP #15 exception
+      68/      C0 : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      69/      C4 : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      70/      C8 : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      71/      CC : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      72/      D0 : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      73/      D4 : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      74/      D8 : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      75/      DC : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      76/      E0 : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      77/      E4 : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      78/      E8 : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      79/      EC : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      80/      F0 : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      81/      F4 : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      82/      F8 : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      83/      FC : 0000 0242           		dc.l GenericError		; Unused (reserved)
+      84/     100 :                     
+      85/     100 :                     ; ROM header
+      86/     100 : 5345 4741 204D 4547 		dc.b "SEGA MEGA DRIVE",$20				; "$20" is padding
+              108 : 4120 4452 4956 4520
+      87/     110 : 2843 2942 524F 3020 		dc.b "(C)BRO0 2024.OCT"					; Copyright(-ish), release year and month
+              118 : 3230 3234 2E4F 4354
+      88/     120 : 5072 6573 656E 7461 		dc.b "Presentazione sistemi: 68k e x86"	; Domestic name
+              128 : 7A69 6F6E 6520 7369
+              130 : 7374 656D 693A 2036
+              138 : 386B 2065 2078 3836
+      89/     140 : 2020 2020 2020 2020 		dc.b "                "					; padding
+              148 : 2020 2020 2020 2020
+      90/     150 : 5072 6573 656E 7461 		dc.b "Presentazione sistemi: 68k e x86"	; Overseas name
+              158 : 7A69 6F6E 6520 7369
+              160 : 7374 656D 693A 2036
+              168 : 386B 2065 2078 3836
+      91/     170 : 2020 2020 2020 2020 		dc.b "                "					; padding
+              178 : 2020 2020 2020 2020
+      92/     180 : 4149 2D32 3334 3536 		dc.b "AI-23456786-00"					; Serial number (I mashed the keyboard for this)
+              188 : 3738 362D 3030   
+      93/     18E : 0000                		dc.w $0000								; Empty checksum
+      94/     190 : 4A                  		dc.b "J"								; Joypad type
+      95/     191 : 2020 2020 2020 2020 		dc.b "               "					; padding
+              199 : 2020 2020 2020 20
+      96/     1A0 : 0000 0000           		dc.l RomStart							; Start address of ROM
+      97/     1A4 : 003F AF2B           		dc.l RomEnd								; End address of ROM
+      98/     1A8 : 00FF 0000           		dc.l $FF0000							; Start address of WRAM
+      99/     1AC : 00FF FFFF           		dc.l $FFFFFF 							; End address of WRAM
+     100/     1B0 : 2020 2020 2020 2020 		dc.b "                                                                "
+              1B8 : 2020 2020 2020 2020
+              1C0 : 2020 2020 2020 2020
+              1C8 : 2020 2020 2020 2020
+              1D0 : 2020 2020 2020 2020
+              1D8 : 2020 2020 2020 2020
+              1E0 : 2020 2020 2020 2020
+              1E8 : 2020 2020 2020 2020
+     101/     1F0 : 4A55 20             		dc.b "JU "								; Region support
+     102/     1F3 : 2020 2020 2020 2020 		dc.b "             "					; padding for reserved space
+              1FB : 2020 2020 20      
+     103/     200 :                     
+     104/     200 :                     ; Error handler jump table
+     105/     200 :                     
+     106/     200 :                     BusError:
+     107/     200 : 7E01                	moveq	#1,d7
+     108/     202 : 4E72 2700           	stop #$2700
+     109/     206 :                     
+     110/     206 :                     AddressError:
+     111/     206 : 7E02                	moveq	#2,d7
+     112/     208 : 4E72 2700           	stop #$2700
+     113/     20C :                     
+     114/     20C :                     IllegalInstruction:
+     115/     20C : 7E03                	moveq	#3,d7
+     116/     20E : 4E72 2700           	stop #$2700
+     117/     212 :                     
+     118/     212 :                     DivisionByZero:
+     119/     212 : 7E04                	moveq	#4,d7
+     120/     214 : 4E72 2700           	stop #$2700
+     121/     218 :                     
+     122/     218 :                     CHKException:
+     123/     218 : 7E05                	moveq	#5,d7
+     124/     21A : 4E72 2700           	stop #$2700
+     125/     21E :                     
+     126/     21E :                     TRAPVException:
+     127/     21E : 7E06                	moveq	#6,d7
+     128/     220 : 4E72 2700           	stop #$2700
+     129/     224 :                     
+     130/     224 :                     PrivilegeViolation:
+     131/     224 : 7E07                	moveq	#7,d7
+     132/     226 : 4E72 2700           	stop #$2700
+     133/     22A :                     
+     134/     22A :                     TRACEException:
+     135/     22A : 7E08                	moveq	#8,d7
+     136/     22C : 4E72 2700           	stop #$2700
+     137/     230 :                     
+     138/     230 :                     LineAEmulator:
+     139/     230 : 7E09                	moveq	#9,d7
+     140/     232 : 4E72 2700           	stop #$2700
+     141/     236 :                     
+     142/     236 :                     LineFEmulator:
+     143/     236 : 7E0A                	moveq	#10,d7
+     144/     238 : 4E72 2700           	stop #$2700
+     145/     23C :                     
+     146/     23C :                     SpuriousException:
+     147/     23C : 7E0B                	moveq	#11,d7
+     148/     23E : 4E72 2700           	stop #$2700
+     149/     242 :                     
+     150/     242 :                     GenericError:
+     151/     242 : 7E0C                	moveq	#12,d7
+     152/     244 : 4E72 2700           	stop #$2700
+     153/     248 :                     
+     154/     248 :                     ; a0: live samples, a2: Z80 samples
+     155/     248 :                     
+     156/     248 :                     VDP_VBlank:
+     157/     248 :                     	; 216 68k cycles for every 32 kHz sample
+     158/     248 : (MACRO)[0]          	stopZ80	; Initiate Z80 stop, 20 cycles
+     158/     248 :                     
+     158/     248 : 33FC 0100 00A1 1100                 move.w  #$100,(Z80_BUSREQ).l
+     159/     250 : 49F9 00A1 1100      	lea Z80_BUSREQ,a4	; 8 cycles
+     160/     256 :                     	; In the mean time, we can initialize the registers
+     161/     256 : 2079 FFFF 0000      	move.l	(sampleIndex),a0	; 16 cycles
+     162/     25C : 2448                	move.l	a0,a2	; Sample index while executing 68k routine, 4 cycles
+     163/     25E : (MACRO)[1]          	addaq	26+1,a2	; Sample index after 68k routine execution (a0, at the end basically), 8 cycles
+     163/     25E :                     
+     163/     25E :                     
+> > > Sonic.asm(163) addaq(12): warning: It is recommended to use addq instead, since it spares 2 bytes
+     163/     25E :                                     warning "It is recommended to use addq instead, since it spares 2 bytes"
+     163/     25E :                     
+     163/     25E : 45EA 001B                   lea 26+1(a2),a2
+     164/     262 :                     
+     165/     262 : 43F9 00A0 4001      	lea	YM2612_DATA|Z80_RAM,a1	; 8 cycles
+     166/     268 : 47F9 00A0 0055      	lea	SampleBuffer|Z80_RAM,a3	; 8 cycles
+     167/     26E :                     
+     168/     26E : 721A                	moveq	#27-1,d1	; 4 cycles
+     169/     270 : B080                	cmp.l	d0,d0		; waste 6 cycles
+     170/     272 :                     
+     171/     272 :                     	; 82 cycles
+     172/     272 :                     
+     173/     272 : 700C                	moveq	#13-1,d0	; 4 cycles
+     174/     274 :                     $$timing_wait1:	; wait 130 cycles here
+     175/     274 : 51C8 FFFE           	dbf d0,$$timing_wait1
+     176/     278 :                     
+     177/     278 :                     	;moveq	#0,d0
+     178/     278 :                     	;waitZ80	d0,a4	;let's say the Z80 may have completely stopped here. Fire hazard, maybe
+     179/     278 :                     
+     180/     278 :                     $$copy_music: ; 514 samples to buffer on Z80
+     181/     278 : 1298                	move.b	(a0)+,(a1)	; Keep sample playback alive
+     182/     27A :                     	rept 19
+     183/     27A :                     	move.b	(a2)+,(a3)+	; Copy samples into sound RAM as fast as possible
+     184/     27A :                     	endm
+     183/     27A : 16DA                	move.b	(a2)+,(a3)+	; Copy samples into sound RAM as fast as possible
+     183/     27C : 16DA                	move.b	(a2)+,(a3)+	; Copy samples into sound RAM as fast as possible
+     183/     27E : 16DA                	move.b	(a2)+,(a3)+	; Copy samples into sound RAM as fast as possible
+     183/     280 : 16DA                	move.b	(a2)+,(a3)+	; Copy samples into sound RAM as fast as possible
+     183/     282 : 16DA                	move.b	(a2)+,(a3)+	; Copy samples into sound RAM as fast as possible
+     183/     284 : 16DA                	move.b	(a2)+,(a3)+	; Copy samples into sound RAM as fast as possible
+     183/     286 : 16DA                	move.b	(a2)+,(a3)+	; Copy samples into sound RAM as fast as possible
+     183/     288 : 16DA                	move.b	(a2)+,(a3)+	; Copy samples into sound RAM as fast as possible
+     183/     28A : 16DA                	move.b	(a2)+,(a3)+	; Copy samples into sound RAM as fast as possible
+     183/     28C : 16DA                	move.b	(a2)+,(a3)+	; Copy samples into sound RAM as fast as possible
+     183/     28E : 16DA                	move.b	(a2)+,(a3)+	; Copy samples into sound RAM as fast as possible
+     183/     290 : 16DA                	move.b	(a2)+,(a3)+	; Copy samples into sound RAM as fast as possible
+     183/     292 : 16DA                	move.b	(a2)+,(a3)+	; Copy samples into sound RAM as fast as possible
+     183/     294 : 16DA                	move.b	(a2)+,(a3)+	; Copy samples into sound RAM as fast as possible
+     183/     296 : 16DA                	move.b	(a2)+,(a3)+	; Copy samples into sound RAM as fast as possible
+     183/     298 : 16DA                	move.b	(a2)+,(a3)+	; Copy samples into sound RAM as fast as possible
+     183/     29A : 16DA                	move.b	(a2)+,(a3)+	; Copy samples into sound RAM as fast as possible
+     183/     29C : 16DA                	move.b	(a2)+,(a3)+	; Copy samples into sound RAM as fast as possible
+     183/     29E : 16DA                	move.b	(a2)+,(a3)+	; Copy samples into sound RAM as fast as possible
+     185/     2A0 : 51C9 FFD6           	dbf d1,$$copy_music
+     186/     2A4 : 1290                	move.b	(a0),(a1)
+     187/     2A6 : 1692                	move.b	(a2),(a3)	; To ensure one sample doesn't get skipped, a2 shouldn't increase
+     188/     2A8 :                     
+     189/     2A8 : 13FC 0016 00A0 0039 	move.b	#LoopInit,((Wait68k&$FF)|Z80_RAM)+1	; Replaces "jp Wait68k" with "jp LoopInit", to make sure the Z80 starts to output samples again
+     190/     2B0 :                     
+     191/     2B0 : 7012                	moveq	#18,d0 ; 20, theoretically, but less since the Z80 takes some time to wake up (need to make this more precise, though)
+     192/     2B2 :                     $$timing_wait2:
+     193/     2B2 : 51C8 FFFE           	dbf	d0,$$timing_wait2
+     194/     2B6 :                     	
+     195/     2B6 : (MACRO)[21]         	startZ80 a4	; Restart Z80 (d1: $00000000)
+     195/     2B6 :                     
+     195/     2B6 : 38BC 0000                                   move.w  #0,(a4)
+     196/     2BA :                     
+     197/     2BA : 200A                	move.l 	a2,d0
+     198/     2BC : 23C0 FFFF 0000      	move.l	d0,(sampleIndex)	; Update sample index relative to when the Z80 finishes the playback routine
+     199/     2C2 :                     
+     200/     2C2 :                     	; DPLC loading queues
+     201/     2C2 : 4E73                	rte
+     202/     2C4 :                     
+     203/     2C4 :                     
+     204/     2C4 :                     EntryPoint:
+     205/     2C4 : 41F9 00C0 0004      	lea		VDP_CTRL,a0
+     206/     2CA :                     
+     207/     2CA :                     ; VDP register setup
+     208/     2CA : 20BC 8000 8120      	move.l  #(VDPREG_MODE1|%00000000)<<16|VDPREG_MODE2|%00100000,(a0)	; Mode register #1 and Mode register #2
+     209/     2D0 : 20BC 8B00 8C00      	move.l  #(VDPREG_MODE3|%00000000)<<16|VDPREG_MODE4|%00000000,(a0)	; Mode register #3 and Mode register #4
+     210/     2D6 :                     	
+     211/     2D6 : 20BC 823F 8407      	move.l  #(VDPREG_PLANEA|(PLANEA_ADDR>>10))<<16|VDPREG_PLANEB|(PLANEB_ADDR>>13),(a0)	; Plane A and Plane B address
+     212/     2DC : 20BC 857F 833F      	move.l  #(VDPREG_SPRITE|(SPRITE_ADDR>>9))<<16|VDPREG_WINDOW|(WINDOW_ADDR>>10),(a0)	; Sprite and Window address
+     213/     2E2 : 30BC 8D3F               move.w  #VDPREG_HSCROLL|(HSCROLL_ADDR>>10),(a0)										; HScroll address
+     214/     2E6 :                         
+     215/     2E6 : 20BC 9000 9100          move.l  #(VDPREG_SIZE|$00)<<16|VDPREG_WINX|$00,(a0)		; Tilemap size and Window X split
+     216/     2EC : 20BC 9200 8F00          move.l  #(VDPREG_WINY|$00)<<16|VDPREG_INCR|$00,(a0)		; Window Y split and Autoincrement
+     217/     2F2 : 20BC 8700 8AFF          move.l  #(VDPREG_BGCOL|$00)<<16|VDPREG_HRATE|$FF,(a0)	; Background color and HBlank IRQ rate
+     218/     2F8 :                     
+     219/     2F8 :                     ; Start of ROM code
+     220/     2F8 :                     
+     221/     2F8 : 47F9 00A1 1100      	lea (Z80_BUSREQ),a3
+     222/     2FE : 45F9 00A1 1200      	lea (Z80_RESET),a2
+     223/     304 :                     
+     224/     304 : 343C 0100           	move.w	#$100,d2	; Assert, stop
+     225/     308 : 7200                	moveq	#0,d1		; Deassert, start
+     226/     30A :                     
+     227/     30A : (MACRO)[22]         	assertZ80Reset d1,a2	; Assert reset
+     227/     30A :                     
+     227/     30A : 3481                                        move.w  d1,(a2)
+     228/     30C : (MACRO)[23]         	stopZ80 d2,a3			; Request bus
+     228/     30C :                     
+     228/     30C : 3682                                        move.w  d2,(a3)
+     229/     30E : (MACRO)[24]         	deassertZ80Reset d2,a2	; Release reset
+     229/     30E :                     
+     229/     30E : 3482                                        move.w  d2,(a2)
+     230/     310 :                     
+     231/     310 :                     ; We can do more stuff while the Z80 is theoretically stopping
+     232/     310 : 41F8 033E           	lea Z80RomStart,a0
+     233/     314 : 43F9 00A0 0000      	lea Z80_RAM,a1
+     234/     31A : 23FC 0000 0393 FFFF 	move.l 	#Music,(sampleIndex)
+              322 : 0000               
+     235/     324 : 7054                	moveq	#(Z80RomEnd-Z80RomStart)-1,d0	; Mustn't go over $7F
+     236/     326 :                     
+     237/     326 :                     $$copy_program:
+     238/     326 : 12D8                	move.b	(a0)+,(a1)+
+     239/     328 : 51C8 FFFC           	dbf d0,$$copy_program
+     240/     32C :                     
+     241/     32C : (MACRO)[25]         	assertZ80Reset d2,a2	; Assert reset
+     241/     32C :                     
+     241/     32C : 3482                                        move.w  d2,(a2)
+     242/     32E :                     
+     243/     32E : 7014                	moveq	#20,d0
+     244/     330 :                     $$wait:	; Wait for the YM2612
+     245/     330 : 51C8 FFFE               dbf	d0,$$wait
+     246/     334 :                     
+     247/     334 : (MACRO)[26]         	deassertZ80Reset d2,a2	; Release reset
+     247/     334 :                     
+     247/     334 : 3482                                        move.w  d2,(a2)
+     248/     336 : (MACRO)[27]         	startZ80 d1,a3			; Release bus
+     248/     336 :                     
+     248/     336 : 3681                                        move.w  d1,(a3)
+     249/     338 :                     
+     250/     338 : 46FC 2500           	move	#$2500,sr
+     251/     33C :                     HaltCPU:
+     252/     33C :                     	;stop #$2500	; Wait until next interrupt
+     253/     33C : 60FE                	bra.s	HaltCPU
+     254/     33E :                     
+     255/     33E :                     	include "Driver.z80"
+(1)    1/ 33E :                         	cpu Z80
+(1)    2/ 33E :                         Z80RomStart
+(1)    3/ 33E :                         
+(1)    4/   0 :                             phase 0	; Set label addresses to the start of the Z80 RAM
+(1)    5/   0 :                         
+(1)    6/   0 : 31 00 00                	ld	sp,0		; Align stack pointer correctly
+(1)    7/   3 :                         
+(1)    8/   3 : 01 00 40                	ld	bc,4000h	; YM2612 bank 1 port
+(1)    9/   6 : 21 01 40                	ld	hl,4001h	; YM2612 data port
+(1)   10/   9 : 3E 2B                   	ld	a,DAC_ENABLE; DAC enable address
+(1)   11/   B : 02                      	ld	(bc),a		; Switch to DAC enable register
+(1)   12/   C : 36 80                   	ld	(hl),80h	; Enable DAC
+(1)   13/   E : 3D                      	dec	a			; Now a is 2Ah (DAC_IN)
+(1)   14/   F : 02                      	ld	(bc),a		; Switch to DAC data input
+(1)   15/  10 :                         
+(1)   16/  10 : 54                      	ld	d,h		; ld de,hl
+(1)   17/  11 : 5D                      	ld	e,l
+(1)   18/  12 :                         
+(1)   19/  12 :                         	;ld	hl,Wait68k+1	; Avoid replacing the actual OP code
+(1)   20/  12 :                         
+(1)   21/  12 : ED 56                   	im	1		; Mode 1 for interrupts
+(1)   22/  14 : FB                      	ei
+(1)   23/  15 :                         
+(1)   24/  15 : 76                      	halt		; Wait until next frame
+(1)   25/  16 :                         
+(1)   26/  16 :                         LoopInit:	; Execution falls here after the first interrupt
+(1)   27/  16 : 36 38                   	ld	(hl),Wait68k	; Replaces LoopInit with Wait68k
+(1)   28/  18 : 31 00 00                	ld	sp,0
+(1)   29/  1B : 01 55 00                	ld	bc,SampleBuffer	; Reset bc
+(1)   30/  1E : FB                      	ei
+(1)   31/  1F : C3 3B 00                	jp	Loop
+(1)   32/  22 :                         
+(1)   33/  38 :                         	rorg 38h - $	; Cannot use regular org while dephasing
+(1)   34/  38 :                         Interrupt	; Must be in 38h when in mode 1
+(1)   35/  38 :                         Wait68k:
+(1)   36/  38 : C3 38 00                	jp	Wait68k	; This gets replaced with LoopInit
+(1)   37/  3B :                         
+(1)   38/  3B :                         ; Rest of code goes here
+(1)   39/  3B :                         Loop:
+(1)   40/  3B : 0A                      	ld	a,(bc)
+(1)   41/  3C : 12                      	ld	(de),a
+(1)   42/  3D : 03                      	inc	bc
+(1)   43/  3E :                         	rept 20
+(1)   44/  3E :                         	nop
+(1)   45/  3E :                         	endm
+(1)   44/  3E : 00                      	nop
+(1)   44/  3F : 00                      	nop
+(1)   44/  40 : 00                      	nop
+(1)   44/  41 : 00                      	nop
+(1)   44/  42 : 00                      	nop
+(1)   44/  43 : 00                      	nop
+(1)   44/  44 : 00                      	nop
+(1)   44/  45 : 00                      	nop
+(1)   44/  46 : 00                      	nop
+(1)   44/  47 : 00                      	nop
+(1)   44/  48 : 00                      	nop
+(1)   44/  49 : 00                      	nop
+(1)   44/  4A : 00                      	nop
+(1)   44/  4B : 00                      	nop
+(1)   44/  4C : 00                      	nop
+(1)   44/  4D : 00                      	nop
+(1)   44/  4E : 00                      	nop
+(1)   44/  4F : 00                      	nop
+(1)   44/  50 : 00                      	nop
+(1)   44/  51 : 00                      	nop
+(1)   46/  52 : C3 3B 00                	jp	Loop
+(1)   47/  55 :                         
+(1)   48/  55 :                         
+(1)   49/  55 :                         SampleBuffer
+(1)   50/  55 :                         	; Where the 68k buffers samples
+(1)   51/ 393 :                             dephase	; The rest of the labels are mapped normally
+(1)   52/ 393 :                         
+(1)   53/     393 :                     	cpu 68000
+(1)   54/     393 :                     
+(1)   55/     393 :                     Z80RomEnd
+     256/     393 :                     
+     257/     393 :                     Music:
+     258/     393 :                     	binclude "assets/24. Time Rift Shift ~ Vs. Metal Sonic.raw"
+     259/  3FAF2B :                     
+     260/  3FAF2B :                     RomEnd
+ AS V1.42 Beta [Bld 282] - Source File Sonic.asm - Page 3 - 5/14/2025 22:54:52
+
+
+  Symbol Table (* = unused):
+  --------------------------
+
+*ARCHITECTURE :                                        "i386-unknown-win32" - |
+ AddressError :                 206 C |  BusError :                     200 C |
+*CASESENSITIVE :                  1 - |  CHKException :                 218 C |
+*CONSTPI :        3.141592653589793 - | *CRAM :                    C0000000 - |
+*CRAM_DMA_CMD :            C0000080 - | *CRAM_SIZE :                     80 - |
+ DAC_ENABLE :                    2B - | *DAC_IN :                        2A - |
+*DATE :                 "5/14/2025" - |  DivisionByZero :               212 C |
+ EntryPoint :                   2C4 C | *FALSE :                          0 - |
+*FLOATMAX :      1.797693134866E308 - | *FULLPMMU :                       1 - |
+ GenericError :                 242 C | *HAS64 :                          1 - |
+*HASFPU :                         0 - | *HASPMMU :                        0 - |
+*HFLIP :                        800 - | *HIPRI :                       8000 - |
+ HSCROLL_ADDR :                FFFF - | *HVFLIP :                      1800 - |
+ HaltCPU :                      33C C | *INSUPMODE :                      1 - |
+ IllegalInstruction :           20C C | *Interrupt :                     38 C |
+*JOY_B :                          4 - | *JOY_C :                          5 - |
+*JOY_CTRL :                  A10009 - | *JOY_D :                          1 - |
+*JOY_DATA :                  A10003 - | *JOY_L :                          2 - |
+*JOY_R :                          3 - | *JOY_U :                          0 - |
+*LISTON :                         3 - | *LOPRI :                          0 - |
+ LineAEmulator :                230 C |  LineFEmulator :                236 C |
+ Loop :                          3B C |  LoopInit :                      16 C |
+*MACEXP :                         7 - | *MOMCPU :                     68000 - |
+ MOMCPUNAME :               "68000" - |  Music :                        393 C |
+*NESTMAX :                      100 - | *NOFLIP :                         0 - |
+*PADDING :                        1 - | *PAL0 :                           0 - |
+*PAL1 :                        2000 - | *PAL2 :                        4000 - |
+*PAL3 :                        6000 - | *PAT_BodyFont_SIZE_B :          C00 - |
+*PAT_BodyFont_SIZE_T :           60 - |  PLANEA_ADDR :                 FFFF - |
+ PLANEB_ADDR :                 FFFF - |  PrivilegeViolation :           224 C |
+*RELAXED :                        0 - |  RomEnd :                    3FAF2B C |
+ RomStart :                       0 C |  SPRITE_ADDR :                 FFFF - |
+ SYS_STACK :                      0 - |  SampleBuffer :                  55 C |
+ SpuriousException :            23C C | *TIME :                  "22:54:52" - |
+ TRACEException :               22A C |  TRAPVException :               21E C |
+*TRUE :                           1 - |  VDPREG_BGCOL :                8700 - |
+*VDPREG_DMALEN_H :             9400 - | *VDPREG_DMALEN_L :             9300 - |
+*VDPREG_DMASRC_H :             9700 - | *VDPREG_DMASRC_L :             9500 - |
+*VDPREG_DMASRC_M :             9600 - |  VDPREG_HRATE :                8A00 - |
+ VDPREG_HSCROLL :              8D00 - |  VDPREG_INCR :                 8F00 - |
+ VDPREG_MODE1 :                8000 - |  VDPREG_MODE2 :                8100 - |
+ VDPREG_MODE3 :                8B00 - |  VDPREG_MODE4 :                8C00 - |
+ VDPREG_PLANEA :               8200 - |  VDPREG_PLANEB :               8400 - |
+ VDPREG_SIZE :                 9000 - |  VDPREG_SPRITE :               8500 - |
+ VDPREG_WINDOW :               8300 - |  VDPREG_WINX :                 9100 - |
+ VDPREG_WINY :                 9200 - |  VDP_CTRL :                  C00004 - |
+*VDP_DATA :                  C00000 - | *VDP_HVCOUNTER :             C00008 - |
+ VDP_VBlank :                   248 C | *VERSION :                     142F - |
+*VFLIP :                       1000 - | *VRAM :                    40000000 - |
+*VRAM_DMA_CMD :            40000080 - | *VRAM_SIZE :                  10000 - |
+*VSRAM :                   40000010 - | *VSRAM_DMA_CMD :           40000090 - |
+*VSRAM_SIZE :                    50 - | *WARNRELATIVE :                   0 - |
+ WINDOW_ADDR :                 FFFF - | *WRAM_ADDR :                 FF0000 - |
+*WRAM_SIZE :                  10000 - |  Wait68k :                       38 C |
+*YM2612_CONTROL :              4000 - |  YM2612_DATA :                 4001 - |
+ Z80RomEnd :                    393 C |  Z80RomStart :                  33E C |
+ Z80_BUSREQ :                A11100 - |  Z80_RAM :                   A00000 - |
+ Z80_RESET :                 A11200 - |  copy_music92 :                 278 C |
+ copy_program93 :               326 C |  sampleIndex :             FFFF0000 C |
+ timing_wait192 :               274 C |  timing_wait292 :               2B2 C |
+ wait93 :                       330 C |
+
+    120 symbols
+     62 unused symbols
+
+ AS V1.42 Beta [Bld 282] - Source File Sonic.asm - Page 4 - 5/14/2025 22:54:52
+
+
+  Defined Macros:
+  ---------------
+
+addaq                                 | assertZ80Reset                       
+deassertZ80Reset                      | startZ80                             
+stopZ80                               | subaq                                
+waitZ80                               |
+
+      7 macros
+
+ AS V1.42 Beta [Bld 282] - Source File Sonic.asm - Page 5 - 5/14/2025 22:54:52
+
+
+  Defined Functions:
+  ------------------
+
+notaddressregister                    | notdataregister                      
+
+ AS V1.42 Beta [Bld 282] - Source File Sonic.asm - Page 6 - 5/14/2025 22:54:52
+
+
+  Code Pages:
+  ----------
+
+STANDARD (0 changed characters)
+
+1 code page
+
+0.06 seconds assembly time
+
+    591 lines source file
+    813 lines incl. macro expansions
+      3 passes
+      0 errors
+      1 warning

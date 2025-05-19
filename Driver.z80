@@ -1,0 +1,55 @@
+	cpu Z80
+Z80RomStart
+
+    phase 0	; Set label addresses to the start of the Z80 RAM
+
+	ld	sp,0		; Align stack pointer correctly
+
+	ld	bc,4000h	; YM2612 bank 1 port
+	ld	hl,4001h	; YM2612 data port
+	ld	a,DAC_ENABLE; DAC enable address
+	ld	(bc),a		; Switch to DAC enable register
+	ld	(hl),80h	; Enable DAC
+	dec	a			; Now a is 2Ah (DAC_IN)
+	ld	(bc),a		; Switch to DAC data input
+
+	ld	d,h		; ld de,hl
+	ld	e,l
+
+	;ld	hl,Wait68k+1	; Avoid replacing the actual OP code
+
+	im	1		; Mode 1 for interrupts
+	ei
+
+	halt		; Wait until next frame
+
+LoopInit:	; Execution falls here after the first interrupt
+	ld	(hl),Wait68k	; Replaces LoopInit with Wait68k
+	ld	sp,0
+	ld	bc,SampleBuffer	; Reset bc
+	ei
+	jp	Loop
+
+	rorg 38h - $	; Cannot use regular org while dephasing
+Interrupt	; Must be in 38h when in mode 1
+Wait68k:
+	jp	Wait68k	; This gets replaced with LoopInit
+
+; Rest of code goes here
+Loop:
+	ld	a,(bc)
+	ld	(de),a
+	inc	bc
+	rept 20
+	nop
+	endm
+	jp	Loop
+
+
+SampleBuffer
+	; Where the 68k buffers samples
+    dephase	; The rest of the labels are mapped normally
+
+	cpu 68000
+
+Z80RomEnd
