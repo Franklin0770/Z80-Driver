@@ -255,6 +255,9 @@ HaltCPU:
 	include "Driver.z80"
 
 Music:
-	binclude "assets/24. Time Rift Shift ~ Vs. Metal Sonic.raw"
+	;binclude "continuity_test.bin" ; Test with increasing bytes to make sure no samples get skipped
+	binclude "assets/24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; Great music right here
+	;binclude "Don't Stand So Close To Me.raw" ; Another banger
+	;binclude "music.pcm" ; Let's not talk about this
 
 RomEnd
