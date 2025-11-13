@@ -143,7 +143,7 @@ addaq: macro v0,r0
 		fatal "The first argument must be in range -$7FFF..$7FFF. Current value is v0"
 	endif
 
-	if (v0) >= 1 && (v0) <= 8
+	if (v0 >= 1) && (v0 <= 8)
 		warning "It is recommended to use addq instead, since it spares 2 bytes"
 	endif
 
@@ -161,7 +161,7 @@ subaq: macro v0,r0
 		fatal "The first argument must be in range -$7FFF..$7FFF. Current value is v0"
 	endif
 
-	if (v0) >= 1 && (v0) <= 8
+	if (v0 >= 1) && (v0 <= 8)
 		warning "It is recommended to use subq instead, since it spares 2 bytes"
 	endif
 
@@ -171,3 +171,13 @@ subaq: macro v0,r0
 ; How to check string length: strlen(*string*) -> integer containing the string length
 ; How to check a substring in a string: substr(*string*,*starting index*,*ending index*) -> string containing the range provided
 ; How to check a character from a string charfromstr(*string*,*character position*) -> character
+
+
+TransferSamples: macro
+i set 0
+	while i < 19
+	move.l	(a2)+,d0
+	movep.l	d0,(i*28)(a3)
+i set i + 1
+	endm
+	endm

@@ -3,21 +3,17 @@
 ; CONSTANT_VALUE
 ; MainRoutineAndLables
 ; sub_routine
-	
-	cpu 68000
-	
-	supmode on ; We don't need warnings about privileged instructions
 
-	include "Variables.asm"
 	include "Constants.asm"
+	include "Variables.asm"
 	include "Macros.asm"
 
 	listing purecode ; We sure want the listing file, but only the final code in expanded macros
 
 	org 0
 
-RomStart ; Vectors
-		dc.l SYS_STACK			; Initial stack pointer value (SP value)
+ROM_Start ; Vectors
+		dc.l M68K_STACK			; Initial stack pointer value (SP value)
 		dc.l EntryPoint			; Start of program (PC value)
 		dc.l BusError			; Bus error
 		dc.l AddressError		; Address error
@@ -93,8 +89,8 @@ RomStart ; Vectors
 		dc.w $0000								; Empty checksum
 		dc.b "J"								; Joypad type
 		dc.b "               "					; padding
-		dc.l RomStart							; Start address of ROM
-		dc.l RomEnd								; End address of ROM
+		dc.l ROM_Start							; Start address of ROM
+		dc.l ROM_End								; End address of ROM
 		dc.l $FF0000							; Start address of WRAM
 		dc.l $FFFFFF 							; End address of WRAM
 		dc.b "                                                                "
@@ -155,47 +151,51 @@ GenericError:
 
 VDP_VBlank:
 	; 216 68k cycles for every 32 kHz sample
-	stopZ80	; Initiate Z80 stop, 20 cycles
-	lea Z80_BUSREQ,a4	; 8 cycles
 	; In the mean time, we can initialize the registers
-	move.l	(sampleIndex),a0	; 16 cycles
-	move.l	a0,a2	; Sample index while executing 68k routine, 4 cycles
-	addaq	26+1,a2	; Sample index after 68k routine execution (a0, at the end basically), 8 cycles
 
-	lea	YM2612_DATA|Z80_RAM,a1	; 8 cycles
-	lea	SampleBuffer|Z80_RAM,a3	; 8 cycles
+	moveq	#10-1,d0
+	moveq	#0,d1
+	moveq	#$D2,d2
+	moveq	#6,d3
+	moveq	#$0F,d4
+	moveq	#4,d5
+	moveq	#9-1,d6	; 4 cycles
 
-	moveq	#27-1,d1	; 4 cycles
-	cmp.l	d0,d0		; waste 6 cycles
+	lea	sampleIndex,a0
+	lea	YM2612_68K_DATA0,a1	; 8 cycles
+	lea	SampleBuffer|Z80_WRAM,a3	; 8 cycles
+	lea	Sign3,a4
+	lea	Sign4,a5
+	lea	YM2612_68K_CTRL0,a6
 
-	; 82 cycles
-
-	moveq	#13-1,d0	; 4 cycles
-$$timing_wait1:	; wait 130 cycles here
+	stopZ80	; Initiate Z80 stop, 20 cycles
+	
+$$timing_wait1:	; wait 100 cycles here
 	dbf d0,$$timing_wait1
 
 	;moveq	#0,d0
 	;waitZ80	d0,a4	;let's say the Z80 may have completely stopped here. Fire hazard, maybe
 
-$$copy_music: ; 514 samples to buffer on Z80
-	move.b	(a0)+,(a1)	; Keep sample playback alive
-	rept 19
-	move.b	(a2)+,(a3)+	; Copy samples into sound RAM as fast as possible
-	endm
-	dbf d1,$$copy_music
-	move.b	(a0),(a1)
-	move.b	(a2),(a3)	; To ensure one sample doesn't get skipped, a2 shouldn't increase
+	adda.w	(playedSamples|Z80_WRAM),a0	; 16 cycles
+	move.l	a0,a2	; Sample index while executing 68k routine, 4 cycles
+	move.b	#DAC_ENABLE,(a6)
+	move.b	#$80,(a1)
+	move.b	#DAC_OUT,(a6)
 
-	move.b	#LoopInit,((Wait68k&$FF)|Z80_RAM)+1	; Replaces "jp Wait68k" with "jp LoopInit", to make sure the Z80 starts to output samples again
+	jmp	LoopMusicRoutine
 
-	moveq	#18,d0 ; 20, theoretically, but less since the Z80 takes some time to wake up (need to make this more precise, though)
+Continue_Int:
+	move.b	d0,(lastADPCMValue)					; Back up the last ADPCM sample so the Z80 can start from there
+	move.b	#Continue&$FF,(InfiniteLoop+1|Z80_WRAM)	; Unstuck Z80
+
+	moveq	#18,d0 ; Timing that needs to be adjusted
 $$timing_wait2:
 	dbf	d0,$$timing_wait2
 	
-	startZ80 a4	; Restart Z80 (d1: $00000000)
+	startZ80
 
-	move.l 	a2,d0
-	move.l	d0,(sampleIndex)	; Update sample index relative to when the Z80 finishes the playback routine
+	move.l 	a0,d0
+	move.l	d0,(sampleIndex).l	; Update sample index
 
 	; DPLC loading queues
 	rte
@@ -218,8 +218,8 @@ EntryPoint:
 
 ; Start of ROM code
 
-	lea (Z80_BUSREQ),a3
-	lea (Z80_RESET),a2
+	lea Z80_BUSREQ,a3
+	lea Z80_RESET,a2
 
 	move.w	#$100,d2	; Assert, stop
 	moveq	#0,d1		; Deassert, start
@@ -229,20 +229,23 @@ EntryPoint:
 	deassertZ80Reset d2,a2	; Release reset
 
 ; We can do more stuff while the Z80 is theoretically stopping
-	lea Z80RomStart,a0
-	lea Z80_RAM,a1
-	move.l 	#Music,(sampleIndex)
-	moveq	#(Z80RomEnd-Z80RomStart)-1,d0	; Mustn't go over $7F
+	lea Z80_Code,a0
+	lea Z80_WRAM,a1
+	move.w	#(Z80_ROM_End-Z80_ROM_Start)-1,d0
 
-$$copy_program:
+$$copy_Z80_code:
 	move.b	(a0)+,(a1)+
-	dbf d0,$$copy_program
+	dbf d0,$$copy_Z80_code
 
 	assertZ80Reset d2,a2	; Assert reset
 
-	moveq	#20,d0
-$$wait:	; Wait for the YM2612
-    dbf	d0,$$wait
+	lea CopyMusicRoutine,a0
+	lea copyMusicRoutine,a1
+	moveq	#((M68K_PROG_SIZE)-1)/4,d0
+
+$$copy_68k_code:
+	move.l	(a0)+,(a1)+
+	dbf	d0,$$copy_68k_code
 
 	deassertZ80Reset d2,a2	; Release reset
 	startZ80 d1,a3			; Release bus
@@ -252,12 +255,62 @@ HaltCPU:
 	;stop #$2500	; Wait until next interrupt
 	bra.s	HaltCPU
 
+CopyMusicRoutine
+	phase copyMusicRoutine
+LoopMusicRoutine: ; 514 samples to buffer on Z80 (d0: accumulator, d1: ADPCM accumulator, d2: OP code, d3: contains 6, d4: contains $0F, d5: contains 4, d6: loop counter, a4: points to first sign, a5: points to second sign)
+	move.b	(a0),d0
+	and.b	d4,d0
+	beq.s	Negate3		; If the first nibble is zero
+Sign3
+	add.b	d0,d1
+	move.b	d1,(a1)		; First nibble
+	bra.s	Continue3
+Negate3:
+	bchg.l	d3,d2
+	move.b	d2,(a4)
+	move.b	d2,(a5)
+Continue3:
+	move.l	(a2)+,d0
+	movep.l	d0,0(a3)
+	move.l	(a2)+,d0
+	movep.l	d0,1(a3)
+	move.l	(a2)+,d0
+	movep.l	d0,8(a3)
+	move.l	(a2)+,d0
+	movep.l	d0,9(a3)
+	move.b	(a0)+,d0
+	lsr.b	d5,d0
+	beq.s	Negate4		; If the second nibble is zero
+Sign4
+	add.b	d0,d1
+	move.b	d1,(a1)		; Second nibble
+	bra.s	Continue4
+Negate4:
+	bchg.l	d3,d2
+	move.b	d2,(a4)
+	move.b	d2,(a5)
+Continue4:
+	move.l	(a2)+,d0
+	movep.l	d0,16(a3)
+	move.l	(a2)+,d0
+	movep.l	d0,17(a3)
+	move.l	(a2)+,d0
+	movep.l	d0,24(a3)
+	move.l	(a2)+,d0
+	movep.l	d0,25(a3)
+	addaq	26,a3
+	dbf d6,LoopMusicRoutine
+	jmp	Continue_Int
+	dephase
+CopyMusicRoutine_End
+
+Z80_Code:
 	include "Driver.z80"
 
 Music:
 	;binclude "continuity_test.bin" ; Test with increasing bytes to make sure no samples get skipped
-	binclude "assets/24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; Great music right here
+	;binclude "24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; Great music right here
 	;binclude "Don't Stand So Close To Me.raw" ; Another banger
 	;binclude "music.pcm" ; Let's not talk about this
 
-RomEnd
+ROM_End

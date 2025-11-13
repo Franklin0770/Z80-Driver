@@ -1,55 +1,166 @@
 	cpu Z80
-Z80RomStart
-
     phase 0	; Set label addresses to the start of the Z80 RAM
 
-	ld	sp,0		; Align stack pointer correctly
+Z80_ROM_Start
 
-	ld	bc,4000h	; YM2612 bank 1 port
-	ld	hl,4001h	; YM2612 data port
-	ld	a,DAC_ENABLE; DAC enable address
-	ld	(bc),a		; Switch to DAC enable register
-	ld	(hl),80h	; Enable DAC
-	dec	a			; Now a is 2Ah (DAC_IN)
-	ld	(bc),a		; Switch to DAC data input
+	im	1	; Mode 1 for interrupts
 
-	ld	d,h		; ld de,hl
-	ld	e,l
+	ld	sp,Z80_STACK	; Align stack pointer correctly
 
-	;ld	hl,Wait68k+1	; Avoid replacing the actual OP code
+	ld  hl,YM2612_CTRL0
+	ld	bc,CommandBuffer
+	ld	de,FMBuffer
+	exx
+	ld	hl,YM2612_DATA0
+	ld	bc,SampleBuffer
+	ld	d,82h			; Sign register starts with OP code "ADD A,D"
+	ld	e,0				; It's set if A is acting as the ADPCM accumulator
+	exx
+	ex	af,af'
+	xor a				; Clear ADPCM sample accumulator
+	ex	af,af'
 
-	im	1		; Mode 1 for interrupts
+	ld	(hl),DAC_ENABLE	; Switch to DAC enable register
+	inc	l				; Switch to data port 0
+	ld	(hl),80h		; Enable DAC
+	dec l				; Switch to control port 0
+
 	ei
 
-	halt		; Wait until next frame
+	halt	; Wait until next frame
+	jp	LoopWithSamples
 
-LoopInit:	; Execution falls here after the first interrupt
-	ld	(hl),Wait68k	; Replaces LoopInit with Wait68k
-	ld	sp,0
-	ld	bc,SampleBuffer	; Reset bc
+	rorg 38h - $	; Cannot use regular ORG while dephasing
+; Interrupt: must be located in (38h) when in Mode 1
+	bit 0,e
+	jr z,SkipEX		; if E bit0=0, skip AF swap
+
+	ex af,af'		; swap AF shadow
+
+SkipEX:
+	bit	0,l
+	jr	nz,SkipEXX	; if L!=0, skip EXX/AF swaps
+
+	exx				; swap BC, DE, HL shadow
+
+SkipEXX:	; Accumulator mode for A - PCM mode for BC, DE and HL
+	ld	a,b
+	sub	SAMPLE_BUFFER_HIGH_BYTE
+	ld	(playedSamples),a
+	ld	a,c
+	ld	(playedSamples+1),a
+	ld	bc,SampleBuffer	; Reset BC'
+
+	bit 0,e
+	jr	z,SkipEXBack	; if E bit0=0, skip swap back
+
+	ex af,af'			; swap AF back
+
+SkipEXBack:
+	bit	0,l
+	jr	nz,InfiniteLoop	; if E bit0=0, skip EXX back
+
+	exx                 ; swap BC, DE, HL back
+
+InfiniteLoop:
+	jp	$	; MUST be an even address for the 68k to write
+
+Continue:
+	ld	a,InfiniteLoop&00FFh
+	ld	(InfiniteLoop+1),a		; Reset the loop
+	ex af,af'			; ADPCM mode
+	ld	a,(lastADPCMValue)		; Get last ADPCM value, accumulated from the 68k
+	ex af,af'			; Accumulator mode
 	ei
-	jp	Loop
+	ret
 
-	rorg 38h - $	; Cannot use regular org while dephasing
-Interrupt	; Must be in 38h when in mode 1
-Wait68k:
-	jp	Wait68k	; This gets replaced with LoopInit
+LoopWithSamples:
+	exx				; PCM mode (4)
+	ld	a,(bc)		; Get sample buffer delta (7)
+	and	0Fh			; Mask to get the first nibble (7)
+	jr	z,Negate1	; Jump if it's zero (7)
+	ld	(hl),DAC_OUT; 10
+	ld	d,a			; 4
+	inc	e
+	ex	af,af'		; ADPCM mode (4)
+Sign1
+	add	a,d			; 4
+	ld	(hl),a		; 7
+	jp	SkipNegate1	; 10
 
-; Rest of code goes here
-Loop:
-	ld	a,(bc)
-	ld	(de),a
-	inc	bc
-	rept 20
-	nop
-	endm
-	jp	Loop
+Negate1:
+	ld	a,d
+	xor 00010000b	; Flip sign
+	ld	d,a
+	ld	(Sign1),a	; Toggle OP codes (ADD [82h] <=> SUB [92h])
+	ld	(Sign2),a
+	jp	Continue1
 
+SkipNegate1:
+	ex	af,af'	; Accumulator mode (4)
+	dec	e
 
+Continue1:
+	exx			; FM mode (4)
+
+	;ld	a,(bc)	; Get command
+	;ld	(hl),a	; Command to bank 0
+	;ld	a,(de)	; Get data
+	;inc l		; Data mode to bank 0
+	;ld	(hl),a	; Data to bank 0
+	;inc l		; Command mode to bank 1
+
+	exx			; PCM mode
+	ld	a,(bc)	; Get sample buffer delta
+	inc bc
+	and	0F0h
+	cp	14h
+	jr	z,Negate2
+	ld	(hl),DAC_OUT
+	rrca
+	rrca
+	rrca
+	rrca
+	ld	d,a
+	inc	e
+	ex	af,af'	; ADPCM mode
+Sign2
+	add	a,d
+	ld	(hl),a
+	jp	SkipNegate2
+
+Negate2:
+	ld	a,d
+	xor 00010000b	; Flip sign
+	ld	d,a
+	ld	(Sign1),a
+	ld	(Sign2),a	; Toggle OP codes (ADD [82h] <=> SUB [92h])
+	jp	Continue2
+
+SkipNegate2:
+	ex	af,af'	; Accumulator mode (4)
+	dec	e
+
+Continue2:
+	exx			; FM mode (4)
+
+	;ld	a,(bc)	; Get command
+	;ld	(hl),a	; Command to bank 1
+	;ld	a,(de)	; Get data
+	;inc l		; Data mode to bank 1
+	;ld	(hl),a	; Data to bank 1
+	;ld	l,0		; Command mode to bank 0
+
+	jp	LoopWithSamples
+
+Z80_ROM_End
+
+CommandBuffer
+	rorg 200h
+FMBuffer
+	rorg SAMPLE_BUFFER_HIGH_BYTE<<8|00 - $
 SampleBuffer
-	; Where the 68k buffers samples
+
     dephase	; The rest of the labels are mapped normally
 
 	cpu 68000
-
-Z80RomEnd

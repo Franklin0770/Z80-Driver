@@ -2,9 +2,12 @@
 ; to avoid wasting memory space and make it uneven. With padding on,
 ; the assembler will automatically fill odd words and longs to make them even and to avoid crashing.
 
-	org $FFFF0000
+	org M68K_WRAM
 ; 68000 variables
-sampleIndex:	ds.l 1	; Samples after Z80 routine execution
+sampleIndex:	ds.l	1
+copyMusicRoutine:
 
-	org $300
-; Z80 variables (away from code)
+	org $1500
+; Z80 variables (away from code and buffers)
+playedSamples:	ds.w 1	; Samples after Z80 routine execution
+lastADPCMValue:	ds.b 1	; 68k's ADPCM accumulator to share to the Z80
