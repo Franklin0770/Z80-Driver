@@ -3,7 +3,7 @@ Z80RomStart
 
     phase 0	; Set label addresses to the start of the Z80 RAM
 
-	ld	sp,0		; Align stack pointer correctly
+	ld	sp,2000h	; Align stack pointer correctly
 
 	ld	bc,4000h	; YM2612 bank 1 port
 	ld	hl,4001h	; YM2612 data port
@@ -16,36 +16,53 @@ Z80RomStart
 	ld	d,h		; ld de,hl
 	ld	e,l
 
-	;ld	hl,Wait68k+1	; Avoid replacing the actual OP code
+	ld	bc,SampleBuffer
 
-	im	1		; Mode 1 for interrupts
+	im	1
+
 	ei
 
 	halt		; Wait until next frame
 
-LoopInit:	; Execution falls here after the first interrupt
-	ld	(hl),Wait68k	; Replaces LoopInit with Wait68k
-	ld	sp,0
-	ld	bc,SampleBuffer	; Reset bc
-	ei
-	jp	Loop
+	rorg 38h - $
+$$VDP_VBlank:
+	; subtract 0090h from BC
+	ld	a,c
+	sub	90h
+	ld	c,a
+	ld	a,b
+	sbc	00h
+	ld	b,a
 
-	rorg 38h - $	; Cannot use regular org while dephasing
-Interrupt	; Must be in 38h when in mode 1
+	; now BC >>>= 1 (true 16-bit shift)
+	rr	b     ; shift high, MSB gets carry
+	rr	c     ; shift low, MSB gets old B LSB
+
+	ld	a,b
+	ld	(playedSamplesHigh),a
+	ld	a,c
+	ld	(playedSamplesLow),a
 Wait68k:
-	jp	Wait68k	; This gets replaced with LoopInit
+	jp	$
+.continue:
+	ld	a,Wait68k
+	ld	(Wait68k+1),a
+	ld	bc,SampleBuffer	; Reset bc
+	ld	sp,2000h
+	ei
 
 ; Rest of code goes here
 Loop:
 	ld	a,(bc)
 	ld	(de),a
-	inc	bc
-	rept 20
+	rept 19
 	nop
 	endm
+	inc	bc
+	inc bc
 	jp	Loop
 
-
+	rorg 90h - $
 SampleBuffer
 	; Where the 68k buffers samples
     dephase	; The rest of the labels are mapped normally

@@ -151,51 +151,61 @@ GenericError:
 	moveq	#12,d7
 	stop #$2700
 
-; a0: live samples, a2: Z80 samples
+; A2: live samples, A0: Z80 samples for later
 
 VDP_VBlank:
-	; 216 68k cycles for every 32 kHz sample
-	stopZ80	; Initiate Z80 stop, 20 cycles
-	lea Z80_BUSREQ,a4	; 8 cycles
-	; In the mean time, we can initialize the registers
-	move.l	(sampleIndex),a0	; 16 cycles
-	move.l	a0,a2	; Sample index while executing 68k routine, 4 cycles
-	addaq	26+1,a2	; Sample index after 68k routine execution (a0, at the end basically), 8 cycles
+	; 240 68k cycles for every 32 kHz sample
+	lea	(playedSamplesHigh|Z80_RAM),a5	; 8 cycles
 
-	lea	YM2612_DATA|Z80_RAM,a1	; 8 cycles
-	lea	SampleBuffer|Z80_RAM,a3	; 8 cycles
+	moveq	#12,d0	; 4 cycles
+$$z80_wait:			; 134 cycles
+	dbf d0,$$z80_wait
 
-	moveq	#27-1,d1	; 4 cycles
-	cmp.l	d0,d0		; waste 6 cycles
+	move.l	(sampleIndex),d2	; 12 cycles
+	moveq	#0,d0	; 4 cycles
 
-	; 82 cycles
+	stopZ80		; Initiate Z80 stop, 16 cycles
+	waitZ80		; 30 cycles
 
-	moveq	#13-1,d0	; 4 cycles
-$$timing_wait1:	; wait 130 cycles here
+	move.w	(a5)+,d0	; 8 cycles
+	move.b	(a5),d0		; 8 cycles
+	add.l	d0,d2		; 8 cycles
+	movea.l	d2,a2		; Sample index while executing 68k routine, 4 cycles
+
+	move.b	(a2)+,(YM2612_DATA|Z80_RAM)	; 16 cycles
+
+; --- Cycle count restarts ---
+
+	movea.l	d2,a0	; 4 cycles
+	addaq	23,a0	; Sample index after 68k routine execution (A0 at the end, basically), 8 cycles
+	move.l	a0,d2	; 4 cycles
+
+	lea	SampleBuffer|Z80_RAM,a1		; 8 cycles
+	lea	YM2612_DATA|Z80_RAM,a3		; 8 cycles
+
+	btst	#0,d2	; Is the sample index even? 6 cycles
+	beq.s	$$skip	; If yes, skip the alignment 12, 8 cycles
+	move.b	(a0)+,(a1)	; 12 cycles
+
+	move.l	#9,d0	; 12 cycles
+$$timing_wait1:		; 104 cycles
 	dbf d0,$$timing_wait1
+; --- 166 cycles in total ---
 
-	;moveq	#0,d0
-	;waitZ80	d0,a4	;let's say the Z80 may have completely stopped here. Fire hazard, maybe
+$$skip:	loadSamples
 
-$$copy_music: ; 514 samples to buffer on Z80
-	move.b	(a0)+,(a1)	; Keep sample playback alive
-	rept 19
-	move.b	(a2)+,(a3)+	; Copy samples into sound RAM as fast as possible
-	endm
-	dbf d1,$$copy_music
-	move.b	(a0),(a1)
-	move.b	(a2),(a3)	; To ensure one sample doesn't get skipped, a2 shouldn't increase
+	move.b	(a2)+,(a3)
 
-	move.b	#LoopInit,((Wait68k&$FF)|Z80_RAM)+1	; Replaces "jp Wait68k" with "jp LoopInit", to make sure the Z80 starts to output samples again
+; --- Cycle count restarts ---
 
-	moveq	#18,d0 ; 20, theoretically, but less since the Z80 takes some time to wake up (need to make this more precise, though)
+	move.b	#Wait68k.continue,((Wait68k+1)|Z80_RAM)	; 20 cycles
+	move.l	d2,(sampleIndex)	; 20 cycles
+
+	moveq	#8,d0 ; 20, theoretically, but less since the Z80 takes some time to wake up (need to make this more precise, though)
 $$timing_wait2:
 	dbf	d0,$$timing_wait2
-	
-	startZ80 a4	; Restart Z80 (d1: $00000000)
 
-	move.l 	a2,d0
-	move.l	d0,(sampleIndex)	; Update sample index relative to when the Z80 finishes the playback routine
+	startZ80	; Restart Z80
 
 	; DPLC loading queues
 	rte
@@ -205,8 +215,8 @@ EntryPoint:
 	lea		VDP_CTRL,a0
 
 ; VDP register setup
-	move.l  #(VDPREG_MODE1|%00000000)<<16|VDPREG_MODE2|%00100000,(a0)	; Mode register #1 and Mode register #2
-	move.l  #(VDPREG_MODE3|%00000000)<<16|VDPREG_MODE4|%00000000,(a0)	; Mode register #3 and Mode register #4
+	move.l  #(VDPREG_MODE1|%00000100)<<16|VDPREG_MODE2|%00100100,(a0)	; Mode register #1 and Mode register #2
+	move.l  #(VDPREG_MODE3|%00000000)<<16|VDPREG_MODE4|%10000001,(a0)	; Mode register #3 and Mode register #4
 	
 	move.l  #(VDPREG_PLANEA|(PLANEA_ADDR>>10))<<16|VDPREG_PLANEB|(PLANEB_ADDR>>13),(a0)	; Plane A and Plane B address
 	move.l  #(VDPREG_SPRITE|(SPRITE_ADDR>>9))<<16|VDPREG_WINDOW|(WINDOW_ADDR>>10),(a0)	; Sprite and Window address
@@ -232,11 +242,14 @@ EntryPoint:
 	lea Z80RomStart,a0
 	lea Z80_RAM,a1
 	move.l 	#Music,(sampleIndex)
-	moveq	#(Z80RomEnd-Z80RomStart)-1,d0	; Mustn't go over $7F
+	move.w	#(Z80RomEnd-Z80RomStart)-1,d0	; Mustn't go over $7F
 
 $$copy_program:
 	move.b	(a0)+,(a1)+
 	dbf d0,$$copy_program
+
+	clr.b	(playedSamplesHigh|Z80_RAM)
+	clr.b	(playedSamplesLow|Z80_RAM)
 
 	assertZ80Reset d2,a2	; Assert reset
 
@@ -245,19 +258,22 @@ $$wait:	; Wait for the YM2612
     dbf	d0,$$wait
 
 	deassertZ80Reset d2,a2	; Release reset
+
+	;loopTest1 53
+
 	startZ80 d1,a3			; Release bus
 
-	move	#$2500,sr
 HaltCPU:
-	;stop #$2500	; Wait until next interrupt
+	stop	#$2500	; Wait until next interrupt
 	bra.s	HaltCPU
 
 	include "Driver.z80"
 
 Music:
-	;binclude "continuity_test.bin" ; Test with increasing bytes to make sure no samples get skipped
-	binclude "assets/24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; Great music right here
+	binclude "continuity_test.bin" ; Test with increasing bytes to make sure no samples get skipped
+	;binclude "24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; Great music right here
 	;binclude "Don't Stand So Close To Me.raw" ; Another banger
 	;binclude "music.pcm" ; Let's not talk about this
+	;binclude "My Summary.raw"
 
 RomEnd

@@ -6,5 +6,8 @@
 ; 68000 variables
 sampleIndex:	ds.l 1	; Samples after Z80 routine execution
 
-	org $300
+	org $1000
 ; Z80 variables (away from code)
+playedSamplesHigh:	ds.b 1
+	ds.b 1
+playedSamplesLow:	ds.b 1

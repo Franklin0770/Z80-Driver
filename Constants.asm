@@ -2,7 +2,7 @@
 WRAM_ADDR:	equ $FF0000		; Work memory starting address
 JOY_CTRL:	equ $A10009		; 1P control port
 JOY_DATA:	equ $A10003   	; 1P data port
-SYS_STACK:	equ $000000
+SYS_STACK:	equ $FF0000
 
 ; Various memory space sizes in bytes
 WRAM_SIZE: 	equ 65536
@@ -84,7 +84,6 @@ JOY_R:	equ 3
 JOY_L:	equ 2
 JOY_D:	equ 1
 JOY_U:	equ 0
-
 
 YM2612_CONTROL:	equ $4000
 YM2612_DATA:	equ $4001

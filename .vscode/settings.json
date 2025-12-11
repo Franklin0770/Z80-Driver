@@ -10,5 +10,9 @@
 		"NOFLIP",
 		"VFLIP",
 		"VSRAM"
-	]
+	],
+	"megaenvironment.sourceCodeControl.currentWorkingFolders": [
+		"assets"
+	],
+	"workbench.colorTheme": "MegaEnvironment Dark"
 }
