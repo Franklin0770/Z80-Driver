@@ -13,10 +13,8 @@ Z80RomStart
 	dec	a			; Now a is 2Ah (DAC_IN)
 	ld	(bc),a		; Switch to DAC data input
 
-	ld	d,h		; ld de,hl
-	ld	e,l
-
-	ld	bc,SampleBuffer
+	ld	de,SampleBuffer
+	ld	iy,Z80RoutineAddress
 
 	im	1
 
@@ -26,41 +24,66 @@ Z80RomStart
 
 	rorg 38h - $
 $$VDP_VBlank:
-	; subtract 0090h from BC
-	ld	a,c
-	sub	90h
-	ld	c,a
-	ld	a,b
-	sbc	00h
-	ld	b,a
+	ld	hl,playedSamplesHigh
 
-	; now BC >>>= 1 (true 16-bit shift)
-	rr	b     ; shift high, MSB gets carry
-	rr	c     ; shift low, MSB gets old B LSB
+	; Subtract 0090h from DE
+	ld	a,e
+	sub	SampleBuffer
+	ld	e,a
+	;ld	a,d
+	;sbc	00h
+	;ld	d,a
 
-	ld	a,b
-	ld	(playedSamplesHigh),a
-	ld	a,c
-	ld	(playedSamplesLow),a
+	; Now DE >>>= 1 (true 16-bit shift)
+	rr	d     ; shift high, MSB gets carry
+	rr	e     ; shift low, MSB gets old B LSB
+
+	; DE is how many samples the Z80 played
+	ld	(hl),d	; High byte
+	inc l
+	inc l
+	ld	(hl),e	; Low byte
 Wait68k:
 	jp	$
 .continue:
 	ld	a,Wait68k
-	ld	(Wait68k+1),a
-	ld	bc,SampleBuffer	; Reset bc
-	ld	sp,2000h
+	ld	(Wait68k+1),a	; Close the infinite loop
+	ld	de,SampleBuffer	; Reset DE
+	ld	hl,4001h		; Reset HL
+	ld	sp,2000h		; Reset SP
 	ei
+	jp	(iy)
 
 ; Rest of code goes here
 Loop:
-	ld	a,(bc)
-	ld	(de),a
-	rept 19
+	ld	a,(de)
+	ld	(hl),a
+	rept 20
 	nop
 	endm
-	inc	bc
-	inc bc
-	jp	Loop
+	inc	e
+	inc de
+	jp	(iy)
+
+Loop_EndSoundInit:
+	ld	b,00h	; First byte
+	ld	c,00h	; Second byte
+$$loop_endSound1:
+	ld	a,(de)
+	ld	(hl),a
+	rept 16
+	nop
+	endm
+	inc	e
+	inc de
+	dec	bc
+	ld	a,b
+	or	c
+	jp	nz,$$loop_endSound1
+
+Loop_NoDAC:
+	di
+	halt
 
 	rorg 90h - $
 SampleBuffer

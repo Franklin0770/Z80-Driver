@@ -11,3 +11,4 @@ sampleIndex:	ds.l 1	; Samples after Z80 routine execution
 playedSamplesHigh:	ds.b 1
 	ds.b 1
 playedSamplesLow:	ds.b 1
+Z80RoutineAddress:	ds.w 1

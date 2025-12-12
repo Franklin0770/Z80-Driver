@@ -155,49 +155,68 @@ GenericError:
 
 VDP_VBlank:
 	; 240 68k cycles for every 32 kHz sample
-	lea	(playedSamplesHigh|Z80_RAM),a5	; 8 cycles
-
-	moveq	#12,d0	; 4 cycles
-$$z80_wait:			; 134 cycles
-	dbf d0,$$z80_wait
-
-	move.l	(sampleIndex),d2	; 12 cycles
-	moveq	#0,d0	; 4 cycles
-
-	stopZ80		; Initiate Z80 stop, 16 cycles
-	waitZ80		; 30 cycles
-
-	move.w	(a5)+,d0	; 8 cycles
-	move.b	(a5),d0		; 8 cycles
-	add.l	d0,d2		; 8 cycles
+	lea	YM2612_DATA|Z80_RAM,a3			; 8 cycles
+	lea	(playedSamplesHigh|Z80_RAM),a4	; 8 cycles
+	lea (Z80_BUSREQ),a5					; 8 cycles
+	move.l	(sampleIndex),d2			; 12 cycles
+	moveq	#0,d3						; 4 cycles
+	move.w	#$100,d4					; 4 cycles
+; --- 44 cycles in total ---
+	moveq	#11,d0		; 4 cycles
+$$z80_wait:
+	dbf d0,$$z80_wait	; 124 cycles
+; --- 172 cycles in total ---
+	stopZ80 d4,a5		; Initiate Z80 stop, 8 cycles
+	waitZ80 a5			; 26 cycles
+; --- 206 cycles in total ---
+	move.w	(a4)+,d3	; Get high byte of playedSamples, 8 cycles
+	move.b	(a4),d3		; Get lower byte of playedSamples, 8 cycles
+	add.l	d3,d2		; 8 cycles
 	movea.l	d2,a2		; Sample index while executing 68k routine, 4 cycles
-
-	move.b	(a2)+,(YM2612_DATA|Z80_RAM)	; 16 cycles
+; --- 234 cycles in total ---
+	move.b	(a2)+,(a3)	; Output sample, 12 cycles
 
 ; --- Cycle count restarts ---
 
 	movea.l	d2,a0	; 4 cycles
-	addaq	23,a0	; Sample index after 68k routine execution (A0 at the end, basically), 8 cycles
+	addaq	22+2,a0	; Sample index after 68k routine execution (A2 at the end, basically), 8 cycles
 	move.l	a0,d2	; 4 cycles
 
-	lea	SampleBuffer|Z80_RAM,a1		; 8 cycles
-	lea	YM2612_DATA|Z80_RAM,a3		; 8 cycles
+	lea	SampleBuffer|Z80_RAM,a1			; 8 cycles
+	lea	(Z80RoutineAddress)|Z80_RAM,a4	; 8 cycles
+	move.l	#RomEnd,d4					; 12 cycles
+	sub.l	d2,d4						; 8 cycles
+	sub.w	d4,d3	; Is the audio about to end (ends on the buffer)? 4 cycles
+	bhi.s	$$skip_tracking					; 10 cycles
+	; Z80 playback with sample tracking routine
+	move.b	#Loop_EndSoundInit&&$FF,(a4)+	; Little endian, 16 cycles
+	move.b	#Loop_EndSoundInit>>8,(a4)		; 16 cycles
+	move.b	d3,(Loop_EndSoundInit+1)		; 12 cycles
+	lsr.w	#8,d3							; 22 cycles
+	move.b	d3,(Loop_EndSoundInit+3)		; 16 cycles
+	bra.s	$$continue						; 10 cycles
 
-	btst	#0,d2	; Is the sample index even? 6 cycles
-	beq.s	$$skip	; If yes, skip the alignment 12, 8 cycles
-	move.b	(a0)+,(a1)	; 12 cycles
+$$skip_tracking:
+	; Normal Z80 playback
+	move.b	#Loop&&$FF,(a4)+	; Little endian, 16 cycles
+	move.b	#Loop>>8,(a4)		; 16 cycles
+
+$$continue:
+	btst	#0,d2				; Is the sample index even? 6 cycles
+	beq.s	$$skip_alignment	; If yes, skip the alignment, 10 cycles
+	move.b	(a0)+,(a1)			; If not, the 68k will crash, so we avoid it. 12 cycles
+$$skip_alignment:
 
 	move.l	#9,d0	; 12 cycles
 $$timing_wait1:		; 104 cycles
 	dbf d0,$$timing_wait1
 ; --- 166 cycles in total ---
 
-$$skip:	loadSamples
+	loadSamples
 
 	move.b	(a2)+,(a3)
 
 ; --- Cycle count restarts ---
-
 	move.b	#Wait68k.continue,((Wait68k+1)|Z80_RAM)	; 20 cycles
 	move.l	d2,(sampleIndex)	; 20 cycles
 
@@ -205,7 +224,7 @@ $$skip:	loadSamples
 $$timing_wait2:
 	dbf	d0,$$timing_wait2
 
-	startZ80	; Restart Z80
+	startZ80 a5	; Restart Z80
 
 	; DPLC loading queues
 	rte
