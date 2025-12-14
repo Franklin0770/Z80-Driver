@@ -182,7 +182,13 @@ i set 8
 
 	while i < 1072
 
-	move.b	(a2)+,(a3)
+	if smoothPlayback
+		move.b	(a2)+,(a3)
+	else
+		nop
+		nop
+		nop
+	endif
 
 	move.l	(a0)+,d0
 	movep.l d0,(i+(8*0),a1)
@@ -204,7 +210,13 @@ i set 8
 
 	move.l	(a0)+,d0
 
-	move.b	(a2)+,(a3)
+	if smoothPlayback
+		move.b	(a2)+,(a3)
+	else
+		nop
+		nop
+		nop
+	endif
 
 	movep.l	d0,(i+(8*6),a1)
 
@@ -226,7 +238,13 @@ i set 8
 	move.l	(a0)+,d0
 	move.l	(a0)+,d1
 
-	move.b	(a2)+,(a3)
+	if smoothPlayback
+		move.b	(a2)+,(a3)
+	else
+		nop
+		nop
+		nop
+	endif
 
 	movep.l	d0,(i+(8*12),a1)
 	movep.l	d1,(i+(8*13),a1)
@@ -250,7 +268,7 @@ i set i + 152
 	endm
 	endm
 
-loopTest1: macro rate
+loopTest: macro rate
 	lea	(YM2612_CONTROL|Z80_RAM),a2
 	lea	(YM2612_DATA|Z80_RAM),a1
 	move.b	#DAC_ENABLE,(a2)
@@ -264,15 +282,6 @@ $$loop:
 	nop		; 4 cycles
 	endm
 	bra.w	$$loop	; 10 cycles
-	endm
-
-loopTest2: macro rate
-	lea	(YM2612_CONTROL|Z80_RAM),a2
-	lea	(YM2612_DATA|Z80_RAM),a1
-	move.b	#DAC_ENABLE,(a2)
-	move.b	#$80,(a1)
-	move.b	#DAC_IN,(a2)
-	lea	Music,a0
 	endm
 
 loadSamplesAlt: macro

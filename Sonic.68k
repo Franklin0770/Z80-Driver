@@ -3,16 +3,16 @@
 ; CONSTANT_VALUE
 ; MainRoutineAndLables
 ; sub_routine
-	
-	cpu 68000
-	
-	supmode on ; We don't need warnings about privileged instructions
+
+	listing purecode ; We sure want the listing file, but only the final code in expanded macros
 
 	include "Variables.asm"
 	include "Constants.asm"
 	include "Macros.asm"
 
-	listing purecode ; We sure want the listing file, but only the final code in expanded macros
+; These switches enable the entire purpose of this driver and disabling them likely makes the playback similar to "traditional" DAC drivers
+smoothPlayback:	equ TRUE	; Put it to FALSE to prevent 68k output during buffer load
+accurateSpeed:	equ TRUE	; Put it to FALSE to ignore 68k sample increment calculation
 
 	org 0
 
@@ -158,48 +158,57 @@ VDP_VBlank:
 	lea	YM2612_DATA|Z80_RAM,a3			; 8 cycles
 	lea	(playedSamplesHigh|Z80_RAM),a4	; 8 cycles
 	lea (Z80_BUSREQ),a5					; 8 cycles
+	move.w	#$100,d1					; 8 cycles
 	move.l	(sampleIndex),d2			; 12 cycles
 	moveq	#0,d3						; 4 cycles
-	move.w	#$100,d4					; 4 cycles
 ; --- 44 cycles in total ---
-	moveq	#11,d0		; 4 cycles
+	move.l	#10,d0		; The high 16-bit portion clears, 12 cycles
 $$z80_wait:
-	dbf d0,$$z80_wait	; 124 cycles
-; --- 172 cycles in total ---
-	stopZ80 d4,a5		; Initiate Z80 stop, 8 cycles
-	waitZ80 a5			; 26 cycles
-; --- 206 cycles in total ---
-	move.w	(a4)+,d3	; Get high byte of playedSamples, 8 cycles
-	move.b	(a4),d3		; Get lower byte of playedSamples, 8 cycles
-	add.l	d3,d2		; 8 cycles
+	dbf d0,$$z80_wait	; 114 cycles
+; --- 174 cycles in total ---
+	stopZ80 d1,a5		; Initiate Z80 stop, 8 cycles
+	waitZ80	d3,a5		; 12 cycles (at best)
+; --- 194 cycles in total ---
+	move.w	(a4)+,d0	; Get high byte of playedSamples, 8 cycles
+	move.b	(a4),d0		; Get lower byte of playedSamples, 8 cycles
+	add.l	d0,d2		; 8 cycles
 	movea.l	d2,a2		; Sample index while executing 68k routine, 4 cycles
-; --- 234 cycles in total ---
-	move.b	(a2)+,(a3)	; Output sample, 12 cycles
+; --- 222 cycles in total ---
+	if smoothPlayback
+		move.b	(a2)+,(a3)	; Output sample, 12 cycles
+	else
+		nop
+		nop
+		nop
+	endif
 
 ; --- Cycle count restarts ---
 
 	movea.l	d2,a0	; 4 cycles
-	addaq	22+2,a0	; Sample index after 68k routine execution (A2 at the end, basically), 8 cycles
-	move.l	a0,d2	; 4 cycles
 
-	lea	SampleBuffer|Z80_RAM,a1			; 8 cycles
-	lea	(Z80RoutineAddress)|Z80_RAM,a4	; 8 cycles
-	move.l	#RomEnd,d4					; 12 cycles
-	sub.l	d2,d4						; 8 cycles
-	sub.w	d4,d3	; Is the audio about to end (ends on the buffer)? 4 cycles
-	bhi.s	$$skip_tracking					; 10 cycles
+	if accurateSpeed
+		addaq	22+2,a0	; Sample index after 68k routine execution (A2 at the end, basically), 8 cycles
+		move.l	a0,d2	; D2 is now the updated sample index, 4 cycles
+	endif
+
+	lea	SampleBuffer|Z80_RAM,a1	; 8 cycles
+	move.l	#RomEnd,d1			; 12 cycles
+	cmp.l	d2,d1				; Is the audio about to end (ends on Z80 buffer)? 8 cycles
+; --- 56 cycles in total ---
+	bge.s	$$skip_tracking		; 10 cycles on branch, 8 cycles no branch
 	; Z80 playback with sample tracking routine
-	move.b	#Loop_EndSoundInit&&$FF,(a4)+	; Little endian, 16 cycles
-	move.b	#Loop_EndSoundInit>>8,(a4)		; 16 cycles
-	move.b	d3,(Loop_EndSoundInit+1)		; 12 cycles
+	move.b	#Loop_EndSoundInit,(Z80RoutineAddress+2)|Z80_RAM	; Little endian, 16 cycles
+	move.w	d2,d3	; Backup D2 to D3 to avoid changing D2, 4 cycles
+	sub.w	d1,d3	; D3 is now the distance to the end of the audio (after 68k execution), 4 cycles
+	move.b	d3,(Loop_EndSoundInit+1|Z80_RAM); 16 cycles
 	lsr.w	#8,d3							; 22 cycles
-	move.b	d3,(Loop_EndSoundInit+3)		; 16 cycles
+	move.b	d3,(Loop_EndSoundInit+3|Z80_RAM); 16 cycles
+	not.b	shouldStop						; 16 cycles
 	bra.s	$$continue						; 10 cycles
-
+; --- 152 cycles in total ---
 $$skip_tracking:
-	; Normal Z80 playback
-	move.b	#Loop&&$FF,(a4)+	; Little endian, 16 cycles
-	move.b	#Loop>>8,(a4)		; 16 cycles
+	; Normal Z80 playback routine
+	move.b	#Loop,(Z80RoutineAddress+2)|Z80_RAM	; Little endian, 16 cycles
 
 $$continue:
 	btst	#0,d2				; Is the sample index even? 6 cycles
@@ -207,20 +216,26 @@ $$continue:
 	move.b	(a0)+,(a1)			; If not, the 68k will crash, so we avoid it. 12 cycles
 $$skip_alignment:
 
-	move.l	#9,d0	; 12 cycles
+	moveq	#7,d0	; 4 cycles
 $$timing_wait1:		; 104 cycles
 	dbf d0,$$timing_wait1
 ; --- 166 cycles in total ---
 
-	loadSamples
+	loadSamples	; D0 and D1 break here
 
-	move.b	(a2)+,(a3)
+	if smoothPlayback
+		move.b	(a2)+,(a3)	; Output sample, 12 cycles
+	else
+		nop
+		nop
+		nop
+	endif
 
 ; --- Cycle count restarts ---
 	move.b	#Wait68k.continue,((Wait68k+1)|Z80_RAM)	; 20 cycles
 	move.l	d2,(sampleIndex)	; 20 cycles
 
-	moveq	#8,d0 ; 20, theoretically, but less since the Z80 takes some time to wake up (need to make this more precise, though)
+	moveq	#7,d0 ; 20 theoretically, but less since the Z80 takes some time to wake up (need to make this more precise, though)
 $$timing_wait2:
 	dbf	d0,$$timing_wait2
 
@@ -269,6 +284,7 @@ $$copy_program:
 
 	clr.b	(playedSamplesHigh|Z80_RAM)
 	clr.b	(playedSamplesLow|Z80_RAM)
+	clr.b	(shouldStop)
 
 	assertZ80Reset d2,a2	; Assert reset
 
@@ -283,15 +299,20 @@ $$wait:	; Wait for the YM2612
 	startZ80 d1,a3			; Release bus
 
 HaltCPU:
-	stop	#$2500	; Wait until next interrupt
-	bra.s	HaltCPU
+	tst.b	shouldStop
+	bne.s	$$disableCPU
+$$wait:
+	stop	#$2500
+	bra.s	$$wait
+$$disableCPU:
+	stop	#$2700
 
 	include "Driver.z80"
 
 Music:
-	binclude "continuity_test.bin" ; Test with increasing bytes to make sure no samples get skipped
+	;binclude "continuity_test.bin" ; Test with increasing bytes to make sure no samples get skipped
 	;binclude "24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; Great music right here
-	;binclude "Don't Stand So Close To Me.raw" ; Another banger
+	binclude "Don't Stand So Close To Me.raw" ; Another banger
 	;binclude "music.pcm" ; Let's not talk about this
 	;binclude "My Summary.raw"
 

@@ -3,6 +3,8 @@ Z80RomStart
 
     phase 0	; Set label addresses to the start of the Z80 RAM
 
+	ld	de,SampleBuffer
+
 	ld	sp,2000h	; Align stack pointer correctly
 
 	ld	bc,4000h	; YM2612 bank 1 port
@@ -13,14 +15,19 @@ Z80RomStart
 	dec	a			; Now a is 2Ah (DAC_IN)
 	ld	(bc),a		; Switch to DAC data input
 
-	ld	de,SampleBuffer
-	ld	iy,Z80RoutineAddress
-
 	im	1
-
 	ei
-
 	halt		; Wait until next frame
+
+Loop:
+	ld	a,(de)
+	ld	(hl),a
+	rept 20
+	nop
+	endm
+	inc	e
+	inc de
+	jp	(iy)
 
 	rorg 38h - $
 $$VDP_VBlank:
@@ -30,9 +37,9 @@ $$VDP_VBlank:
 	ld	a,e
 	sub	SampleBuffer
 	ld	e,a
-	;ld	a,d
-	;sbc	00h
-	;ld	d,a
+	ld	a,d
+	sbc	00h
+	ld	d,a
 
 	; Now DE >>>= 1 (true 16-bit shift)
 	rr	d     ; shift high, MSB gets carry
@@ -51,23 +58,14 @@ Wait68k:
 	ld	de,SampleBuffer	; Reset DE
 	ld	hl,4001h		; Reset HL
 	ld	sp,2000h		; Reset SP
+Z80RoutineAddress:
+	ld	iy,0000h
 	ei
 	jp	(iy)
 
-; Rest of code goes here
-Loop:
-	ld	a,(de)
-	ld	(hl),a
-	rept 20
-	nop
-	endm
-	inc	e
-	inc de
-	jp	(iy)
-
 Loop_EndSoundInit:
-	ld	b,00h	; First byte
 	ld	c,00h	; Second byte
+	ld	b,00h	; First byte
 $$loop_endSound1:
 	ld	a,(de)
 	ld	(hl),a
