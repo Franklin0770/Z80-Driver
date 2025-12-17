@@ -22,30 +22,32 @@ Z80RomStart
 Loop:
 	ld	a,(de)
 	ld	(hl),a
-	rept 20
-	nop
-	endm
 	inc	e
 	inc de
+	rept 20
+	nop			; Interrupt usually occurs here
+	endm
 	jp	(iy)
 
 	rorg 38h - $
 $$VDP_VBlank:
-	ld	hl,playedSamplesHigh
+	ld	a,(de)
+	ld	(hl),a
 
 	; Subtract 0090h from DE
 	ld	a,e
-	sub	SampleBuffer
+	sub	SampleBuffer-8
 	ld	e,a
 	ld	a,d
 	sbc	00h
 	ld	d,a
 
-	; Now DE >>>= 1 (true 16-bit shift)
+	; Now DE >> 1 (true 16-bit shift)
 	rr	d     ; shift high, MSB gets carry
 	rr	e     ; shift low, MSB gets old B LSB
 
 	; DE is how many samples the Z80 played
+	ld	hl,playedSamplesHigh
 	ld	(hl),d	; High byte
 	inc l
 	inc l

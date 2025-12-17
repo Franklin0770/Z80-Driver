@@ -14,5 +14,6 @@
 	"megaenvironment.sourceCodeControl.currentWorkingFolders": [
 		"assets"
 	],
-	"workbench.colorTheme": "MegaEnvironment Dark"
+	"workbench.colorTheme": "MegaEnvironment Dark",
+	"megaenvironment.buildControl.enablePreviousBuilds": false
 }

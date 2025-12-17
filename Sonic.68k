@@ -4,11 +4,11 @@
 ; MainRoutineAndLables
 ; sub_routine
 
-	listing purecode ; We sure want the listing file, but only the final code in expanded macros
-
 	include "Variables.asm"
 	include "Constants.asm"
 	include "Macros.asm"
+
+	listing purecode ; We sure want the listing file, but only the final code in expanded macros
 
 ; These switches enable the entire purpose of this driver and disabling them likely makes the playback similar to "traditional" DAC drivers
 smoothPlayback:	equ TRUE	; Put it to FALSE to prevent 68k output during buffer load
@@ -152,33 +152,33 @@ GenericError:
 	stop #$2700
 
 ; A2: live samples, A0: Z80 samples for later
+; 240 68k cycles for every 32 kHz sample
 
 VDP_VBlank:
-	; 240 68k cycles for every 32 kHz sample
+; --- ~20 cycles in total ---
 	lea	YM2612_DATA|Z80_RAM,a3			; 8 cycles
-	lea	(playedSamplesHigh|Z80_RAM),a4	; 8 cycles
-	lea (Z80_BUSREQ),a5					; 8 cycles
+	lea	playedSamplesHigh|Z80_RAM,a4	; 8 cycles
+	lea Z80_BUSREQ,a5					; 8 cycles
 	move.w	#$100,d1					; 8 cycles
 	move.l	(sampleIndex),d2			; 12 cycles
 	moveq	#0,d3						; 4 cycles
-; --- 44 cycles in total ---
-	move.l	#10,d0		; The high 16-bit portion clears, 12 cycles
+; --- 68 cycles in total ---
+	moveq	#10,d0		; The high 16-bit portion clears, 4 cycles
 $$z80_wait:
 	dbf d0,$$z80_wait	; 114 cycles
-; --- 174 cycles in total ---
+; --- 186 cycles in total ---
 	stopZ80 d1,a5		; Initiate Z80 stop, 8 cycles
 	waitZ80	d3,a5		; 12 cycles (at best)
-; --- 194 cycles in total ---
+; --- 206 cycles in total ---
 	move.w	(a4)+,d0	; Get high byte of playedSamples, 8 cycles
 	move.b	(a4),d0		; Get lower byte of playedSamples, 8 cycles
 	add.l	d0,d2		; 8 cycles
 	movea.l	d2,a2		; Sample index while executing 68k routine, 4 cycles
-; --- 222 cycles in total ---
+; --- 234 cycles in total ---
 	if smoothPlayback
 		move.b	(a2)+,(a3)	; Output sample, 12 cycles
-	else
-		nop
-		nop
+	elseif accurateSpeed
+		addq.l	#1,a2
 		nop
 	endif
 
@@ -187,47 +187,51 @@ $$z80_wait:
 	movea.l	d2,a0	; 4 cycles
 
 	if accurateSpeed
-		addaq	22+2,a0	; Sample index after 68k routine execution (A2 at the end, basically), 8 cycles
+		addaq	21+2,a0	; Sample index after 68k routine execution (A2 at the end, basically), 8 cycles
 		move.l	a0,d2	; D2 is now the updated sample index, 4 cycles
 	endif
 
 	lea	SampleBuffer|Z80_RAM,a1	; 8 cycles
+; --- 24 cycles in total ---
+	btst	#0,d2				; Is the sample index even? 6 cycles
+	beq.s	$$skip_alignment	; If yes, skip the alignment, 10 cycles
+	move.b	(a0)+,(a1)			; If not, the 68k will crash, so we avoid it. 12 cycles
+	addq.l	#2,a1
+	move.l	a0,d2	; D2 is now the updated sample index, 4 cycles
+$$skip_alignment:
+	nop			; 4 cycles
+	nop			; 4 cycles
+	nop			; 4 cycles
 	move.l	#RomEnd,d1			; 12 cycles
 	cmp.l	d2,d1				; Is the audio about to end (ends on Z80 buffer)? 8 cycles
-; --- 56 cycles in total ---
+; --- 72 cycles in total ---
 	bge.s	$$skip_tracking		; 10 cycles on branch, 8 cycles no branch
 	; Z80 playback with sample tracking routine
 	move.b	#Loop_EndSoundInit,(Z80RoutineAddress+2)|Z80_RAM	; Little endian, 16 cycles
-	move.w	d2,d3	; Backup D2 to D3 to avoid changing D2, 4 cycles
-	sub.w	d1,d3	; D3 is now the distance to the end of the audio (after 68k execution), 4 cycles
-	move.b	d3,(Loop_EndSoundInit+1|Z80_RAM); 16 cycles
-	lsr.w	#8,d3							; 22 cycles
-	move.b	d3,(Loop_EndSoundInit+3|Z80_RAM); 16 cycles
-	not.b	shouldStop						; 16 cycles
+	sub.l	d1,d2	; D2 is now the distance to the end of the audio (after 68k execution), 8 cycles
+	move.b	d2,(Loop_EndSoundInit+1|Z80_RAM); 16 cycles
+	lsr.w	#8,d2							; 22 cycles
+	move.b	d2,(Loop_EndSoundInit+3|Z80_RAM); 16 cycles
+	move.b	#1,shouldStop					; 16 cycles
 	bra.s	$$continue						; 10 cycles
-; --- 152 cycles in total ---
+; --- 82 cycles in total ---
 $$skip_tracking:
 	; Normal Z80 playback routine
 	move.b	#Loop,(Z80RoutineAddress+2)|Z80_RAM	; Little endian, 16 cycles
 
 $$continue:
-	btst	#0,d2				; Is the sample index even? 6 cycles
-	beq.s	$$skip_alignment	; If yes, skip the alignment, 10 cycles
-	move.b	(a0)+,(a1)			; If not, the 68k will crash, so we avoid it. 12 cycles
-$$skip_alignment:
-
-	moveq	#7,d0	; 4 cycles
-$$timing_wait1:		; 104 cycles
+; --- 98 cycles in total ---
+	moveq	#4,d0	; 4 cycles
+$$timing_wait1:		; 54 cycles
 	dbf d0,$$timing_wait1
-; --- 166 cycles in total ---
+; --- 156 cycles in total ---
 
 	loadSamples	; D0 and D1 break here
 
 	if smoothPlayback
 		move.b	(a2)+,(a3)	; Output sample, 12 cycles
-	else
-		nop
-		nop
+	elseif accurateSpeed
+		addq.l	#1,a2
 		nop
 	endif
 
@@ -235,7 +239,7 @@ $$timing_wait1:		; 104 cycles
 	move.b	#Wait68k.continue,((Wait68k+1)|Z80_RAM)	; 20 cycles
 	move.l	d2,(sampleIndex)	; 20 cycles
 
-	moveq	#7,d0 ; 20 theoretically, but less since the Z80 takes some time to wake up (need to make this more precise, though)
+	moveq	#7,d0
 $$timing_wait2:
 	dbf	d0,$$timing_wait2
 
@@ -262,8 +266,8 @@ EntryPoint:
 
 ; Start of ROM code
 
-	lea (Z80_BUSREQ),a3
-	lea (Z80_RESET),a2
+	lea Z80_BUSREQ,a3
+	lea Z80_RESET,a2
 
 	move.w	#$100,d2	; Assert, stop
 	moveq	#0,d1		; Deassert, start
@@ -294,16 +298,15 @@ $$wait:	; Wait for the YM2612
 
 	deassertZ80Reset d2,a2	; Release reset
 
-	;loopTest1 53
+	;loopTest 53
 
 	startZ80 d1,a3			; Release bus
 
 HaltCPU:
 	tst.b	shouldStop
 	bne.s	$$disableCPU
-$$wait:
 	stop	#$2500
-	bra.s	$$wait
+	bra.s	HaltCPU
 $$disableCPU:
 	stop	#$2700
 

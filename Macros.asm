@@ -184,9 +184,8 @@ i set 8
 
 	if smoothPlayback
 		move.b	(a2)+,(a3)
-	else
-		nop
-		nop
+	elseif accurateSpeed
+		addq.l	#1,a2
 		nop
 	endif
 
@@ -212,9 +211,8 @@ i set 8
 
 	if smoothPlayback
 		move.b	(a2)+,(a3)
-	else
-		nop
-		nop
+	elseif accurateSpeed
+		addq.l	#1,a2
 		nop
 	endif
 
@@ -240,9 +238,8 @@ i set 8
 
 	if smoothPlayback
 		move.b	(a2)+,(a3)
-	else
-		nop
-		nop
+	elseif accurateSpeed
+		addq.l	#1,a2
 		nop
 	endif
 
@@ -277,7 +274,7 @@ loopTest: macro rate
 	lea	Music,a0
 $$loop:
 	move.b	(a0)+,(a1)	; 12 cycles
-	;cmp.l	d0,d0		; 6 cycles
+	cmp.l	d0,d0		; 6 cycles
 	rept rate
 	nop		; 4 cycles
 	endm
