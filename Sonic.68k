@@ -85,10 +85,10 @@ RomStart ; Vectors
 ; ROM header
 		dc.b "SEGA MEGA DRIVE",$20				; "$20" is padding
 		dc.b "(C)BRO0 2024.OCT"					; Copyright(-ish), release year and month
-		dc.b "Presentazione sistemi: 68k e x86"	; Domestic name
-		dc.b "                "					; padding
-		dc.b "Presentazione sistemi: 68k e x86"	; Overseas name
-		dc.b "                "					; padding
+		dc.b "Codename FrankPCM: a high-tech audio driver"	; Domestic name
+		dc.b "     "							; padding
+		dc.b "Codename FrankPCM: a high-tech audio driver"	; Domestic name
+		dc.b "     "							; padding
 		dc.b "AI-23456786-00"					; Serial number (I mashed the keyboard for this)
 		dc.w $0000								; Empty checksum
 		dc.b "J"								; Joypad type
@@ -209,6 +209,7 @@ $$skip_alignment:
 	; Z80 playback with sample tracking routine
 	move.b	#Loop_EndSoundInit,(Z80RoutineAddress+2)|Z80_RAM	; Little endian, 16 cycles
 	sub.l	d1,d2	; D2 is now the distance to the end of the audio (after 68k execution), 8 cycles
+	subq.l	#1,d2
 	move.b	d2,(Loop_EndSoundInit+1|Z80_RAM); 16 cycles
 	lsr.w	#8,d2							; 22 cycles
 	move.b	d2,(Loop_EndSoundInit+3|Z80_RAM); 16 cycles
@@ -250,6 +251,8 @@ $$timing_wait2:
 
 
 EntryPoint:
+	;move.l	#"SEGA",($00A14000)
+
 	lea		VDP_CTRL,a0
 
 ; VDP register setup
@@ -263,6 +266,11 @@ EntryPoint:
     move.l  #(VDPREG_SIZE|$00)<<16|VDPREG_WINX|$00,(a0)		; Tilemap size and Window X split
     move.l  #(VDPREG_WINY|$00)<<16|VDPREG_INCR|$00,(a0)		; Window Y split and Autoincrement
     move.l  #(VDPREG_BGCOL|$00)<<16|VDPREG_HRATE|$FF,(a0)	; Background color and HBlank IRQ rate
+
+$$JOY_Setup
+	moveq	#$40,d0
+	move.b 	d0,(JOY_CTRL)
+	move.b 	d0,(JOY_DATA)
 
 ; Start of ROM code
 
@@ -302,20 +310,37 @@ $$wait:	; Wait for the YM2612
 
 	startZ80 d1,a3			; Release bus
 
+ReadJoypad:
+	lea	JOY_DATA,a0
+	move.b 	#$40,(a0)	; write $40 to request controller state
+	nop	; wait for the bus to get the controller state
+	nop
+	nop
+	nop
+	move.b	(a0),d0	; put control state somewhere
+	btst 	#JOY_C,d0
+	beq.w	PlaySample
+
 HaltCPU:
 	tst.b	shouldStop
 	bne.s	$$disableCPU
 	stop	#$2500
-	bra.s	HaltCPU
+	bra.s	ReadJoypad
 $$disableCPU:
 	stop	#$2700
+
+PlaySample:
+	move.l	#Music,(sampleIndex)
+	bra.s	HaltCPU
 
 	include "Driver.z80"
 
 Music:
 	;binclude "continuity_test.bin" ; Test with increasing bytes to make sure no samples get skipped
 	;binclude "24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; Great music right here
-	binclude "Don't Stand So Close To Me.raw" ; Another banger
+	;binclude "Don't Stand So Close To Me.raw" ; Another banger
+	;binclude "Spirits In The Material World.raw" ; This is a good one
+	;binclude "Every Little Thing She Does Is Magic.raw" ; Another nice one
 	;binclude "music.pcm" ; Let's not talk about this
 	;binclude "My Summary.raw"
 
