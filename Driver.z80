@@ -3,91 +3,303 @@ Z80RomStart
 
     phase 0	; Set label addresses to the start of the Z80 RAM
 
-	ld	de,SampleBuffer
+	ld	de,sampleBuffer
 
-	ld	sp,2000h	; Align stack pointer correctly
+	ld	sp,Z80_STACK	; Align stack pointer correctly
 
-	ld	bc,4000h	; YM2612 bank 1 port
-	ld	hl,4001h	; YM2612 data port
-	ld	a,DAC_ENABLE; DAC enable address
-	ld	(bc),a		; Switch to DAC enable register
-	ld	(hl),80h	; Enable DAC
-	dec	a			; Now a is 2Ah (DAC_IN)
-	ld	(bc),a		; Switch to DAC data input
+	ld	bc,YM2612_CTRL0	; YM2612 bank 1 port
+	ld	hl,YM2612_DATA0	; YM2612 data port
+
+	exx
+
+	ld	hl,sampleIndex_High
+	ld	(hl),(Music>>16)&0FFh	; 1 byte Big-endian
+	inc	hl
+	ld	(hl),Music&0FFh			; 2 bytes Little-endian
+	inc	hl
+	ld	(hl),(Music>>8)&0FFh
+
+	ld	de,Z80BUS_BANK
+
+	ld	a,(sampleIndex_Low+1)
+	rlca
+	ld	(de),a
+
+	ld	a,(sampleIndex_High)
+	ld	b,8
+$$bank_init:
+	ld	(de),a
+	rrca
+	djnz $$bank_init
 
 	im	1
-	ei
-	halt		; Wait until next frame
+	di
 
-Loop:
+	jp	$$BufferInit
+
+	rorg 38h - $	; Can't use ORG while mapping labels to Z80 RAM
+; VDP VBlank
+	bit	7,h
+	jr	nz,$$hl_is_bank
+	ld	a,(de)				; 7
+	ld	(hl),a				; 7
+	inc	de					; 6
+	jp	$$continue
+$$hl_is_bank:
+	exx
+	ld	a,(de)				; 7
+	ld	(hl),a				; 7
+	inc	de					; 6
+$$continue:
+	exx
+	bit	0,l
+	jr	z,$$skip_alignment
+	ld	a,(hl)
+	ld	(de),a
+	inc	hl
+	inc	de
+$$skip_alignment:
+	ld	a,(hl)
+	ld	(de),a
+	inc	hl
+	inc	de
+	ld	a,(hl)
+	ld	(de),a
+	inc	hl
+	inc	de
+	ld	a,(hl)
+	ld	(de),a
+	inc	hl
+	inc	de
+	ld	a,(hl)
+	ld	(de),a
+	inc	hl
+	inc	de
+
+	; Preserve bit 15 from old sampleIndex_Low
+	ld	bc,sampleIndex_Low+1
+	ld	a,(bc)
+	ld	(sampleIndex_Low),hl
+	and	80h
+	res	7,h
+	or	h
+	ld	(bc),a
+
+	ld	de,sampleBuffer
+	ld	sp,Z80_STACK
+	
+	exx
+
+	ld	de,sampleBuffer
+
+	ld	b,64	; Guard ~2 ms of delay to get out of VBlank (which is 1.4–1.6 ms)
+$$loop_DacOnly:
 	ld	a,(de)
 	ld	(hl),a
-	inc	e
 	inc de
-	rept 20
-	nop			; Interrupt usually occurs here
-	endm
-	jp	(iy)
-
-	rorg 38h - $
-$$VDP_VBlank:
-	ld	a,(de)
-	ld	(hl),a
-
-	; Subtract 0090h from DE
-	ld	a,e
-	sub	SampleBuffer-8
-	ld	e,a
-	ld	a,d
-	sbc	00h
-	ld	d,a
-
-	; Now DE >> 1 (true 16-bit shift)
-	rr	d     ; shift high, MSB gets carry
-	rr	e     ; shift low, MSB gets old B LSB
-
-	; DE is how many samples the Z80 played
-	ld	hl,playedSamplesHigh
-	ld	(hl),d	; High byte
-	inc l
-	inc l
-	ld	(hl),e	; Low byte
-Wait68k:
-	jp	$
-.continue:
-	ld	a,Wait68k
-	ld	(Wait68k+1),a	; Close the infinite loop
-	ld	de,SampleBuffer	; Reset DE
-	ld	hl,4001h		; Reset HL
-	ld	sp,2000h		; Reset SP
-Z80RoutineAddress:
-	ld	iy,0000h
-	ei
-	jp	(iy)
-
-Loop_EndSoundInit:
-	ld	c,00h	; Second byte
-	ld	b,00h	; First byte
-$$loop_endSound1:
-	ld	a,(de)
-	ld	(hl),a
+	cp	0
+	cp	0
 	rept 16
 	nop
 	endm
-	inc	e
-	inc de
-	dec	bc
-	ld	a,b
-	or	c
-	jp	nz,$$loop_endSound1
+	djnz $$loop_DacOnly
 
-Loop_NoDAC:
-	di
+	ei
+
+	ld	a,(de)
+	ld	(hl),a
+	inc de
+
+	rept 26
+	nop
+	endm
+
+	ld	b,152
+$$loop_YmAndDac:
+	ld	a,(de)
+	ld	(hl),a
+	inc de
+	cp	0
+	cp	0
+	rept 16
+	nop
+	endm
+	djnz $$loop_YmAndDac
+	nop
+	ld	a,(de)
+	ld	(hl),a
+	inc de
+
+	rept 26
+	nop
+	endm
+
+	ld	b,32
+$$loop_SnAndDac:
+	ld	a,(de)
+	ld	(hl),a
+	inc de
+	cp	0
+	cp	0
+	rept 16
+	nop
+	endm
+	djnz $$loop_SnAndDac
+	nop
+	ld	a,(de)
+	ld	(hl),a
+	inc de
+
+	push de
+	exx
+	pop hl	; LD HL,DE'
+
+	or	a	; Clear carry flag
+	sbc	hl,de
+	dec	l
+	ld	b,l
+
+	ld	de,sampleBuffer
+	ld	hl,(sampleIndex_Low)
+	set	7,h
+	; We have to make sure HL is even here
+$$LoadBuffer_2x:
+	exx						; 4
+	ld	a,(de)				; 7
+	ld	(hl),a				; 7
+	inc	de					; 6
+	exx						; 4
+	ld	a,(hl)				; 7
+	ld	(de),a				; 7
+	inc	hl					; 6
+	inc	de					; 6
+	ld	a,(hl)				; 7
+	ld	(de),a				; 7
+	inc	hl					; 6
+	inc	de					; 6
+	bit	7,h					; 8
+	call z,$$NextBank		; 10
+	djnz $$LoadBuffer_2x	; 13
+	; 111 cycles
+	nop
+$$LoadBuffer_1x:
+	exx						; 4
+	ld	a,(de)				; 7
+	ld	(hl),a				; 7
+	inc	de					; 6
+	exx						; 4
+	ld	a,(hl)				; 7
+	ld	(de),a				; 7
+	inc	hl					; 6
+	inc	de					; 6
+	cp	0					; 7	
+	cp	0					; 7
+	cp	0					; 7
+	nop						; 4
+	nop						; 4
+	bit	7,h					; 8
+	call z,$$NextBank		; 10
+	jp	$$LoadBuffer_1x		; 10
+
+$$NextBank:
+	di							; 4
+
+	ex	af,af'
+	ld	a,b
+	ex	af,af'
+
+	ld	bc,sampleIndex_Low+1	; 10
+	ld	a,(bc)					; 7
+	add	80h						; 7
+	ld	(bc),a					; 7
+
+	ld	bc,Z80BUS_BANK			; 10
+
+	rlca						; 4 (overwrites carry with the opposite one)
+	ld	(bc),a					; 7
+	ccf			; Invert carry because it's using the one from the 7th bit
+
+	exx							; 4
+	ld	a,(de)					; 7
+	ld	(hl),a					; 7
+	inc	de						; 6
+	exx							; 4
+
+	ld	a,(sampleIndex_High)	; 13
+	adc	a,h						; 4 (H is always zero here)
+	ld	(sampleIndex_High),a	; 13
+
+	ld	(bc),a					; 7
+	rrca						; 4
+	ld	(bc),a					; 7
+	rrca						; 4
+	ld	(bc),a					; 7
+	rrca						; 4
+	ld	(bc),a					; 7
+	rrca						; 4
+	ld	(bc),a					; 7
+	rrca						; 4
+	ld	(bc),a					; 7
+	rrca						; 4
+	ld	(bc),a					; 7
+	rrca						; 4
+	ld	(bc),a					; 7
+	ld	hl,Z80BUS_WINDOW		; 10
+
+	ei							; 4
+	ex	af,af'
+	ld	a,b
+	ex	af,af'
+	ret
+
+;$$Loop_EndSoundInit:
+;	ld	c,00h	; Second byte
+;	ld	b,00h	; First byte
+;$$loop_endSound1:
+;	ld	a,(de)
+;	ld	(hl),a
+;	rept 16
+;	nop
+;	endm
+;	inc	e
+;	inc de
+;	dec	bc
+;	ld	a,b
+;	or	c
+;	jp	nz,$$loop_endSound1
+
+$$BufferInit:
+	ld	b,0FFh
+	ld	de,sampleBuffer
+	ld	hl,(sampleIndex_Low)
+	set	7,h
+$$bufferInit_loop:
+	ld	a,(hl)
+	ld	(de),a
+	inc	hl
+	inc	de
+	ld	a,(hl)
+	ld	(de),a
+	inc	hl
+	inc	de
+	ld	a,h
+	or	a
+	call z,$$BufferInit
+	djnz $$bufferInit_loop
+
+	exx
+
+	ld	a,DAC_ENABLE	; DAC enable address
+	ld	(bc),a			; Switch to DAC enable register
+	ld	(hl),80h		; Enable DAC
+	dec	a				; Now a is 2Ah (DAC_IN)
+	ld	(bc),a			; Switch to DAC data input
+
+	exx
+
+	ei
 	halt
 
-	rorg 90h - $
-SampleBuffer
-	; Where the 68k buffers samples
     dephase	; The rest of the labels are mapped normally
 
 	cpu 68000

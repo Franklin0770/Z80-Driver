@@ -1,270 +1,191 @@
-; Naming conventions:
-; variableValue
-; CONSTANT_VALUE
-; MainRoutineAndLables
-; sub_routine
-
 	include "Variables.asm"
 	include "Constants.asm"
 	include "Macros.asm"
 
 	listing purecode ; We sure want the listing file, but only the final code in expanded macros
 
-; These switches enable the entire purpose of this driver and disabling them likely makes the playback similar to "traditional" DAC drivers
-smoothPlayback:	equ TRUE	; Put it to FALSE to prevent 68k output during buffer load
-accurateSpeed:	equ TRUE	; Put it to FALSE to ignore 68k sample increment calculation
+ROM_Start
 
 	org 0
 
-RomStart ; Vectors
-		dc.l SYS_STACK			; Initial stack pointer value (SP value)
+; ================================================================
+; 68000 vectors (with its error code in square brackets, AAAAAAxx)
+; ================================================================
+
+		dc.l M68K_STACK			; Initial stack pointer value (SP value)
 		dc.l EntryPoint			; Start of program (PC value)
-		dc.l BusError			; Bus error
-		dc.l AddressError		; Address error
-		dc.l IllegalInstruction	; Illegal instruction
-		dc.l DivisionByZero		; Division by zero
-		dc.l CHKException		; CHK exception
-		dc.l TRAPVException		; TRAPV exception
-		dc.l PrivilegeViolation	; Privilege violation
-		dc.l TRACEException		; TRACE exception
-		dc.l LineAEmulator		; Line-A emulator
-		dc.l LineFEmulator		; Line-F emulator
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l SpuriousException	; Spurious exception
-		dc.l GenericError		; IRQ level 1
-		dc.l GenericError		; IRQ level 2
-		dc.l GenericError		; IRQ level 3 
-		dc.l GenericError		; IRQ level 4 (horizontal retrace interrupt)
-		dc.l GenericError		; IRQ level 5
-		dc.l VDP_VBlank			; IRQ level 6 (vertical retrace interrupt)
-		dc.l GenericError		; IRQ level 7
-		dc.l GenericError		; TRAP #00 exception
-		dc.l GenericError		; TRAP #01 exception
-		dc.l GenericError		; TRAP #02 exception
-		dc.l GenericError		; TRAP #03 exception
-		dc.l GenericError		; TRAP #04 exception
-		dc.l GenericError		; TRAP #05 exception
-		dc.l GenericError		; TRAP #06 exception
-		dc.l GenericError		; TRAP #07 exception
-		dc.l GenericError		; TRAP #08 exception
-		dc.l GenericError		; TRAP #09 exception
-		dc.l GenericError		; TRAP #10 exception
-		dc.l GenericError		; TRAP #11 exception
-		dc.l GenericError		; TRAP #12 exception
-		dc.l GenericError		; TRAP #13 exception
-		dc.l GenericError		; TRAP #14 exception
-		dc.l GenericError		; TRAP #15 exception
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
-		dc.l GenericError		; Unused (reserved)
+		dc.l BusError			; Bus error							[1]
+		dc.l AddressError		; Address error						[2]
+		dc.l IllegalInstruction	; Illegal instruction				[3]
+		dc.l DivisionByZero		; Division by zero					[4]
+		dc.l CHKException		; CHK exception						[5]
+		dc.l TRAPVException		; TRAPV exception					[6]
+		dc.l PrivilegeViolation	; Privilege violation				[7]
+		dc.l TRACEException		; TRACE exception					[8]
+		dc.l LineAEmulator		; Line-A emulator					[9]
+		dc.l LineFEmulator		; Line-F emulator					[10]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l SpuriousException	; Spurious exception				[11]
+		dc.l InterruptRequest	; IRQ level 1						[12]
+		dc.l InterruptRequest	; IRQ level 2						[12]
+		dc.l InterruptRequest	; IRQ level 3 						[12]
+		dc.l VDP_HBlank			; IRQ level 4 (horizontal retrace)
+		dc.l InterruptRequest	; IRQ level 5						[12]
+		dc.l VDP_VBlank			; IRQ level 6 (vertical retrace)
+		dc.l InterruptRequest	; IRQ level 7						[12]
+		dc.l TRAPException		; TRAP #00 exception				[13]
+		dc.l TRAPException		; TRAP #01 exception				[13]
+		dc.l TRAPException		; TRAP #02 exception				[13]
+		dc.l TRAPException		; TRAP #03 exception				[13]
+		dc.l TRAPException		; TRAP #04 exception				[13]
+		dc.l TRAPException		; TRAP #05 exception				[13]
+		dc.l TRAPException		; TRAP #06 exception				[13]
+		dc.l TRAPException		; TRAP #07 exception				[13]
+		dc.l TRAPException		; TRAP #08 exception				[13]
+		dc.l TRAPException		; TRAP #09 exception				[13]
+		dc.l TRAPException		; TRAP #10 exception				[13]
+		dc.l TRAPException		; TRAP #11 exception				[13]
+		dc.l TRAPException		; TRAP #12 exception				[13]
+		dc.l TRAPException		; TRAP #13 exception				[13]
+		dc.l TRAPException		; TRAP #14 exception				[13]
+		dc.l TRAPException		; TRAP #15 exception				[13]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
+		dc.l UnknownError		; Unused (reserved)					[14]
 
-; ROM header
-		dc.b "SEGA MEGA DRIVE",$20				; "$20" is padding
-		dc.b "(C)BRO0 2024.OCT"					; Copyright(-ish), release year and month
-		dc.b "Presentazione sistemi: 68k e x86"	; Domestic name
-		dc.b "                "					; padding
-		dc.b "Presentazione sistemi: 68k e x86"	; Overseas name
-		dc.b "                "					; padding
-		dc.b "AI-23456786-00"					; Serial number (I mashed the keyboard for this)
-		dc.w $0000								; Empty checksum
-		dc.b "J"								; Joypad type
-		dc.b "               "					; padding
-		dc.l RomStart							; Start address of ROM
-		dc.l RomEnd								; End address of ROM
-		dc.l $FF0000							; Start address of WRAM
-		dc.l $FFFFFF 							; End address of WRAM
-		dc.b "                                                                "
-		dc.b "JU "								; Region support
-		dc.b "             "					; padding for reserved space
+; ===================================================================
+; Mega Drive ROM header (reference: https://plutiedev.com/rom-header)
+; ===================================================================
 
+		dc.b "SEGA MEGA DRIVE "										; System type - 16 bytes
+		dc.b "(C)BRO0 2025.DEC"										; Copyright, release year and month (e.g. "(C)SEGA 1991.APR") - 16 bytes
+		dc.b "Codename FrankPCM: a high-tech Z80 audio driver "		; Domestic name - 48 bytes
+		dc.b "Codename FrankPCM: a high-tech Z80 audio driver "		; Overseas name - 48 bytes
+		dc.b "GM-12345678-00"										; Serial number ("xx-yyyyyyyy-zz") - 14 bytes
+		dc.w $0000													; Where this ROM gets patched with a 16-bit checksum - 2 bytes
+		dc.b "J               "										; Device support (e.g. "J" for 3-button controller) - 16 bytes
+		dc.l ROM_Start												; Start address of ROM - 4 bytes
+		dc.l ROM_End												; End address of ROM - 4 bytes
+		dc.l $FF0000												; Start address of WRAM - 4 bytes
+		dc.l $FFFFFF 												; End address of WRAM - 4 bytes
+		dc.b "                                                                " ; padding for reserved space - 64 bytes
+		dc.b "JU "													; Region support - 16 bytes
+		dc.b "             "										; padding for reserved space (you can put a comment if you want!) - 13 bytes
+
+; ========================
 ; Error handler jump table
+; ========================
 
 BusError:
-	moveq	#1,d7
-	stop #$2700
+	move.l	#$AAAAAAA1,d7
+	stop #$2700 ; some emulators might not recognize this instruction
 
 AddressError:
-	moveq	#2,d7
+	move.l	#$AAAAAAA2,d7
 	stop #$2700
 
 IllegalInstruction:
-	moveq	#3,d7
+	move.l	#$AAAAAAA3,d7
 	stop #$2700
 
 DivisionByZero:
-	moveq	#4,d7
+	move.l	#$AAAAAAA4,d7
 	stop #$2700
 
 CHKException:
-	moveq	#5,d7
+	move.l	#$AAAAAAA5,d7
 	stop #$2700
 
 TRAPVException:
-	moveq	#6,d7
+	move.l	#$AAAAAAA6,d7
 	stop #$2700
 
 PrivilegeViolation:
-	moveq	#7,d7
+	move.l	#$AAAAAAA7,d7
 	stop #$2700
 
 TRACEException:
-	moveq	#8,d7
+	move.l	#$AAAAAAA8,d7
 	stop #$2700
 
 LineAEmulator:
-	moveq	#9,d7
+	move.l	#$AAAAAAA9,d7
 	stop #$2700
 
 LineFEmulator:
-	moveq	#10,d7
+	move.l	#$AAAAAA10,d7
 	stop #$2700
 
 SpuriousException:
-	moveq	#11,d7
+	move.l	#$AAAAAA11,d7
 	stop #$2700
 
-GenericError:
-	moveq	#12,d7
+InterruptRequest:
+	move.l	#$AAAAAA12,d7
 	stop #$2700
 
-; A2: live samples, A0: Z80 samples for later
-; 240 68k cycles for every 32 kHz sample
+TRAPException:
+	move.l	#$AAAAAA13,d7
+	stop #$2700
 
-VDP_VBlank:
-; --- ~20 cycles in total ---
-	lea	YM2612_DATA|Z80_RAM,a3			; 8 cycles
-	lea	playedSamplesHigh|Z80_RAM,a4	; 8 cycles
-	lea Z80_BUSREQ,a5					; 8 cycles
-	move.w	#$100,d1					; 8 cycles
-	move.l	(sampleIndex),d2			; 12 cycles
-	moveq	#0,d3						; 4 cycles
-; --- 68 cycles in total ---
-	moveq	#10,d0		; The high 16-bit portion clears, 4 cycles
-$$z80_wait:
-	dbf d0,$$z80_wait	; 114 cycles
-; --- 186 cycles in total ---
-	stopZ80 d1,a5		; Initiate Z80 stop, 8 cycles
-	waitZ80	d3,a5		; 12 cycles (at best)
-; --- 206 cycles in total ---
-	move.w	(a4)+,d0	; Get high byte of playedSamples, 8 cycles
-	move.b	(a4),d0		; Get lower byte of playedSamples, 8 cycles
-	add.l	d0,d2		; 8 cycles
-	movea.l	d2,a2		; Sample index while executing 68k routine, 4 cycles
-; --- 234 cycles in total ---
-	if smoothPlayback
-		move.b	(a2)+,(a3)	; Output sample, 12 cycles
-	elseif accurateSpeed
-		addq.l	#1,a2
-		nop
-	endif
+UnknownError:
+	move.l	#$AAAAAA14,d7
+	stop #$2700
 
-; --- Cycle count restarts ---
+; ==========================
 
-	movea.l	d2,a0	; 4 cycles
-
-	if accurateSpeed
-		addaq	21+2,a0	; Sample index after 68k routine execution (A2 at the end, basically), 8 cycles
-		move.l	a0,d2	; D2 is now the updated sample index, 4 cycles
-	endif
-
-	lea	SampleBuffer|Z80_RAM,a1	; 8 cycles
-; --- 24 cycles in total ---
-	btst	#0,d2				; Is the sample index even? 6 cycles
-	beq.s	$$skip_alignment	; If yes, skip the alignment, 10 cycles
-	move.b	(a0)+,(a1)			; If not, the 68k will crash, so we avoid it. 12 cycles
-	addq.l	#2,a1
-	move.l	a0,d2	; D2 is now the updated sample index, 4 cycles
-$$skip_alignment:
-	nop			; 4 cycles
-	nop			; 4 cycles
-	nop			; 4 cycles
-	move.l	#RomEnd,d1			; 12 cycles
-	cmp.l	d2,d1				; Is the audio about to end (ends on Z80 buffer)? 8 cycles
-; --- 72 cycles in total ---
-	bge.s	$$skip_tracking		; 10 cycles on branch, 8 cycles no branch
-	; Z80 playback with sample tracking routine
-	move.b	#Loop_EndSoundInit,(Z80RoutineAddress+2)|Z80_RAM	; Little endian, 16 cycles
-	sub.l	d1,d2	; D2 is now the distance to the end of the audio (after 68k execution), 8 cycles
-	move.b	d2,(Loop_EndSoundInit+1|Z80_RAM); 16 cycles
-	lsr.w	#8,d2							; 22 cycles
-	move.b	d2,(Loop_EndSoundInit+3|Z80_RAM); 16 cycles
-	move.b	#1,shouldStop					; 16 cycles
-	bra.s	$$continue						; 10 cycles
-; --- 82 cycles in total ---
-$$skip_tracking:
-	; Normal Z80 playback routine
-	move.b	#Loop,(Z80RoutineAddress+2)|Z80_RAM	; Little endian, 16 cycles
-
-$$continue:
-; --- 98 cycles in total ---
-	moveq	#4,d0	; 4 cycles
-$$timing_wait1:		; 54 cycles
-	dbf d0,$$timing_wait1
-; --- 156 cycles in total ---
-
-	loadSamples	; D0 and D1 break here
-
-	if smoothPlayback
-		move.b	(a2)+,(a3)	; Output sample, 12 cycles
-	elseif accurateSpeed
-		addq.l	#1,a2
-		nop
-	endif
-
-; --- Cycle count restarts ---
-	move.b	#Wait68k.continue,((Wait68k+1)|Z80_RAM)	; 20 cycles
-	move.l	d2,(sampleIndex)	; 20 cycles
-
-	moveq	#7,d0
-$$timing_wait2:
-	dbf	d0,$$timing_wait2
-
-	startZ80 a5	; Restart Z80
-
-	; DPLC loading queues
+; Horizontal interrupt
+VDP_HBlank:
 	rte
 
+VDP_VBlank:
+	rte
+
+; ==========================
 
 EntryPoint:
-	lea		VDP_CTRL,a0
+; ============================
+; VDP initialization and setup
+; ============================
 
-; VDP register setup
-	move.l  #(VDPREG_MODE1|%00000100)<<16|VDPREG_MODE2|%00100100,(a0)	; Mode register #1 and Mode register #2
-	move.l  #(VDPREG_MODE3|%00000000)<<16|VDPREG_MODE4|%10000001,(a0)	; Mode register #3 and Mode register #4
+	lea	VDP_CTRL,a0
+
+	tst.w 	(a0) ; Testing the VDP control port safely resets it
 	
-	move.l  #(VDPREG_PLANEA|(PLANEA_ADDR>>10))<<16|VDPREG_PLANEB|(PLANEB_ADDR>>13),(a0)	; Plane A and Plane B address
-	move.l  #(VDPREG_SPRITE|(SPRITE_ADDR>>9))<<16|VDPREG_WINDOW|(WINDOW_ADDR>>10),(a0)	; Sprite and Window address
-    move.w  #VDPREG_HSCROLL|(HSCROLL_ADDR>>10),(a0)										; HScroll address
+	move.l  #(VDPREG_MODE1|%00000100)<<16|(VDPREG_MODE2|%01100100),(a0)	; Mode register #1 and Mode register #2
+    move.l  #(VDPREG_MODE3|%00000000)<<16|(VDPREG_MODE4|%10000001),(a0)	; Mode register #3 and Mode Register #4
     
-    move.l  #(VDPREG_SIZE|$00)<<16|VDPREG_WINX|$00,(a0)		; Tilemap size and Window X split
-    move.l  #(VDPREG_WINY|$00)<<16|VDPREG_INCR|$00,(a0)		; Window Y split and Autoincrement
-    move.l  #(VDPREG_BGCOL|$00)<<16|VDPREG_HRATE|$FF,(a0)	; Background color and HBlank IRQ rate
-
-; Start of ROM code
+    move.l  #VDPREG_PLANEA|(VRAM_PLANEA>>10)<<16|(VDPREG_PLANEB|(VRAM_PLANEB>>13)),(a0)	; Plane A and Plane B address
+	move.l  #VDPREG_SPRITE|(VRAM_SPRITE>>9)<<16|(VDPREG_WINDOW|(VRAM_WINDOW>>10)),(a0)	; Sprite and Window address
+    move.w  #VDPREG_HSCROLL|(VRAM_HSCROLL>>10),(a0)										; Horizontal scroll address
+    
+    move.l  #(VDPREG_WINX|$00)<<16|(VDPREG_WINY|$00),(a0)			; Window X split and Window Y split
+    move.l  #(VDPREG_SIZE|%00000001)<<16|(VDPREG_BGCOL|$00),(a0)	; Tilemap size and Background color
+    move.l  #(VDPREG_INCR|$02)<<16|(VDPREG_HRATE|$FF),(a0)			; Autoincrement and HBlank IRQ rate
 
 	lea Z80_BUSREQ,a3
 	lea Z80_RESET,a2
@@ -278,17 +199,12 @@ EntryPoint:
 
 ; We can do more stuff while the Z80 is theoretically stopping
 	lea Z80RomStart,a0
-	lea Z80_RAM,a1
-	move.l 	#Music,(sampleIndex)
+	lea Z80_WRAM,a1
 	move.w	#(Z80RomEnd-Z80RomStart)-1,d0	; Mustn't go over $7F
 
-$$copy_program:
+$$copy_program2:
 	move.b	(a0)+,(a1)+
-	dbf d0,$$copy_program
-
-	clr.b	(playedSamplesHigh|Z80_RAM)
-	clr.b	(playedSamplesLow|Z80_RAM)
-	clr.b	(shouldStop)
+	dbf d0,$$copy_program2
 
 	assertZ80Reset d2,a2	; Assert reset
 
@@ -298,25 +214,18 @@ $$wait:	; Wait for the YM2612
 
 	deassertZ80Reset d2,a2	; Release reset
 
-	;loopTest 53
-
 	startZ80 d1,a3			; Release bus
 
-HaltCPU:
-	tst.b	shouldStop
-	bne.s	$$disableCPU
-	stop	#$2500
-	bra.s	HaltCPU
-$$disableCPU:
 	stop	#$2700
 
 	include "Driver.z80"
 
+	align 2	; Even out the PC
 Music:
-	;binclude "continuity_test.bin" ; Test with increasing bytes to make sure no samples get skipped
+	;binclude "continuity_test.bin" ; For debugging: test with increasing bytes to make sure no samples get skipped
 	;binclude "24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; Great music right here
 	binclude "Don't Stand So Close To Me.raw" ; Another banger
 	;binclude "music.pcm" ; Let's not talk about this
 	;binclude "My Summary.raw"
 
-RomEnd
+ROM_End
