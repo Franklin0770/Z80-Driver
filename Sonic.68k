@@ -13,6 +13,7 @@
 ; These switches enable the entire purpose of this driver and disabling them likely makes the playback similar to "traditional" DAC drivers
 smoothPlayback:	equ TRUE	; Put it to FALSE to prevent 68k output during buffer load
 accurateSpeed:	equ TRUE	; Put it to FALSE to ignore 68k sample increment calculation
+gensFix:		equ FALSE	; Since Gens doesn't support the STOP instruction, put it to TRUE to replace it
 
 	org 0
 
@@ -163,7 +164,7 @@ VDP_VBlank:
 	move.l	(sampleIndex),d2			; 12 cycles
 	moveq	#0,d3						; 4 cycles
 ; --- 68 cycles in total ---
-	moveq	#10,d0		; The high 16-bit portion clears, 4 cycles
+	moveq	#8,d0		; The high 16-bit portion clears, 4 cycles
 $$z80_wait:
 	dbf d0,$$z80_wait	; 114 cycles
 ; --- 186 cycles in total ---
@@ -321,13 +322,25 @@ ReadJoypad:
 	btst 	#JOY_C,d0
 	beq.w	PlaySample
 
+	if gensFix
+		move #$2500,sr
+	endif
 HaltCPU:
-	tst.b	shouldStop
+	tst.b	(shouldStop)
 	bne.s	$$disableCPU
-	stop	#$2500
+	if gensFix = FALSE
+		stop	#$2500
+	else
+		bra.s *
+	endif
 	bra.s	ReadJoypad
 $$disableCPU:
-	stop	#$2700
+	if gensFix = FALSE
+		stop	#$2700
+	else
+		move #$2700,sr
+		bra.s *
+	endif
 
 PlaySample:
 	move.l	#Music,(sampleIndex)
@@ -337,9 +350,9 @@ PlaySample:
 
 Music:
 	;binclude "continuity_test.bin" ; Test with increasing bytes to make sure no samples get skipped
-	binclude "24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; Great music right here
+	;binclude "24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; Great music right here
 	;binclude "Don't Stand So Close To Me.raw" ; Another banger
-	;binclude "Spirits In The Material World.raw" ; This is a good one
+	binclude "Spirits In The Material World.raw" ; This is a good one
 	;binclude "Every Little Thing She Does Is Magic.raw" ; Another nice one
 	;binclude "Ki.raw" ; minceraft
 	;binclude "Droopy likes your face.raw"

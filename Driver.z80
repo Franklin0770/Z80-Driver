@@ -30,21 +30,17 @@ Loop:
 	jp	(iy)
 
 	rorg 38h - $
-$$VDP_VBlank:
+; VDP VBlank:
 	ld	a,(de)
 	ld	(hl),a
+	inc	de
 
-	; Subtract 0090h from DE
-	ld	a,e
-	sub	SampleBuffer-8
-	ld	e,a
-	ld	a,d
-	sbc	00h
-	ld	d,a
+	; Subtract 1000h from DE
+	res	4,d
 
-	; Now DE >> 1 (true 16-bit shift)
-	rr	d     ; shift high, MSB gets carry
-	rr	e     ; shift low, MSB gets old B LSB
+	; DE >> 1
+	srl	d     ; shift high, MSB gets carry
+	rr	e     ; rotate low, MSB gets old D LSB
 
 	; DE is how many samples the Z80 played
 	ld	hl,playedSamplesHigh
@@ -84,10 +80,7 @@ $$loop_endSound1:
 Loop_NoDAC:
 	di
 	halt
-
-	rorg 90h - $
-SampleBuffer
-	; Where the 68k buffers samples
+	
     dephase	; The rest of the labels are mapped normally
 
 	cpu 68000
