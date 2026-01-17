@@ -207,18 +207,18 @@ $$skip_alignment:
 ; --- 72 cycles in total ---
 	bge.s	$$skip_tracking		; 10 cycles on branch, 8 cycles no branch
 	; Z80 playback with sample tracking routine
-	move.b	#Loop_EndSoundInit,(Z80RoutineAddress+2)|Z80_RAM	; Little endian, 16 cycles
+	move.b	#Init_EndSound,(Z80RoutineAddress+2)|Z80_RAM	; Little endian, 16 cycles
 	sub.l	d1,d2	; D2 is now the distance to the end of the audio (after 68k execution), 8 cycles
 	subq.l	#1,d2
-	move.b	d2,(Loop_EndSoundInit+1|Z80_RAM); 16 cycles
+	move.b	d2,(Init_EndSound+2|Z80_RAM); 16 cycles
 	lsr.w	#8,d2							; 22 cycles
-	move.b	d2,(Loop_EndSoundInit+3|Z80_RAM); 16 cycles
+	move.b	d2,(Init_EndSound+1|Z80_RAM); 16 cycles
 	move.b	#1,shouldStop					; 16 cycles
 	bra.s	$$continue						; 10 cycles
 ; --- 82 cycles in total ---
 $$skip_tracking:
 	; Normal Z80 playback routine
-	move.b	#Loop,(Z80RoutineAddress+2)|Z80_RAM	; Little endian, 16 cycles
+	move.b	#Loop_DacOnly,(Z80RoutineAddress+1)|Z80_RAM	; Little endian, 16 cycles
 
 $$continue:
 ; --- 98 cycles in total ---

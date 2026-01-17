@@ -3,71 +3,127 @@ Z80RomStart
 
     phase 0	; Set label addresses to the start of the Z80 RAM
 
-	ld	de,SampleBuffer
-
 	ld	sp,2000h	; Align stack pointer correctly
-
 	ld	bc,4000h	; YM2612 bank 1 port
+	ld	de,SampleBuffer
 	ld	hl,4001h	; YM2612 data port
+
 	ld	a,DAC_ENABLE; DAC enable address
 	ld	(bc),a		; Switch to DAC enable register
 	ld	(hl),80h	; Enable DAC
 	dec	a			; Now a is 2Ah (DAC_IN)
 	ld	(bc),a		; Switch to DAC data input
 
-	im	1
-	ei
+	di
 	halt		; Wait until next frame
 
-Loop:
+Z80Init:
+	ld	hl,Loop_DacOnly
+	ld	(Z80EndRoutineAddress+1),hl
+	ld	de,SampleBuffer	; Reset DE
+	ld	hl,4001h		; Reset HL
+	ld	sp,2000h		; Reset SP
+.routineAddress:
+	jp	0000h
+
+Init_DacAndEffects:
+	ld	b,64
+$$loop_DacAndEffects:
+	ld	a,(de)
+	ld	(hl),a
+	inc	e
+	inc	de
+	rept 17
+	nop
+	endm
+	cp	0
+	djnz $$loop_DacAndEffects
+
+	nop ;exx
+	ld	a,(de)
+	ld	(hl),a
+	inc	de
+; --- 24 cycles ---
+	ld	b,4
+	djnz $
+; --- 83 cycles ---
+	nop ;exx
+	nop
+	cp	0
+	cp	0
+
+Init_DacAndFm:
+	ld	b,128
+$$loop_DacAndFm:
 	ld	a,(de)
 	ld	(hl),a
 	inc	e
 	inc de
-	rept 20
-	nop			; Interrupt usually occurs here
+	rept 17
+	nop
 	endm
-	jp	(iy)
+	cp	0
+	djnz $$loop_DacAndFm
 
-	rorg 38h - $
-$$VDP_VBlank:
+	nop ;exx
 	ld	a,(de)
 	ld	(hl),a
+	inc	de
+; --- 24 cycles ---
+	ld	b,4
+	djnz $
+; --- 83 cycles ---
+	nop ;exx
+	nop
+	cp	0
+	cp	0
 
-	; Subtract 0090h from DE
-	ld	a,e
-	sub	SampleBuffer-8
-	ld	e,a
-	ld	a,d
-	sbc	00h
-	ld	d,a
+Init_DacAndSn:
+	ld	b,32
+$$loop_DacAndSn:
+	ld	a,(de)
+	ld	(hl),a
+	inc	e
+	inc de
+	rept 17
+	nop
+	endm
+	cp	0
+	djnz $$loop_DacAndSn
 
-	; Now DE >> 1 (true 16-bit shift)
-	rr	d     ; shift high, MSB gets carry
-	rr	e     ; shift low, MSB gets old B LSB
+	nop ;exx
+	ld	a,(de)
+	ld	(hl),a
+	inc	de
+	
+	ld	a,224
+	ld	(playedSamples),a
+; --- 24 cycles ---
+	ld	b,3
+	djnz $
+; --- 83 cycles ---
+	nop ;exx
+	ld	d,h
+	ld	e,l
 
-	; DE is how many samples the Z80 played
-	ld	hl,playedSamplesHigh
-	ld	(hl),d	; High byte
-	inc l
-	inc l
-	ld	(hl),e	; Low byte
-Wait68k:
-	jp	$
-.continue:
-	ld	a,Wait68k
-	ld	(Wait68k+1),a	; Close the infinite loop
-	ld	de,SampleBuffer	; Reset DE
-	ld	hl,4001h		; Reset HL
-	ld	sp,2000h		; Reset SP
-Z80RoutineAddress:
-	ld	iy,0000h
-	ei
-	jp	(iy)
+	ld	l,a
+	ld	h,0
 
-Loop_EndSoundInit:
-	ld	c,00h	; Second byte
-	ld	b,00h	; First byte
+Loop_DacOnly:
+	ld	a,(de)
+	ld	(bc),a
+	inc	de
+	inc de
+	inc hl
+	ld 	(playedSamples),hl
+	rept 14
+	nop
+	endm
+Z80EndRoutineAddress:
+	jp	Loop_DacOnly
+
+Init_EndSound:
+	ld	bc,0000h
 $$loop_endSound1:
 	ld	a,(de)
 	ld	(hl),a
@@ -81,13 +137,9 @@ $$loop_endSound1:
 	or	c
 	jp	nz,$$loop_endSound1
 
-Loop_NoDAC:
 	di
 	halt
 
-	rorg 90h - $
-SampleBuffer
-	; Where the 68k buffers samples
     dephase	; The rest of the labels are mapped normally
 
 	cpu 68000
