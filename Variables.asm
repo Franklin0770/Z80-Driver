@@ -2,14 +2,22 @@
 ; to avoid wasting memory space and make it uneven. With padding on,
 ; the assembler will automatically fill odd words and longs to make them even and to avoid crashing.
 
-	org $FFFF0000
-; 68000 variables
+; --------------------------
+;		Motorola 68000
+; --------------------------
+
+	org M68K_WRAM
+
 sampleIndex:	ds.l 1	; Samples after Z80 routine execution
 shouldStop:		ds.b 1	; It's zero when the execution continues
 
+; ----------------------
+;		Zilog Z80
+; ----------------------
+
 	padding	off
 	org $501
-; Z80 variables (away from code)
+
 playedSamples:	ds.w 1	; Little-endian
 
 	org $1000

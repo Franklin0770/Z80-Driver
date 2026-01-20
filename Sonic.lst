@@ -1,0 +1,1732 @@
+ AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 1 - 01/20/26 09:28:36
+
+
+       1/       0 :                     ; Naming conventions:
+       2/       0 :                     ; variableValue
+       3/       0 :                     ; CONSTANT_VALUE
+       4/       0 :                     ; MainRoutineAndLables
+       5/       0 :                     ; sub_routine
+       6/       0 :                     
+       7/       0 :                     	include "Constants.asm"
+(1)    1/       0 :                     ; M68K: Motorola 68000 related constant
+(1)    2/       0 :                     ; Z80: Z80 related constant
+(1)    3/       0 :                     ; JOYx: controller related constant
+(1)    4/       0 :                     ; EXP: expansion related constant
+(1)    5/       0 :                     ; VDP: VDP memory map related constant
+(1)    6/       0 :                     ; VDPREG: VDP register related constant
+(1)    7/       0 :                     ; PSG: PSG related constant
+(1)    8/       0 :                     ; YM2612: YM2612 related constant
+(1)    9/       0 :                     ; REG: miscellaneous Mega Drive register related constant
+(1)   10/       0 :                     ; SIZE: size of a memory space
+(1)   11/       0 :                     
+(1)   12/       0 :                     ; ---------------------------------
+(1)   13/       0 :                     ;		From: Motorola 68000
+(1)   14/       0 :                     ; ---------------------------------
+(1)   15/       0 :                     
+(1)   16/       0 :                     ; Mega Drive memory spaces
+(1)   17/       0 : =$FF0000            M68K_WRAM:	equ $FF0000		; 68000 memory start address
+(1)   18/       0 : =$FF0000            M68K_STACK:	equ $FF0000		; 68000 stack
+(1)   19/       0 : =$A10009            JOY1_CTRL:	equ $A10009		; Controller 1 control port
+(1)   20/       0 : =$A10003            JOY1_DATA:	equ $A10003   	; Controller 1 data port
+(1)   21/       0 : =$A10005            JOY2_CTRL:	equ $A10005		; Controller 2 control port
+(1)   22/       0 : =$A1000B            JOY2_DATA:	equ $A1000B   	; Controller 2 data port
+(1)   23/       0 : =$A1000D            EXP_CTRL:	equ $A1000D		; Expansion control port
+(1)   24/       0 : =$A10006            EXP_DATA:	equ $A10006		; Expansion data port
+(1)   25/       0 :                     
+(1)   26/       0 : =$A1000E            JOY1_SER_TRAN:	equ $A1000E		; Controller 1 serial transmit
+(1)   27/       0 : =$A10010            JOY1_SER_REC:	equ $A10010		; Controller 1 serial receive
+(1)   28/       0 : =$A10012            JOY1_SER_CTRL:	equ $A10012		; Controller 1 serial control
+(1)   29/       0 : =$A10014            JOY2_SER_TRAN:	equ $A10014		; Controller 2 serial transmit
+(1)   30/       0 : =$A10016            JOY2_SER_REC:	equ $A10016		; Controller 2 serial receive
+(1)   31/       0 : =$A10018            JOY2_SER_CTRL:	equ $A10018		; Controller 2 serial control
+(1)   32/       0 : =$A1001A            EXP_SER_TRAN:	equ $A1001A		; Expansion serial transmit
+(1)   33/       0 : =$A1001C            EXP_SER_REC:	equ $A1001C		; Expansion serial receive
+(1)   34/       0 : =$A1001E            EXP_SER_CTRL:	equ $A1001E		; Expansion serial control
+(1)   35/       0 :                     
+(1)   36/       0 : =$A130F1            REG_SRAM:		equ $A130F1		; SRAM access register
+(1)   37/       0 :                     
+(1)   38/       0 : =$A10001            REG_VERSION:	equ $A10001		; Version register
+(1)   39/       0 : =$A11000            REG_MEMORYMODE:	equ $A11000		; Memory mode register
+(1)   40/       0 :                     
+(1)   41/       0 : =$A14000            REG_TMSS:		equ $A14000		; TMSS "SEGA" register
+(1)   42/       0 : =$A14101            REG_TMSS_CART:	equ $A14101		; TMSS cartridge register
+(1)   43/       0 :                     
+(1)   44/       0 : =$A13000            REG_TIME:	equ $A13000		; TIME signal to cartridge ($00-$FF)
+(1)   45/       0 : =$A130EC            REG_32X:	equ $A130EC		; Becomes "MARS" when a 32X is attached
+(1)   46/       0 :                     
+(1)   47/       0 :                     ; VDP memory addresses
+(1)   48/       0 : =$C00000            VDP_DATA:    	equ $C00000		; VDP data port
+(1)   49/       0 : =$C00004            VDP_CTRL:    	equ $C00004		; VDP control port and Status Register
+(1)   50/       0 : =$C00008            VDP_HVCOUNTER:  equ $C00008		; H/V counter
+(1)   51/       0 :                     
+(1)   52/       0 : =$40000000          VDP_VRAM:	equ	$40000000	; Video memory address control port
+(1)   53/       0 : =$40000010          VDP_VSRAM:	equ $40000010	; Vertical scroll memory address control port
+ AS V1.42 Beta [Bld 298] - Source File Sonic.68k(Constants.asm) - Page 2 - 01/20/26 09:28:36
+
+
+(1)   54/       0 : =$C0000000          VDP_CRAM: 	equ $C0000000	; Color memory address control port
+(1)   55/       0 :                     
+(1)   56/       0 : =$40000080          VDP_VRAM_DMA:   equ $40000080	; DMA VRAM control port
+(1)   57/       0 : =$40000090          VDP_VSRAM_DMA:  equ $40000090	; DMA VSRAM control port
+(1)   58/       0 : =$C0000080          VDP_CRAM_DMA:   equ $C0000080	; DMA CRAM control port
+(1)   59/       0 :                     
+(1)   60/       0 : =$C00011            PSG_OUT:	equ $C00011		; PSG output (or input)
+(1)   61/       0 :                     
+(1)   62/       0 : =$C0001C            VDP_DEBUG:	equ $C0001C		; Debug register
+(1)   63/       0 :                     
+(1)   64/       0 :                     ; VDP registers
+(1)   65/       0 : =$8000              VDPREG_MODE1:     equ $8000  ; Mode register #1
+(1)   66/       0 : =$8100              VDPREG_MODE2:     equ $8100  ; Mode register #2
+(1)   67/       0 : =$8B00              VDPREG_MODE3:     equ $8B00  ; Mode register #3
+(1)   68/       0 : =$8C00              VDPREG_MODE4:     equ $8C00  ; Mode register #4
+(1)   69/       0 :                     
+(1)   70/       0 : =$8200              VDPREG_PLANEA:    equ $8200  ; Plane A table address
+(1)   71/       0 : =$8400              VDPREG_PLANEB:    equ $8400  ; Plane B table address
+(1)   72/       0 : =$8500              VDPREG_SPRITE:    equ $8500  ; Sprite table address
+(1)   73/       0 : =$8300              VDPREG_WINDOW:    equ $8300  ; Window table address
+(1)   74/       0 : =$8D00              VDPREG_HSCROLL:   equ $8D00  ; HScroll table address
+(1)   75/       0 :                     
+(1)   76/       0 : =$9000              VDPREG_SIZE:      equ $9000  ; Plane A and B size
+(1)   77/       0 : =$9100              VDPREG_WINX:      equ $9100  ; Window X split position
+(1)   78/       0 : =$9200              VDPREG_WINY:      equ $9200  ; Window Y split position
+(1)   79/       0 : =$8F00              VDPREG_INCR:      equ $8F00  ; Autoincrement
+(1)   80/       0 : =$8700              VDPREG_BGCOL:     equ $8700  ; Background color
+(1)   81/       0 : =$8A00              VDPREG_HRATE:     equ $8A00  ; HBlank interrupt rate
+(1)   82/       0 :                     
+(1)   83/       0 : =$9300              VDPREG_DMALEN_L:  equ $9300  ; DMA length (low)
+(1)   84/       0 : =$9400              VDPREG_DMALEN_H:  equ $9400  ; DMA length (high)
+(1)   85/       0 : =$9500              VDPREG_DMASRC_L:  equ $9500  ; DMA source (low)
+(1)   86/       0 : =$9600              VDPREG_DMASRC_M:  equ $9600  ; DMA source (mid)
+(1)   87/       0 : =$9700              VDPREG_DMASRC_H:  equ $9700  ; DMA source (high)
+(1)   88/       0 :                     
+(1)   89/       0 :                     ; VRAM management (you can change these)
+(1)   90/       0 : =$E000              VRAM_PLANEA:	equ $E000	; Plane A name table address
+(1)   91/       0 : =$C000              VRAM_PLANEB:	equ $C000	; Plane B name table address
+(1)   92/       0 : =$F000              VRAM_SPRITE:	equ $F000	; Sprite name table address
+(1)   93/       0 : =$FFFF              VRAM_WINDOW:	equ $FFFF	; Window plane name table address
+(1)   94/       0 : =$FFFF              VRAM_HSCROLL:	equ $FFFF	; Plane x coordinate
+(1)   95/       0 :                     
+(1)   96/       0 :                     ; Z80 control from 68000
+(1)   97/       0 : =$A00000            Z80_WRAM:	equ $A00000  ; Z80 RAM start
+(1)   98/       0 : =$A11100            Z80_BUSREQ:	equ $A11100  ; Z80 bus request line
+(1)   99/       0 : =$A11200            Z80_RESET:	equ $A11200  ; Z80 reset line
+(1)  100/       0 :                     
+(1)  101/       0 :                     ; YM2612 memory addresses from 68000
+(1)  102/       0 : =$A04000            YM2612_68K_CTRL0:	equ $A04000		; YM2612 bank 0 control port from 68000
+(1)  103/       0 : =$A04001            YM2612_68K_DATA0:	equ $A04001		; YM2612 bank 0 data port from 68000
+(1)  104/       0 : =$A04002            YM2612_68K_CTRL1:	equ $A04002		; YM2612 bank 1 control port from 68000
+(1)  105/       0 : =$A04003            YM2612_68K_DATA1:	equ $A04003		; YM2612 bank 1 data port from 68000
+(1)  106/       0 :                     
+(1)  107/       0 :                     ; ----------------------------
+(1)  108/       0 :                     ;		From: Zilog Z80
+(1)  109/       0 :                     ; ----------------------------
+(1)  110/       0 :                     
+(1)  111/       0 :                     ; Z80 side addresses
+(1)  112/       0 : =$2000              Z80_STACK:	equ $2000
+(1)  113/       0 :                     
+ AS V1.42 Beta [Bld 298] - Source File Sonic.68k(Constants.asm) - Page 3 - 01/20/26 09:28:36
+
+
+(1)  114/       0 :                     ; YM2612 memory addresses from Z80
+(1)  115/       0 : =$4000              YM2612_CTRL0:	equ $4000		; YM2612 bank 0 control port
+(1)  116/       0 : =$4001              YM2612_DATA0:	equ $4001		; YM2612 bank 0 data port
+(1)  117/       0 : =$4002              YM2612_CTRL1:	equ $4002		; YM2612 bank 1 control port
+(1)  118/       0 : =$4003              YM2612_DATA1:	equ $4003		; YM2612 bank 1 data port
+(1)  119/       0 :                     
+(1)  120/       0 :                     ; --------------------------
+(1)  121/       0 :                     ;		Generic Labels
+(1)  122/       0 :                     ; --------------------------
+(1)  123/       0 :                     
+(1)  124/       0 :                     ; Various memory spaces sizes in bytes
+(1)  125/       0 : =$FFFF              SIZE_WRAM: 		equ 65535	; 68000 RAM size (64 KB)
+(1)  126/       0 : =$FFFF              SIZE_VRAM:		equ 65535	; VDP VRAM size (64 KB)
+(1)  127/       0 : =$50                SIZE_VSRAM:		equ 80		; VDP vertical scroll RAM size (80 bytes)
+(1)  128/       0 : =$80                SIZE_CRAM:		equ 128		; VDP color RAM size (128 bytes, 64 colors)
+(1)  129/       0 : =$2000              SIZE_Z80WRAM:	equ 8192	; Z80 RAM size (8 KB)
+(1)  130/       0 :                     
+(1)  131/       0 :                     ; VDP name table addresses
+(1)  132/       0 : =$0                 NOFLIP: equ $0000  ; Don't flip (default)
+(1)  133/       0 : =$800               HFLIP:  equ $0800  ; Flip horizontally
+(1)  134/       0 : =$1000              VFLIP:  equ $1000  ; Flip vertically
+(1)  135/       0 : =$1800              HVFLIP: equ $1800  ; Flip both ways (180° flip)
+(1)  136/       0 :                     
+(1)  137/       0 : =$0                 PAL0:   equ $0000  ; Use palette 0 (default)
+(1)  138/       0 : =$2000              PAL1:   equ $2000  ; Use palette 1
+(1)  139/       0 : =$4000              PAL2:   equ $4000  ; Use palette 2
+(1)  140/       0 : =$6000              PAL3:   equ $6000  ; Use palette 3
+(1)  141/       0 :                     
+(1)  142/       0 : =$0                 LOPRI:  equ $0000  ; Low priority (default)
+(1)  143/       0 : =$8000              HIPRI:  equ $8000  ; High priority
+(1)  144/       0 :                     
+(1)  145/       0 :                     ; Controller labels
+(1)  146/       0 : =$5                 JOY_C:	equ 5
+(1)  147/       0 : =$4                 JOY_B:	equ 4
+(1)  148/       0 : =$3                 JOY_R:	equ 3
+(1)  149/       0 : =$2                 JOY_L:	equ 2
+(1)  150/       0 : =$1                 JOY_D:	equ 1
+(1)  151/       0 : =$0                 JOY_U:	equ 0
+(1)  152/       0 :                     
+(1)  153/       0 :                     ; YM2612 labels
+(1)  154/       0 : =$22                LFO_ENABLE:		equ $22		; Enable Low Frequency Oscillator
+(1)  155/       0 : =$24                TIMER_A_H:		equ $24		; Timer A frequency (high)
+(1)  156/       0 : =$25                TIMER_A_L:		equ $25		; Timer A frequency (low)
+(1)  157/       0 : =$26                TIMER_B:		equ $26		; Timer B frequency
+(1)  158/       0 : =$27                CH3_TIMERCTRL:	equ $27		; Channel 3 Mode and Timer control
+(1)  159/       0 : =$28                KEY_ON_OFF:		equ $28		; Key-on and Key-off
+(1)  160/       0 : =$2A                DAC_OUT:		equ $2A		; DAC output (or input)
+(1)  161/       0 : =$2B                DAC_ENABLE:		equ $2B		; DAC enable
+(1)  162/       0 :                     
+(1)  163/       0 : =$30                CH1_4_OP1_MUL_DT:	equ $30		; Channel 1/4 operator 1 Multiply and Detune
+(1)  164/       0 : =$38                CH1_4_OP2_MUL_DT:	equ $38		; Channel 1/4 operator 2 Multiply and Detune
+(1)  165/       0 : =$34                CH1_4_OP3_MUL_DT:	equ $34		; Channel 1/4 operator 3 Multiply and Detune
+(1)  166/       0 : =$3C                CH1_4_OP4_MUL_DT:	equ $3C		; Channel 1/4 operator 4 Multiply and Detune
+(1)  167/       0 :                     
+(1)  168/       0 : =$31                CH2_5_OP1_MUL_DT:	equ $31		; Channel 2/5 operator 1 Multiply and Detune
+(1)  169/       0 : =$39                CH2_5_OP2_MUL_DT:	equ $39		; Channel 2/5 operator 2 Multiply and Detune
+(1)  170/       0 : =$35                CH2_5_OP3_MUL_DT:	equ $35		; Channel 2/5 operator 3 Multiply and Detune
+(1)  171/       0 : =$3D                CH2_5_OP4_MUL_DT:	equ $3D		; Channel 2/5 operator 4 Multiply and Detune
+(1)  172/       0 :                     
+(1)  173/       0 : =$32                CH3_6_OP1_MUL_DT:	equ $32		; Channel 3/6 operator 1 Multiply and Detune
+ AS V1.42 Beta [Bld 298] - Source File Sonic.68k(Constants.asm) - Page 4 - 01/20/26 09:28:36
+
+
+(1)  174/       0 : =$3A                CH3_6_OP2_MUL_DT:	equ $3A		; Channel 3/6 operator 2 Multiply and Detune
+(1)  175/       0 : =$36                CH3_6_OP3_MUL_DT:	equ $36		; Channel 3/6 operator 3 Multiply and Detune
+(1)  176/       0 : =$3E                CH3_6_OP4_MUL_DT:	equ $3E		; Channel 3/6 operator 4 Multiply and Detune
+(1)  177/       0 :                     
+(1)  178/       0 : =$40                CH1_4_OP1_TL:	equ $40		; Channel 1/4 operator 1 Total Level
+(1)  179/       0 : =$48                CH1_4_OP2_TL:	equ $48		; Channel 1/4 operator 2 Total Level
+(1)  180/       0 : =$44                CH1_4_OP3_TL:	equ $44		; Channel 1/4 operator 3 Total Level
+(1)  181/       0 : =$4C                CH1_4_OP4_TL:	equ $4C		; Channel 1/4 operator 4 Total Level
+(1)  182/       0 :                     
+(1)  183/       0 : =$41                CH2_5_OP1_TL:	equ $41		; Channel 2/5 operator 1 Total Level
+(1)  184/       0 : =$49                CH2_5_OP2_TL:	equ $49		; Channel 2/5 operator 2 Total Level
+(1)  185/       0 : =$45                CH2_5_OP3_TL:	equ $45		; Channel 2/5 operator 3 Total Level
+(1)  186/       0 : =$4D                CH2_5_OP4_TL:	equ $4D		; Channel 2/5 operator 4 Total Level
+(1)  187/       0 :                     
+(1)  188/       0 : =$42                CH3_6_OP1_TL:	equ $42		; Channel 3/6 operator 1 Total Level
+(1)  189/       0 : =$4A                CH3_6_OP2_TL:	equ $4A		; Channel 3/6 operator 2 Total Level
+(1)  190/       0 : =$46                CH3_6_OP3_TL:	equ $46		; Channel 3/6 operator 3 Total Level
+(1)  191/       0 : =$4E                CH3_6_OP4_TL:	equ $4E		; Channel 3/6 operator 4 Total Level
+(1)  192/       0 :                     
+(1)  193/       0 : =$50                CH1_4_OP1_AR_RS:	equ $50		; Channel 1/4 operator 1 Attack Rate and Rate Scaling
+(1)  194/       0 : =$58                CH1_4_OP2_AR_RS:	equ $58		; Channel 1/4 operator 2 Attack Rate and Rate Scaling
+(1)  195/       0 : =$54                CH1_4_OP3_AR_RS:	equ $54		; Channel 1/4 operator 3 Attack Rate and Rate Scaling
+(1)  196/       0 : =$5C                CH1_4_OP4_AR_RS:	equ $5C		; Channel 1/4 operator 4 Attack Rate and Rate Scaling
+(1)  197/       0 :                     
+(1)  198/       0 : =$51                CH2_5_OP1_AR_RS:	equ $51		; Channel 2/5 operator 1 Attack Rate and Rate Scaling
+(1)  199/       0 : =$59                CH2_5_OP2_AR_RS:	equ $59		; Channel 2/5 operator 2 Attack Rate and Rate Scaling
+(1)  200/       0 : =$55                CH2_5_OP3_AR_RS:	equ $55		; Channel 2/5 operator 3 Attack Rate and Rate Scaling
+(1)  201/       0 : =$5D                CH2_5_OP4_AR_RS:	equ $5D		; Channel 2/5 operator 4 Attack Rate and Rate Scaling
+(1)  202/       0 :                     
+(1)  203/       0 : =$52                CH3_6_OP1_AR_RS:	equ $52		; Channel 3/6 operator 1 Attack Rate and Rate Scaling
+(1)  204/       0 : =$5A                CH3_6_OP2_AR_RS:	equ $5A		; Channel 3/6 operator 2 Attack Rate and Rate Scaling
+(1)  205/       0 : =$56                CH3_6_OP3_AR_RS:	equ $56		; Channel 3/6 operator 3 Attack Rate and Rate Scaling
+(1)  206/       0 : =$5E                CH3_6_OP4_AR_RS:	equ $5E		; Channel 3/6 operator 4 Attack Rate and Rate Scaling
+(1)  207/       0 :                     
+(1)  208/       0 : =$60                CH1_4_OP1_DR_AM:	equ $60		; Channel 1/4 operator 1 Decay Rate and Amplitude Modulation enable
+(1)  209/       0 : =$68                CH1_4_OP2_DR_AM:	equ $68		; Channel 1/4 operator 2 Decay Rate and Amplitude Modulation enable
+(1)  210/       0 : =$64                CH1_4_OP3_DR_AM:	equ $64		; Channel 1/4 operator 3 Decay Rate and Amplitude Modulation enable
+(1)  211/       0 : =$6C                CH1_4_OP4_DR_AM:	equ $6C		; Channel 1/4 operator 4 Decay Rate and Amplitude Modulation enable
+(1)  212/       0 :                     
+(1)  213/       0 : =$61                CH2_5_OP1_DR_AM:	equ $61		; Channel 2/5 operator 1 Decay Rate and Amplitude Modulation enable
+(1)  214/       0 : =$69                CH2_5_OP2_DR_AM:	equ $69		; Channel 2/5 operator 2 Decay Rate and Amplitude Modulation enable
+(1)  215/       0 : =$65                CH2_5_OP3_DR_AM:	equ $65		; Channel 2/5 operator 3 Decay Rate and Amplitude Modulation enable
+(1)  216/       0 : =$6D                CH2_5_OP4_DR_AM:	equ $6D		; Channel 2/5 operator 4 Decay Rate and Amplitude Modulation enable
+(1)  217/       0 :                     
+(1)  218/       0 : =$62                CH3_6_OP1_DR_AM:	equ $62		; Channel 3/6 operator 1 Decay Rate and Amplitude Modulation enable
+(1)  219/       0 : =$6A                CH3_6_OP2_DR_AM:	equ $6A		; Channel 3/6 operator 2 Decay Rate and Amplitude Modulation enable
+(1)  220/       0 : =$66                CH3_6_OP3_DR_AM:	equ $66		; Channel 3/6 operator 3 Decay Rate and Amplitude Modulation enable
+(1)  221/       0 : =$6E                CH3_6_OP4_DR_AM:	equ $6E		; Channel 3/6 operator 4 Decay Rate and Amplitude Modulation enable
+(1)  222/       0 :                     
+(1)  223/       0 : =$70                CH1_4_OP1_SR:	equ $70		; Channel 1/4 operator 1 Sustain Rate
+(1)  224/       0 : =$78                CH1_4_OP2_SR:	equ $78		; Channel 1/4 operator 2 Sustain Rate
+(1)  225/       0 : =$74                CH1_4_OP3_SR:	equ $74		; Channel 1/4 operator 3 Sustain Rate
+(1)  226/       0 : =$7C                CH1_4_OP4_SR:	equ $7C		; Channel 1/4 operator 4 Sustain Rate
+(1)  227/       0 :                     
+(1)  228/       0 : =$71                CH2_5_OP1_SR:	equ $71		; Channel 2/5 operator 1 Sustain Rate
+(1)  229/       0 : =$79                CH2_5_OP2_SR:	equ $79		; Channel 2/5 operator 2 Sustain Rate
+(1)  230/       0 : =$75                CH2_5_OP3_SR:	equ $75		; Channel 2/5 operator 3 Sustain Rate
+(1)  231/       0 : =$7D                CH2_5_OP4_SR:	equ $7D		; Channel 2/5 operator 4 Sustain Rate
+(1)  232/       0 :                     
+(1)  233/       0 : =$72                CH3_6_OP1_SR:	equ $72		; Channel 3/6 operator 1 Sustain Rate
+ AS V1.42 Beta [Bld 298] - Source File Sonic.68k(Constants.asm) - Page 5 - 01/20/26 09:28:36
+
+
+(1)  234/       0 : =$7A                CH3_6_OP2_SR:	equ $7A		; Channel 3/6 operator 2 Sustain Rate
+(1)  235/       0 : =$76                CH3_6_OP3_SR:	equ $76		; Channel 3/6 operator 3 Sustain Rate
+(1)  236/       0 : =$7E                CH3_6_OP4_SR:	equ $7E		; Channel 3/6 operator 4 Sustain Rate
+(1)  237/       0 :                     
+(1)  238/       0 : =$80                CH1_4_OP1_RR_SL:	equ $80		; Channel 1/4 operator 1 Release Rate and Sustain Level
+(1)  239/       0 : =$88                CH1_4_OP2_RR_SL:	equ $88		; Channel 1/4 operator 2 Release Rate and Sustain Level
+(1)  240/       0 : =$84                CH1_4_OP3_RR_SL:	equ $84		; Channel 1/4 operator 3 Release Rate and Sustain Level
+(1)  241/       0 : =$8C                CH1_4_OP4_RR_SL:	equ $8C		; Channel 1/4 operator 4 Release Rate and Sustain Level
+(1)  242/       0 :                     
+(1)  243/       0 : =$81                CH2_5_OP1_RR_SL:	equ $81		; Channel 2/5 operator 1 Release Rate and Sustain Level
+(1)  244/       0 : =$89                CH2_5_OP2_RR_SL:	equ $89		; Channel 2/5 operator 2 Release Rate and Sustain Level
+(1)  245/       0 : =$85                CH2_5_OP3_RR_SL:	equ $85		; Channel 2/5 operator 3 Release Rate and Sustain Level
+(1)  246/       0 : =$8D                CH2_5_OP4_RR_SL:	equ $8D		; Channel 2/5 operator 4 Release Rate and Sustain Level
+(1)  247/       0 :                     
+(1)  248/       0 : =$82                CH3_6_OP1_RR_SL:	equ $82		; Channel 3/6 operator 1 Release Rate and Sustain Level
+(1)  249/       0 : =$8A                CH3_6_OP2_RR_SL:	equ $8A		; Channel 3/6 operator 2 Release Rate and Sustain Level
+(1)  250/       0 : =$86                CH3_6_OP3_RR_SL:	equ $86		; Channel 3/6 operator 3 Release Rate and Sustain Level
+(1)  251/       0 : =$8E                CH3_6_OP4_RR_SL:	equ $8E		; Channel 3/6 operator 4 Release Rate and Sustain Level
+(1)  252/       0 :                     
+(1)  253/       0 : =$90                CH1_4_OP1_SSG_EG:	equ $90		; Channel 1/4 operator 1 envelope shape
+(1)  254/       0 : =$98                CH1_4_OP2_SSG_EG:	equ $98		; Channel 1/4 operator 2 envelope shape
+(1)  255/       0 : =$94                CH1_4_OP3_SSG_EG:	equ $94		; Channel 1/4 operator 3 envelope shape
+(1)  256/       0 : =$9C                CH1_4_OP4_SSG_EG:	equ $9C		; Channel 1/4 operator 4 envelope shape
+(1)  257/       0 :                     
+(1)  258/       0 : =$91                CH2_5_OP1_SSG_EG:	equ $91		; Channel 2/5 operator 1 envelope shape
+(1)  259/       0 : =$99                CH2_5_OP2_SSG_EG:	equ $99		; Channel 2/5 operator 2 envelope shape
+(1)  260/       0 : =$95                CH2_5_OP3_SSG_EG:	equ $95		; Channel 2/5 operator 3 envelope shape
+(1)  261/       0 : =$9D                CH2_5_OP4_SSG_EG:	equ $9D		; Channel 2/5 operator 4 envelope shape
+(1)  262/       0 :                     
+(1)  263/       0 : =$92                CH3_6_OP1_SSG_EG:	equ $92		; Channel 3/6 operator 1 envelope shape
+(1)  264/       0 : =$9A                CH3_6_OP2_SSG_EG:	equ $9A		; Channel 3/6 operator 2 envelope shape
+(1)  265/       0 : =$96                CH3_6_OP3_SSG_EG:	equ $96		; Channel 3/6 operator 3 envelope shape
+(1)  266/       0 : =$9E                CH3_6_OP4_SSG_EG:	equ $9E		; Channel 3/6 operator 4 envelope shape
+(1)  267/       0 :                     
+(1)  268/       0 : =$A4                CH1_4_FREQ_H:	equ $A4		; Channel 1/4 frequency (high)
+(1)  269/       0 : =$A5                CH2_5_FREQ_H:	equ $A5		; Channel 2/5 frequency (high)
+(1)  270/       0 : =$A6                CH3_6_FREQ_H:	equ $A6		; Channel 3/6 frequency (high)
+(1)  271/       0 :                     
+(1)  272/       0 : =$A0                CH1_4_FREQ_L:	equ $A0		; Channel 1/4 frequency (low)
+(1)  273/       0 : =$A1                CH2_5_FREQ_L:	equ $A1		; Channel 2/5 frequency (low)
+(1)  274/       0 : =$A2                CH3_6_FREQ_L:	equ $A2		; Channel 3/6 frequency (low)
+(1)  275/       0 :                     
+(1)  276/       0 : =$AD                CH3_OP1_FREQ_H:		equ $AD		; Channel 3 operator 1 frequency (high)
+(1)  277/       0 : =$AE                CH3_OP2_FREQ_H:		equ $AE		; Channel 3 operator 2 frequency (high)
+(1)  278/       0 : =$AC                CH3_OP3_FREQ_H:		equ $AC		; Channel 3 operator 3 frequency (high)
+(1)  279/       0 : =$A6                CH3_OP4_FREQ_H:		equ $A6		; Channel 3 operator 4 frequency (high)
+(1)  280/       0 :                     
+(1)  281/       0 : =$A9                CH3_OP1_FREQ_L:		equ $A9		; Channel 3 operator 1 frequency (low)
+(1)  282/       0 : =$AA                CH3_OP2_FREQ_L:		equ $AA		; Channel 3 operator 2 frequency (low)
+(1)  283/       0 : =$A8                CH3_OP3_FREQ_L:		equ $A8		; Channel 3 operator 3 frequency (low)
+(1)  284/       0 : =$A2                CH3_OP4_FREQ_L:		equ $A2		; Channel 3 operator 4 frequency (low)
+(1)  285/       0 :                     
+(1)  286/       0 : =$B0                CH1_4_ALG_FB:	equ $B0		; Channel 1/4 Algorithm and Feedback
+(1)  287/       0 : =$B1                CH2_5_ALG_FB:	equ $B1		; Channel 2/5 Algorithm and Feedback
+(1)  288/       0 : =$B2                CH3_6_ALG_FB:	equ $B2		; Channel 3/6 Algorithm and Feedback
+(1)  289/       0 :                     
+(1)  290/       0 : =$B4                CH1_4_PAN_PMS_AMS:	equ $B4		; Channel 1/4 Panning, Phase Modulation Sensitivity and Amplitude Modulation Sensitivity
+(1)  291/       0 : =$B5                CH2_5_PAN_PMS_AMS:	equ $B5		; Channel 2/5 Panning, Phase Modulation Sensitivity and Amplitude Modulation Sensitivity
+(1)  292/       0 : =$B6                CH3_6_PAN_PMS_AMS:	equ $B6		; Channel 3/6 Panning, Phase Modulation Sensitivity and Amplitude Modulation Sensitivity
+       8/       0 :                     	include "Variables.asm"
+ AS V1.42 Beta [Bld 298] - Source File Sonic.68k(Variables.asm) - Page 6 - 01/20/26 09:28:36
+
+
+(1)    1/       0 :                     ; It is recommended to fill padding spaces with byte variables for the 68k,
+(1)    2/       0 :                     ; to avoid wasting memory space and make it uneven. With padding on,
+(1)    3/       0 :                     ; the assembler will automatically fill odd words and longs to make them even and to avoid crashing.
+(1)    4/       0 :                     
+(1)    5/       0 :                     ; --------------------------
+(1)    6/       0 :                     ;		Motorola 68000
+(1)    7/       0 :                     ; --------------------------
+(1)    8/       0 :                     
+(1)    9/  FF0000 :                     	org M68K_WRAM
+(1)   10/  FF0000 :                     
+(1)   11/  FF0000 :                     sampleIndex:	ds.l 1	; Samples after Z80 routine execution
+(1)   12/  FF0004 :                     shouldStop:		ds.b 1	; It's zero when the execution continues
+(1)   13/  FF0005 :                     
+(1)   14/  FF0005 :                     ; ----------------------
+(1)   15/  FF0005 :                     ;		Zilog Z80
+(1)   16/  FF0005 :                     ; ----------------------
+(1)   17/  FF0005 :                     
+(1)   18/  FF0005 :                     	padding	off
+(1)   19/     501 :                     	org $501
+(1)   20/     501 :                     
+(1)   21/     501 :                     playedSamples:	ds.w 1	; Little-endian
+(1)   22/     503 :                     
+(1)   23/    1000 :                     	org $1000
+(1)   24/    1000 :                     SampleBuffer
+(1)   25/    1000 :                     
+(1)   26/    1000 :                     	padding on
+       9/    1000 :                     	include "Macros.asm"
+      11/    1000 :                     	listing purecode ; We sure want the listing file, but only the final code in expanded macros
+      12/    1000 :                     
+      13/    1000 :                     ; These switches enable the entire purpose of this driver and disabling them likely makes the playback similar to "traditional" DAC drivers
+      14/    1000 : =$1                 smoothPlayback:	equ TRUE	; Put it to FALSE to prevent 68k output during buffer load
+      15/    1000 : =$1                 accurateSpeed:	equ TRUE	; Put it to FALSE to ignore 68k sample increment calculation
+      16/    1000 :                     
+      17/    1000 :                     ROM_Start
+      18/    1000 :                     
+      19/       0 :                     	org 0
+      20/       0 :                     
+      21/       0 :                     ; ================================================================
+      22/       0 :                     ; 68000 vectors (with its error code in square brackets, AAAAAAxx)
+      23/       0 :                     ; ================================================================
+      24/       0 :                     
+      25/       0 : 00FF 0000           		dc.l M68K_STACK			; Initial stack pointer value (SP value)
+      26/       4 : 0000 0692           		dc.l EntryPoint			; Start of program (PC value)
+      27/       8 : 0000 0200           		dc.l BusError			; Bus error							[1]
+      28/       C : 0000 020A           		dc.l AddressError		; Address error						[2]
+      29/      10 : 0000 0214           		dc.l IllegalInstruction	; Illegal instruction				[3]
+      30/      14 : 0000 021E           		dc.l DivisionByZero		; Division by zero					[4]
+      31/      18 : 0000 0228           		dc.l CHKException		; CHK exception						[5]
+      32/      1C : 0000 0232           		dc.l TRAPVException		; TRAPV exception					[6]
+      33/      20 : 0000 023C           		dc.l PrivilegeViolation	; Privilege violation				[7]
+      34/      24 : 0000 0246           		dc.l TRACEException		; TRACE exception					[8]
+      35/      28 : 0000 0250           		dc.l LineAEmulator		; Line-A emulator					[9]
+      36/      2C : 0000 025A           		dc.l LineFEmulator		; Line-F emulator					[10]
+      37/      30 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      38/      34 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      39/      38 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      40/      3C : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      41/      40 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      42/      44 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      43/      48 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      44/      4C : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      45/      50 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      46/      54 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      47/      58 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      48/      5C : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      49/      60 : 0000 0264           		dc.l SpuriousException	; Spurious exception				[11]
+      50/      64 : 0000 026E           		dc.l InterruptRequest	; IRQ level 1						[12]
+      51/      68 : 0000 026E           		dc.l InterruptRequest	; IRQ level 2						[12]
+      52/      6C : 0000 026E           		dc.l InterruptRequest	; IRQ level 3 						[12]
+      53/      70 : 0000 0690           		dc.l VDP_HBlank			; IRQ level 4 (horizontal retrace)
+      54/      74 : 0000 026E           		dc.l InterruptRequest	; IRQ level 5						[12]
+      55/      78 : 0000 028C           		dc.l VDP_VBlank			; IRQ level 6 (vertical retrace)
+      56/      7C : 0000 026E           		dc.l InterruptRequest	; IRQ level 7						[12]
+      57/      80 : 0000 0278           		dc.l TRAPException		; TRAP #00 exception				[13]
+      58/      84 : 0000 0278           		dc.l TRAPException		; TRAP #01 exception				[13]
+      59/      88 : 0000 0278           		dc.l TRAPException		; TRAP #02 exception				[13]
+      60/      8C : 0000 0278           		dc.l TRAPException		; TRAP #03 exception				[13]
+      61/      90 : 0000 0278           		dc.l TRAPException		; TRAP #04 exception				[13]
+      62/      94 : 0000 0278           		dc.l TRAPException		; TRAP #05 exception				[13]
+      63/      98 : 0000 0278           		dc.l TRAPException		; TRAP #06 exception				[13]
+      64/      9C : 0000 0278           		dc.l TRAPException		; TRAP #07 exception				[13]
+      65/      A0 : 0000 0278           		dc.l TRAPException		; TRAP #08 exception				[13]
+      66/      A4 : 0000 0278           		dc.l TRAPException		; TRAP #09 exception				[13]
+      67/      A8 : 0000 0278           		dc.l TRAPException		; TRAP #10 exception				[13]
+      68/      AC : 0000 0278           		dc.l TRAPException		; TRAP #11 exception				[13]
+      69/      B0 : 0000 0278           		dc.l TRAPException		; TRAP #12 exception				[13]
+      70/      B4 : 0000 0278           		dc.l TRAPException		; TRAP #13 exception				[13]
+      71/      B8 : 0000 0278           		dc.l TRAPException		; TRAP #14 exception				[13]
+      72/      BC : 0000 0278           		dc.l TRAPException		; TRAP #15 exception				[13]
+      73/      C0 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      74/      C4 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      75/      C8 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      76/      CC : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      77/      D0 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      78/      D4 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      79/      D8 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      80/      DC : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      81/      E0 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      82/      E4 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      83/      E8 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      84/      EC : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      85/      F0 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      86/      F4 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      87/      F8 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      88/      FC : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      89/     100 :                     
+      90/     100 :                     ; ===================================================================
+      91/     100 :                     ; Mega Drive ROM header (reference: https://plutiedev.com/rom-header)
+      92/     100 :                     ; ===================================================================
+      93/     100 :                     
+      94/     100 : 5345 4741 204D 4547 		dc.b "SEGA MEGA DRIVE "										; System type - 16 bytes
+              108 : 4120 4452 4956 4520
+      95/     110 : 2843 292E 2E2E 2E20 		dc.b "(C).... YYYY.MMM"										; Copyright, release year and month (e.g. "(C)SEGA 1991.APR") - 16 bytes
+              118 : 5959 5959 2E4D 4D4D
+      96/     120 : 2020 2020 2020 2020 		dc.b "                                                "		; Domestic name - 48 bytes
+              128 : 2020 2020 2020 2020
+              130 : 2020 2020 2020 2020
+              138 : 2020 2020 2020 2020
+              140 : 2020 2020 2020 2020
+              148 : 2020 2020 2020 2020
+      97/     150 : 2020 2020 2020 2020 		dc.b "                                                "		; Overseas name - 48 bytes
+              158 : 2020 2020 2020 2020
+              160 : 2020 2020 2020 2020
+              168 : 2020 2020 2020 2020
+              170 : 2020 2020 2020 2020
+              178 : 2020 2020 2020 2020
+      98/     180 : 474D 2D31 3233 3435 		dc.b "GM-12345678-00"										; Serial number ("xx-yyyyyyyy-zz") - 14 bytes
+              188 : 3637 382D 3030   
+      99/     18E : 0000                		dc.w $0000													; Where this ROM gets patched with a 16-bit checksum - 2 bytes
+     100/     190 : 4A20 2020 2020 2020 		dc.b "J               "										; Device support (e.g. "J" for 3-button controller) - 16 bytes
+              198 : 2020 2020 2020 2020
+     101/     1A0 : 0000 1000           		dc.l ROM_Start												; Start address of ROM - 4 bytes
+     102/     1A4 : 003F B3DF           		dc.l ROM_End												; End address of ROM - 4 bytes
+     103/     1A8 : 00FF 0000           		dc.l $FF0000												; Start address of WRAM - 4 bytes
+     104/     1AC : 00FF FFFF           		dc.l $FFFFFF 												; End address of WRAM - 4 bytes
+     105/     1B0 : 2020 2020 2020 2020 		dc.b "                                                                " ; padding for reserved space - 64 bytes
+              1B8 : 2020 2020 2020 2020
+              1C0 : 2020 2020 2020 2020
+              1C8 : 2020 2020 2020 2020
+              1D0 : 2020 2020 2020 2020
+              1D8 : 2020 2020 2020 2020
+              1E0 : 2020 2020 2020 2020
+              1E8 : 2020 2020 2020 2020
+     106/     1F0 : 4A55 45             		dc.b "JUE"													; Region support - 16 bytes
+     107/     1F3 : 2020 2020 2020 2020 		dc.b "             "										; padding for reserved space (you can put a comment if you want!) - 13 bytes
+              1FB : 2020 2020 20      
+     108/     200 :                     
+     109/     200 :                     ; ========================
+     110/     200 :                     ; Error handler jump table
+     111/     200 :                     ; ========================
+     112/     200 :                     
+     113/     200 :                     BusError:
+     114/     200 : 2E3C AAAA AAA1      	move.l	#$AAAAAAA1,d7
+     115/     206 : 4E72 2700           	stop #$2700 ; some emulators might not recognize this instruction
+     116/     20A :                     
+     117/     20A :                     AddressError:
+     118/     20A : 2E3C AAAA AAA2      	move.l	#$AAAAAAA2,d7
+     119/     210 : 4E72 2700           	stop #$2700
+     120/     214 :                     
+     121/     214 :                     IllegalInstruction:
+     122/     214 : 2E3C AAAA AAA3      	move.l	#$AAAAAAA3,d7
+     123/     21A : 4E72 2700           	stop #$2700
+     124/     21E :                     
+     125/     21E :                     DivisionByZero:
+     126/     21E : 2E3C AAAA AAA4      	move.l	#$AAAAAAA4,d7
+     127/     224 : 4E72 2700           	stop #$2700
+     128/     228 :                     
+     129/     228 :                     CHKException:
+     130/     228 : 2E3C AAAA AAA5      	move.l	#$AAAAAAA5,d7
+     131/     22E : 4E72 2700           	stop #$2700
+     132/     232 :                     
+     133/     232 :                     TRAPVException:
+     134/     232 : 2E3C AAAA AAA6      	move.l	#$AAAAAAA6,d7
+     135/     238 : 4E72 2700           	stop #$2700
+     136/     23C :                     
+     137/     23C :                     PrivilegeViolation:
+     138/     23C : 2E3C AAAA AAA7      	move.l	#$AAAAAAA7,d7
+     139/     242 : 4E72 2700           	stop #$2700
+     140/     246 :                     
+     141/     246 :                     TRACEException:
+     142/     246 : 2E3C AAAA AAA8      	move.l	#$AAAAAAA8,d7
+     143/     24C : 4E72 2700           	stop #$2700
+     144/     250 :                     
+     145/     250 :                     LineAEmulator:
+     146/     250 : 2E3C AAAA AAA9      	move.l	#$AAAAAAA9,d7
+     147/     256 : 4E72 2700           	stop #$2700
+     148/     25A :                     
+     149/     25A :                     LineFEmulator:
+     150/     25A : 2E3C AAAA AA10      	move.l	#$AAAAAA10,d7
+     151/     260 : 4E72 2700           	stop #$2700
+     152/     264 :                     
+     153/     264 :                     SpuriousException:
+     154/     264 : 2E3C AAAA AA11      	move.l	#$AAAAAA11,d7
+     155/     26A : 4E72 2700           	stop #$2700
+     156/     26E :                     
+     157/     26E :                     InterruptRequest:
+     158/     26E : 2E3C AAAA AA12      	move.l	#$AAAAAA12,d7
+     159/     274 : 4E72 2700           	stop #$2700
+     160/     278 :                     
+     161/     278 :                     TRAPException:
+     162/     278 : 2E3C AAAA AA13      	move.l	#$AAAAAA13,d7
+     163/     27E : 4E72 2700           	stop #$2700
+     164/     282 :                     
+     165/     282 :                     UnknownError:
+     166/     282 : 2E3C AAAA AA14      	move.l	#$AAAAAA14,d7
+     167/     288 : 4E72 2700           	stop #$2700
+     168/     28C :                     
+     169/     28C :                     ; ==========================
+     170/     28C :                     
+     171/     28C :                     ; A2: live samples, A0: Z80 samples for later
+     172/     28C :                     ; 240 68k cycles for every 32 kHz sample
+     173/     28C :                     
+     174/     28C :                     VDP_VBlank:
+     175/     28C :                     ; --- ~20 cycles in total ---
+     176/     28C : (MACRO)[0]          	stopZ80		; Initiate Z80 stop, 8 cycles
+     176/     28C :                     
+     176/     28C : 33FC 0100 00A1 1100                 move.w  #$100,(Z80_BUSREQ).l
+     177/     294 : 47F9 00A0 4003      	lea	YM2612_68K_DATA1,a3			; 8 cycles
+     178/     29A : 49F9 00A0 0502      	lea	playedSamples+1|Z80_WRAM,a4		; 8 cycles
+     179/     2A0 : 4BF9 00A1 1100      	lea Z80_BUSREQ,a5					; 8 cycles
+     180/     2A6 : 2439 00FF 0000      	move.l	(sampleIndex),d2			; 12 cycles
+     181/     2AC : 7000                	moveq	#0,d0
+     182/     2AE : (MACRO)[1]          	waitZ80	d0,a5		; 12 cycles (at best)
+     182/     2AE :                     
+     182/     2AE :                     
+     182/     2AE :                     
+     182/     2AE :                     $$wait: 
+     182/     2AE : 0115                        btst    d0,(a5)
+     182/     2B0 : 66FC                        bne.s   $$wait
+     183/     2B2 :                     ; --- 76 cycles in total ---
+     184/     2B2 : 3014                	move.w	(a4),d0		; Get high byte of playedSamples, 8 cycles
+     185/     2B4 : 1024                	move.b	-(a4),d0	; Get lower byte of playedSamples, 8 cycles
+     186/     2B6 : D480                	add.l	d0,d2		; 8 cycles
+     187/     2B8 : 2442                	movea.l	d2,a2		; Sample index while executing 68k routine, 4 cycles
+     188/     2BA :                     ; --- 104 cycles in total ---
+     190/     2BA : 169A                		move.b	(a2)+,(a3)	; Output sample, 12 cycles
+     195/     2BC :                     
+     196/     2BC :                     ; --- Cycle count restarts ---
+     197/     2BC :                     
+     198/     2BC : 2042                	movea.l	d2,a0	; 4 cycles
+     199/     2BE :                     
+     201/     2BE : (MACRO)[2]          		addaq	21+2,a0	; Sample index after 68k routine execution (A2 at the end, basically), 8 cycles
+     201/     2BE :                     
+     201/     2BE :                     
+     201/     2BE :                     
+     201/     2BE : 41E8 0017                   lea (21+2,a0),a0
+     202/     2C2 : 2408                		move.l	a0,d2	; D1 is now the updated sample index, 4 cycles
+     204/     2C4 :                     
+     205/     2C4 : 43F9 00A0 1000      	lea	SampleBuffer|Z80_WRAM,a1	; 8 cycles
+     206/     2CA :                     ; --- 24 cycles in total ---
+     207/     2CA : 0802 0000           	btst	#0,d2				; Is the sample index even? 6 cycles
+     208/     2CE : 6706                	beq.s	$$skip_alignment	; If yes, skip the alignment, 10 cycles
+     209/     2D0 : 1298                	move.b	(a0)+,(a1)			; If not, the 68k will crash, so we avoid it. 12 cycles
+     210/     2D2 : 5489                	addq.l	#2,a1
+     211/     2D4 : 2408                	move.l	a0,d2	; D2 is now the updated sample index, 4 cycles
+     212/     2D6 :                     $$skip_alignment:
+     213/     2D6 : 4E71                	nop			; 4 cycles
+     214/     2D8 : 4E71                	nop			; 4 cycles
+     215/     2DA : 4E71                	nop			; 4 cycles
+     216/     2DC : 203C 003F B3DF      	move.l	#ROM_End,d0			; 12 cycles
+     217/     2E2 : 9082                	sub.l	d2,d0				; Is the audio about to end (ends on Z80 buffer)? 8 cycles
+     218/     2E4 :                     ; --- 72 cycles in total ---
+     219/     2E4 : 6A20                	bpl.s	$$skip_tracking		; 10 cycles on branch, 8 cycles no branch
+     220/     2E6 :                     	; Z80 playback with sample tracking routine
+     221/     2E6 : 13FC 00C0 00A0 0028 	move.b	#Init_EndSound,(Z80Init.routineAddress+2)|Z80_WRAM	; Little endian, 16 cycles
+     222/     2EE : 13C0 00A0 00C2      	move.b	d0,(Init_EndSound+2|Z80_WRAM)	; 16 cycles
+     223/     2F4 : E048                	lsr.w	#8,d0							; 22 cycles
+     224/     2F6 : 13C0 00A0 00C1      	move.b	d0,(Init_EndSound+1|Z80_WRAM)	; 16 cycles
+     225/     2FC : 13FC 0001 00FF 0004 	move.b	#1,shouldStop					; 16 cycles
+     226/     304 : 600E                	bra.s	$$continue						; 10 cycles
+     227/     306 :                     ; --- 82 cycles in total ---
+     228/     306 :                     $$skip_tracking:
+     229/     306 :                     	; Normal Z80 playback routine
+     230/     306 : 49F9 00A0 0027      	lea	(Z80Init.routineAddress+1)|Z80_WRAM,a4
+     231/     30C : 18FC 0029           	move.b	#Init_DacAndEffects&$FF,(a4)+
+     232/     310 : 18BC 0000           	move.b	#Init_DacAndEffects>>8,(a4)
+     233/     314 :                     
+     234/     314 :                     $$continue:
+     235/     314 :                     ; --- 98 cycles in total ---
+     236/     314 : 7004                	moveq	#4,d0	; 4 cycles
+     237/     316 :                     $$timing_wait1:		; 54 cycles
+     238/     316 : 51C8 FFFE           	dbf d0,$$timing_wait1
+     239/     31A :                     ; --- 156 cycles in total ---
+     240/     31A :                     
+     241/     31A : (MACRO)[3]          	loadSamples	; D0 and D1 break here
+     241/     31A :                             
+     241/     31A : =$0                 i set 0
+     241/     31A :                     
+     241/     31A : 2018                        move.l  (a0)+,d0                ; 12 cycles
+     241/     31C : 01C9 0000                   movep.l d0,(i+(8*0),a1) ; 24 cycles
+     241/     320 :                     
+     241/     320 : 2018                        move.l  (a0)+,d0
+     241/     322 : 01C9 0008                   movep.l d0,(i+(8*1),a1)
+     241/     326 :                             ; 72 cycles in total
+     241/     326 : =$8                 i set 8
+     241/     326 :                     
+     241/     326 :                             while i < 1072
+     241/     326 :                     
+     241/     326 :                             if smoothPlayback
+     241/     326 :                                     move.b  (a2)+,(a3)
+     241/     326 :                             elseif accurateSpeed
+     241/     326 :                                     addq.l  #1,a2
+     241/     326 :                                     nop
+     241/     326 :                             endif
+     241/     326 :                     
+     241/     326 :                             move.l  (a0)+,d0
+     241/     326 :                             movep.l d0,(i+(8*0),a1)
+     241/     326 :                     
+     241/     326 :                             move.l  (a0)+,d0
+     241/     326 :                             movep.l d0,(i+(8*1),a1)
+     241/     326 :                     
+     241/     326 :                             move.l  (a0)+,d0
+     241/     326 :                             movep.l d0,(i+(8*2),a1)
+     241/     326 :                     
+     241/     326 :                             move.l  (a0)+,d0
+     241/     326 :                             movep.l d0,(i+(8*3),a1)
+     241/     326 :                     
+     241/     326 :                             move.l  (a0)+,d0
+     241/     326 :                             movep.l d0,(i+(8*4),a1)
+     241/     326 :                     
+     241/     326 :                             move.l  (a0)+,d0
+     241/     326 :                             movep.l d0,(i+(8*5),a1)
+     241/     326 :                     
+     241/     326 :                             move.l  (a0)+,d0
+     241/     326 :                     
+     241/     326 :                             if smoothPlayback
+     241/     326 :                                     move.b  (a2)+,(a3)
+     241/     326 :                             elseif accurateSpeed
+     241/     326 :                                     addq.l  #1,a2
+     241/     326 :                                     nop
+     241/     326 :                             endif
+     241/     326 :                     
+     241/     326 :                             movep.l d0,(i+(8*6),a1)
+     241/     326 :                     
+     241/     326 :                             move.l  (a0)+,d0
+     241/     326 :                             movep.l d0,(i+(8*7),a1)
+     241/     326 :                     
+     241/     326 :                             move.l  (a0)+,d0
+     241/     326 :                             movep.l d0,(i+(8*8),a1)
+     241/     326 :                     
+     241/     326 :                             move.l  (a0)+,d0
+     241/     326 :                             movep.l d0,(i+(8*9),a1)
+     241/     326 :                     
+     241/     326 :                             move.l  (a0)+,d0
+     241/     326 :                             movep.l d0,(i+(8*10),a1)
+     241/     326 :                     
+     241/     326 :                             move.l  (a0)+,d0
+     241/     326 :                             movep.l d0,(i+(8*11),a1)
+     241/     326 :                     
+     241/     326 :                             move.l  (a0)+,d0
+     241/     326 :                             move.l  (a0)+,d1
+     241/     326 :                     
+     241/     326 :                             if smoothPlayback
+     241/     326 :                                     move.b  (a2)+,(a3)
+     241/     326 :                             elseif accurateSpeed
+     241/     326 :                                     addq.l  #1,a2
+     241/     326 :                                     nop
+     241/     326 :                             endif
+     241/     326 :                     
+     241/     326 :                             movep.l d0,(i+(8*12),a1)
+     241/     326 :                             movep.l d1,(i+(8*13),a1)
+     241/     326 :                     
+     241/     326 :                             move.l  (a0)+,d0
+     241/     326 :                             movep.l d0,(i+(8*14),a1)
+     241/     326 :                     
+     241/     326 :                             move.l  (a0)+,d0
+     241/     326 :                             movep.l d0,(i+(8*15),a1)
+     241/     326 :                     
+     241/     326 :                             move.l  (a0)+,d0
+     241/     326 :                             movep.l d0,(i+(8*16),a1)
+     241/     326 :                     
+     241/     326 :                             move.l  (a0)+,d0
+     241/     326 :                             movep.l d0,(i+(8*17),a1)
+     241/     326 :                     
+     241/     326 :                             move.l  (a0)+,d0
+     241/     326 :                             movep.l d0,(i+(8*18),a1)
+     241/     326 :                     
+     241/     326 :                     i set i + 152
+     241/     326 :                             endm
+     241/     326 :                     
+     241/     326 : 169A                                move.b  (a2)+,(a3)
+     241/     328 :                     
+     241/     328 : 2018                        move.l  (a0)+,d0
+     241/     32A : 01C9 0008                   movep.l d0,(i+(8*0),a1)
+     241/     32E :                     
+     241/     32E : 2018                        move.l  (a0)+,d0
+     241/     330 : 01C9 0010                   movep.l d0,(i+(8*1),a1)
+     241/     334 :                     
+     241/     334 : 2018                        move.l  (a0)+,d0
+     241/     336 : 01C9 0018                   movep.l d0,(i+(8*2),a1)
+     241/     33A :                     
+     241/     33A : 2018                        move.l  (a0)+,d0
+     241/     33C : 01C9 0020                   movep.l d0,(i+(8*3),a1)
+     241/     340 :                     
+     241/     340 : 2018                        move.l  (a0)+,d0
+     241/     342 : 01C9 0028                   movep.l d0,(i+(8*4),a1)
+     241/     346 :                     
+     241/     346 : 2018                        move.l  (a0)+,d0
+     241/     348 : 01C9 0030                   movep.l d0,(i+(8*5),a1)
+     241/     34C :                     
+     241/     34C : 2018                        move.l  (a0)+,d0
+     241/     34E :                     
+     241/     34E : 169A                                move.b  (a2)+,(a3)
+     241/     350 :                     
+     241/     350 : 01C9 0038                   movep.l d0,(i+(8*6),a1)
+     241/     354 :                     
+     241/     354 : 2018                        move.l  (a0)+,d0
+     241/     356 : 01C9 0040                   movep.l d0,(i+(8*7),a1)
+     241/     35A :                     
+     241/     35A : 2018                        move.l  (a0)+,d0
+     241/     35C : 01C9 0048                   movep.l d0,(i+(8*8),a1)
+     241/     360 :                     
+     241/     360 : 2018                        move.l  (a0)+,d0
+     241/     362 : 01C9 0050                   movep.l d0,(i+(8*9),a1)
+     241/     366 :                     
+     241/     366 : 2018                        move.l  (a0)+,d0
+     241/     368 : 01C9 0058                   movep.l d0,(i+(8*10),a1)
+     241/     36C :                     
+     241/     36C : 2018                        move.l  (a0)+,d0
+     241/     36E : 01C9 0060                   movep.l d0,(i+(8*11),a1)
+     241/     372 :                     
+     241/     372 : 2018                        move.l  (a0)+,d0
+     241/     374 : 2218                        move.l  (a0)+,d1
+     241/     376 :                     
+     241/     376 : 169A                                move.b  (a2)+,(a3)
+     241/     378 :                     
+     241/     378 : 01C9 0068                   movep.l d0,(i+(8*12),a1)
+     241/     37C : 03C9 0070                   movep.l d1,(i+(8*13),a1)
+     241/     380 :                     
+     241/     380 : 2018                        move.l  (a0)+,d0
+     241/     382 : 01C9 0078                   movep.l d0,(i+(8*14),a1)
+     241/     386 :                     
+     241/     386 : 2018                        move.l  (a0)+,d0
+     241/     388 : 01C9 0080                   movep.l d0,(i+(8*15),a1)
+     241/     38C :                     
+     241/     38C : 2018                        move.l  (a0)+,d0
+     241/     38E : 01C9 0088                   movep.l d0,(i+(8*16),a1)
+     241/     392 :                     
+     241/     392 : 2018                        move.l  (a0)+,d0
+     241/     394 : 01C9 0090                   movep.l d0,(i+(8*17),a1)
+     241/     398 :                     
+     241/     398 : 2018                        move.l  (a0)+,d0
+     241/     39A : 01C9 0098                   movep.l d0,(i+(8*18),a1)
+     241/     39E :                     
+     241/     39E : =$A0                i set i + 152
+     241/     39E :                     
+     241/     39E : 169A                                move.b  (a2)+,(a3)
+     241/     3A0 :                     
+     241/     3A0 : 2018                        move.l  (a0)+,d0
+     241/     3A2 : 01C9 00A0                   movep.l d0,(i+(8*0),a1)
+     241/     3A6 :                     
+     241/     3A6 : 2018                        move.l  (a0)+,d0
+     241/     3A8 : 01C9 00A8                   movep.l d0,(i+(8*1),a1)
+     241/     3AC :                     
+     241/     3AC : 2018                        move.l  (a0)+,d0
+     241/     3AE : 01C9 00B0                   movep.l d0,(i+(8*2),a1)
+     241/     3B2 :                     
+     241/     3B2 : 2018                        move.l  (a0)+,d0
+     241/     3B4 : 01C9 00B8                   movep.l d0,(i+(8*3),a1)
+     241/     3B8 :                     
+     241/     3B8 : 2018                        move.l  (a0)+,d0
+     241/     3BA : 01C9 00C0                   movep.l d0,(i+(8*4),a1)
+     241/     3BE :                     
+     241/     3BE : 2018                        move.l  (a0)+,d0
+     241/     3C0 : 01C9 00C8                   movep.l d0,(i+(8*5),a1)
+     241/     3C4 :                     
+     241/     3C4 : 2018                        move.l  (a0)+,d0
+     241/     3C6 :                     
+     241/     3C6 : 169A                                move.b  (a2)+,(a3)
+     241/     3C8 :                     
+     241/     3C8 : 01C9 00D0                   movep.l d0,(i+(8*6),a1)
+     241/     3CC :                     
+     241/     3CC : 2018                        move.l  (a0)+,d0
+     241/     3CE : 01C9 00D8                   movep.l d0,(i+(8*7),a1)
+     241/     3D2 :                     
+     241/     3D2 : 2018                        move.l  (a0)+,d0
+     241/     3D4 : 01C9 00E0                   movep.l d0,(i+(8*8),a1)
+     241/     3D8 :                     
+     241/     3D8 : 2018                        move.l  (a0)+,d0
+     241/     3DA : 01C9 00E8                   movep.l d0,(i+(8*9),a1)
+     241/     3DE :                     
+     241/     3DE : 2018                        move.l  (a0)+,d0
+     241/     3E0 : 01C9 00F0                   movep.l d0,(i+(8*10),a1)
+     241/     3E4 :                     
+     241/     3E4 : 2018                        move.l  (a0)+,d0
+     241/     3E6 : 01C9 00F8                   movep.l d0,(i+(8*11),a1)
+     241/     3EA :                     
+     241/     3EA : 2018                        move.l  (a0)+,d0
+     241/     3EC : 2218                        move.l  (a0)+,d1
+     241/     3EE :                     
+     241/     3EE : 169A                                move.b  (a2)+,(a3)
+     241/     3F0 :                     
+     241/     3F0 : 01C9 0100                   movep.l d0,(i+(8*12),a1)
+     241/     3F4 : 03C9 0108                   movep.l d1,(i+(8*13),a1)
+     241/     3F8 :                     
+     241/     3F8 : 2018                        move.l  (a0)+,d0
+     241/     3FA : 01C9 0110                   movep.l d0,(i+(8*14),a1)
+     241/     3FE :                     
+     241/     3FE : 2018                        move.l  (a0)+,d0
+     241/     400 : 01C9 0118                   movep.l d0,(i+(8*15),a1)
+     241/     404 :                     
+     241/     404 : 2018                        move.l  (a0)+,d0
+     241/     406 : 01C9 0120                   movep.l d0,(i+(8*16),a1)
+     241/     40A :                     
+     241/     40A : 2018                        move.l  (a0)+,d0
+     241/     40C : 01C9 0128                   movep.l d0,(i+(8*17),a1)
+     241/     410 :                     
+     241/     410 : 2018                        move.l  (a0)+,d0
+     241/     412 : 01C9 0130                   movep.l d0,(i+(8*18),a1)
+     241/     416 :                     
+     241/     416 : =$138               i set i + 152
+     241/     416 :                     
+     241/     416 : 169A                                move.b  (a2)+,(a3)
+     241/     418 :                     
+     241/     418 : 2018                        move.l  (a0)+,d0
+     241/     41A : 01C9 0138                   movep.l d0,(i+(8*0),a1)
+     241/     41E :                     
+     241/     41E : 2018                        move.l  (a0)+,d0
+     241/     420 : 01C9 0140                   movep.l d0,(i+(8*1),a1)
+     241/     424 :                     
+     241/     424 : 2018                        move.l  (a0)+,d0
+     241/     426 : 01C9 0148                   movep.l d0,(i+(8*2),a1)
+     241/     42A :                     
+     241/     42A : 2018                        move.l  (a0)+,d0
+     241/     42C : 01C9 0150                   movep.l d0,(i+(8*3),a1)
+     241/     430 :                     
+     241/     430 : 2018                        move.l  (a0)+,d0
+     241/     432 : 01C9 0158                   movep.l d0,(i+(8*4),a1)
+     241/     436 :                     
+     241/     436 : 2018                        move.l  (a0)+,d0
+     241/     438 : 01C9 0160                   movep.l d0,(i+(8*5),a1)
+     241/     43C :                     
+     241/     43C : 2018                        move.l  (a0)+,d0
+     241/     43E :                     
+     241/     43E : 169A                                move.b  (a2)+,(a3)
+     241/     440 :                     
+     241/     440 : 01C9 0168                   movep.l d0,(i+(8*6),a1)
+     241/     444 :                     
+     241/     444 : 2018                        move.l  (a0)+,d0
+     241/     446 : 01C9 0170                   movep.l d0,(i+(8*7),a1)
+     241/     44A :                     
+     241/     44A : 2018                        move.l  (a0)+,d0
+     241/     44C : 01C9 0178                   movep.l d0,(i+(8*8),a1)
+     241/     450 :                     
+     241/     450 : 2018                        move.l  (a0)+,d0
+     241/     452 : 01C9 0180                   movep.l d0,(i+(8*9),a1)
+     241/     456 :                     
+     241/     456 : 2018                        move.l  (a0)+,d0
+     241/     458 : 01C9 0188                   movep.l d0,(i+(8*10),a1)
+     241/     45C :                     
+     241/     45C : 2018                        move.l  (a0)+,d0
+     241/     45E : 01C9 0190                   movep.l d0,(i+(8*11),a1)
+     241/     462 :                     
+     241/     462 : 2018                        move.l  (a0)+,d0
+     241/     464 : 2218                        move.l  (a0)+,d1
+     241/     466 :                     
+     241/     466 : 169A                                move.b  (a2)+,(a3)
+     241/     468 :                     
+     241/     468 : 01C9 0198                   movep.l d0,(i+(8*12),a1)
+     241/     46C : 03C9 01A0                   movep.l d1,(i+(8*13),a1)
+     241/     470 :                     
+     241/     470 : 2018                        move.l  (a0)+,d0
+     241/     472 : 01C9 01A8                   movep.l d0,(i+(8*14),a1)
+     241/     476 :                     
+     241/     476 : 2018                        move.l  (a0)+,d0
+     241/     478 : 01C9 01B0                   movep.l d0,(i+(8*15),a1)
+     241/     47C :                     
+     241/     47C : 2018                        move.l  (a0)+,d0
+     241/     47E : 01C9 01B8                   movep.l d0,(i+(8*16),a1)
+     241/     482 :                     
+     241/     482 : 2018                        move.l  (a0)+,d0
+     241/     484 : 01C9 01C0                   movep.l d0,(i+(8*17),a1)
+     241/     488 :                     
+     241/     488 : 2018                        move.l  (a0)+,d0
+     241/     48A : 01C9 01C8                   movep.l d0,(i+(8*18),a1)
+     241/     48E :                     
+     241/     48E : =$1D0               i set i + 152
+     241/     48E :                     
+     241/     48E : 169A                                move.b  (a2)+,(a3)
+     241/     490 :                     
+     241/     490 : 2018                        move.l  (a0)+,d0
+     241/     492 : 01C9 01D0                   movep.l d0,(i+(8*0),a1)
+     241/     496 :                     
+     241/     496 : 2018                        move.l  (a0)+,d0
+     241/     498 : 01C9 01D8                   movep.l d0,(i+(8*1),a1)
+     241/     49C :                     
+     241/     49C : 2018                        move.l  (a0)+,d0
+     241/     49E : 01C9 01E0                   movep.l d0,(i+(8*2),a1)
+     241/     4A2 :                     
+     241/     4A2 : 2018                        move.l  (a0)+,d0
+     241/     4A4 : 01C9 01E8                   movep.l d0,(i+(8*3),a1)
+     241/     4A8 :                     
+     241/     4A8 : 2018                        move.l  (a0)+,d0
+     241/     4AA : 01C9 01F0                   movep.l d0,(i+(8*4),a1)
+     241/     4AE :                     
+     241/     4AE : 2018                        move.l  (a0)+,d0
+     241/     4B0 : 01C9 01F8                   movep.l d0,(i+(8*5),a1)
+     241/     4B4 :                     
+     241/     4B4 : 2018                        move.l  (a0)+,d0
+     241/     4B6 :                     
+     241/     4B6 : 169A                                move.b  (a2)+,(a3)
+     241/     4B8 :                     
+     241/     4B8 : 01C9 0200                   movep.l d0,(i+(8*6),a1)
+     241/     4BC :                     
+     241/     4BC : 2018                        move.l  (a0)+,d0
+     241/     4BE : 01C9 0208                   movep.l d0,(i+(8*7),a1)
+     241/     4C2 :                     
+     241/     4C2 : 2018                        move.l  (a0)+,d0
+     241/     4C4 : 01C9 0210                   movep.l d0,(i+(8*8),a1)
+     241/     4C8 :                     
+     241/     4C8 : 2018                        move.l  (a0)+,d0
+     241/     4CA : 01C9 0218                   movep.l d0,(i+(8*9),a1)
+     241/     4CE :                     
+     241/     4CE : 2018                        move.l  (a0)+,d0
+     241/     4D0 : 01C9 0220                   movep.l d0,(i+(8*10),a1)
+     241/     4D4 :                     
+     241/     4D4 : 2018                        move.l  (a0)+,d0
+     241/     4D6 : 01C9 0228                   movep.l d0,(i+(8*11),a1)
+     241/     4DA :                     
+     241/     4DA : 2018                        move.l  (a0)+,d0
+     241/     4DC : 2218                        move.l  (a0)+,d1
+     241/     4DE :                     
+     241/     4DE : 169A                                move.b  (a2)+,(a3)
+     241/     4E0 :                     
+     241/     4E0 : 01C9 0230                   movep.l d0,(i+(8*12),a1)
+     241/     4E4 : 03C9 0238                   movep.l d1,(i+(8*13),a1)
+     241/     4E8 :                     
+     241/     4E8 : 2018                        move.l  (a0)+,d0
+     241/     4EA : 01C9 0240                   movep.l d0,(i+(8*14),a1)
+     241/     4EE :                     
+     241/     4EE : 2018                        move.l  (a0)+,d0
+     241/     4F0 : 01C9 0248                   movep.l d0,(i+(8*15),a1)
+     241/     4F4 :                     
+     241/     4F4 : 2018                        move.l  (a0)+,d0
+     241/     4F6 : 01C9 0250                   movep.l d0,(i+(8*16),a1)
+     241/     4FA :                     
+     241/     4FA : 2018                        move.l  (a0)+,d0
+     241/     4FC : 01C9 0258                   movep.l d0,(i+(8*17),a1)
+     241/     500 :                     
+     241/     500 : 2018                        move.l  (a0)+,d0
+     241/     502 : 01C9 0260                   movep.l d0,(i+(8*18),a1)
+     241/     506 :                     
+     241/     506 : =$268               i set i + 152
+     241/     506 :                     
+     241/     506 : 169A                                move.b  (a2)+,(a3)
+     241/     508 :                     
+     241/     508 : 2018                        move.l  (a0)+,d0
+     241/     50A : 01C9 0268                   movep.l d0,(i+(8*0),a1)
+     241/     50E :                     
+     241/     50E : 2018                        move.l  (a0)+,d0
+     241/     510 : 01C9 0270                   movep.l d0,(i+(8*1),a1)
+     241/     514 :                     
+     241/     514 : 2018                        move.l  (a0)+,d0
+     241/     516 : 01C9 0278                   movep.l d0,(i+(8*2),a1)
+     241/     51A :                     
+     241/     51A : 2018                        move.l  (a0)+,d0
+     241/     51C : 01C9 0280                   movep.l d0,(i+(8*3),a1)
+     241/     520 :                     
+     241/     520 : 2018                        move.l  (a0)+,d0
+     241/     522 : 01C9 0288                   movep.l d0,(i+(8*4),a1)
+     241/     526 :                     
+     241/     526 : 2018                        move.l  (a0)+,d0
+     241/     528 : 01C9 0290                   movep.l d0,(i+(8*5),a1)
+     241/     52C :                     
+     241/     52C : 2018                        move.l  (a0)+,d0
+     241/     52E :                     
+     241/     52E : 169A                                move.b  (a2)+,(a3)
+     241/     530 :                     
+     241/     530 : 01C9 0298                   movep.l d0,(i+(8*6),a1)
+     241/     534 :                     
+     241/     534 : 2018                        move.l  (a0)+,d0
+     241/     536 : 01C9 02A0                   movep.l d0,(i+(8*7),a1)
+     241/     53A :                     
+     241/     53A : 2018                        move.l  (a0)+,d0
+     241/     53C : 01C9 02A8                   movep.l d0,(i+(8*8),a1)
+     241/     540 :                     
+     241/     540 : 2018                        move.l  (a0)+,d0
+     241/     542 : 01C9 02B0                   movep.l d0,(i+(8*9),a1)
+     241/     546 :                     
+     241/     546 : 2018                        move.l  (a0)+,d0
+     241/     548 : 01C9 02B8                   movep.l d0,(i+(8*10),a1)
+     241/     54C :                     
+     241/     54C : 2018                        move.l  (a0)+,d0
+     241/     54E : 01C9 02C0                   movep.l d0,(i+(8*11),a1)
+     241/     552 :                     
+     241/     552 : 2018                        move.l  (a0)+,d0
+     241/     554 : 2218                        move.l  (a0)+,d1
+     241/     556 :                     
+     241/     556 : 169A                                move.b  (a2)+,(a3)
+     241/     558 :                     
+     241/     558 : 01C9 02C8                   movep.l d0,(i+(8*12),a1)
+     241/     55C : 03C9 02D0                   movep.l d1,(i+(8*13),a1)
+     241/     560 :                     
+     241/     560 : 2018                        move.l  (a0)+,d0
+     241/     562 : 01C9 02D8                   movep.l d0,(i+(8*14),a1)
+     241/     566 :                     
+     241/     566 : 2018                        move.l  (a0)+,d0
+     241/     568 : 01C9 02E0                   movep.l d0,(i+(8*15),a1)
+     241/     56C :                     
+     241/     56C : 2018                        move.l  (a0)+,d0
+     241/     56E : 01C9 02E8                   movep.l d0,(i+(8*16),a1)
+     241/     572 :                     
+     241/     572 : 2018                        move.l  (a0)+,d0
+     241/     574 : 01C9 02F0                   movep.l d0,(i+(8*17),a1)
+     241/     578 :                     
+     241/     578 : 2018                        move.l  (a0)+,d0
+     241/     57A : 01C9 02F8                   movep.l d0,(i+(8*18),a1)
+     241/     57E :                     
+     241/     57E : =$300               i set i + 152
+     241/     57E :                     
+     241/     57E : 169A                                move.b  (a2)+,(a3)
+     241/     580 :                     
+     241/     580 : 2018                        move.l  (a0)+,d0
+     241/     582 : 01C9 0300                   movep.l d0,(i+(8*0),a1)
+     241/     586 :                     
+     241/     586 : 2018                        move.l  (a0)+,d0
+     241/     588 : 01C9 0308                   movep.l d0,(i+(8*1),a1)
+     241/     58C :                     
+     241/     58C : 2018                        move.l  (a0)+,d0
+     241/     58E : 01C9 0310                   movep.l d0,(i+(8*2),a1)
+     241/     592 :                     
+     241/     592 : 2018                        move.l  (a0)+,d0
+     241/     594 : 01C9 0318                   movep.l d0,(i+(8*3),a1)
+     241/     598 :                     
+     241/     598 : 2018                        move.l  (a0)+,d0
+     241/     59A : 01C9 0320                   movep.l d0,(i+(8*4),a1)
+     241/     59E :                     
+     241/     59E : 2018                        move.l  (a0)+,d0
+     241/     5A0 : 01C9 0328                   movep.l d0,(i+(8*5),a1)
+     241/     5A4 :                     
+     241/     5A4 : 2018                        move.l  (a0)+,d0
+     241/     5A6 :                     
+     241/     5A6 : 169A                                move.b  (a2)+,(a3)
+     241/     5A8 :                     
+     241/     5A8 : 01C9 0330                   movep.l d0,(i+(8*6),a1)
+     241/     5AC :                     
+     241/     5AC : 2018                        move.l  (a0)+,d0
+     241/     5AE : 01C9 0338                   movep.l d0,(i+(8*7),a1)
+     241/     5B2 :                     
+     241/     5B2 : 2018                        move.l  (a0)+,d0
+     241/     5B4 : 01C9 0340                   movep.l d0,(i+(8*8),a1)
+     241/     5B8 :                     
+     241/     5B8 : 2018                        move.l  (a0)+,d0
+     241/     5BA : 01C9 0348                   movep.l d0,(i+(8*9),a1)
+     241/     5BE :                     
+     241/     5BE : 2018                        move.l  (a0)+,d0
+     241/     5C0 : 01C9 0350                   movep.l d0,(i+(8*10),a1)
+     241/     5C4 :                     
+     241/     5C4 : 2018                        move.l  (a0)+,d0
+     241/     5C6 : 01C9 0358                   movep.l d0,(i+(8*11),a1)
+     241/     5CA :                     
+     241/     5CA : 2018                        move.l  (a0)+,d0
+     241/     5CC : 2218                        move.l  (a0)+,d1
+     241/     5CE :                     
+     241/     5CE : 169A                                move.b  (a2)+,(a3)
+     241/     5D0 :                     
+     241/     5D0 : 01C9 0360                   movep.l d0,(i+(8*12),a1)
+     241/     5D4 : 03C9 0368                   movep.l d1,(i+(8*13),a1)
+     241/     5D8 :                     
+     241/     5D8 : 2018                        move.l  (a0)+,d0
+     241/     5DA : 01C9 0370                   movep.l d0,(i+(8*14),a1)
+     241/     5DE :                     
+     241/     5DE : 2018                        move.l  (a0)+,d0
+     241/     5E0 : 01C9 0378                   movep.l d0,(i+(8*15),a1)
+     241/     5E4 :                     
+     241/     5E4 : 2018                        move.l  (a0)+,d0
+     241/     5E6 : 01C9 0380                   movep.l d0,(i+(8*16),a1)
+     241/     5EA :                     
+     241/     5EA : 2018                        move.l  (a0)+,d0
+     241/     5EC : 01C9 0388                   movep.l d0,(i+(8*17),a1)
+     241/     5F0 :                     
+     241/     5F0 : 2018                        move.l  (a0)+,d0
+     241/     5F2 : 01C9 0390                   movep.l d0,(i+(8*18),a1)
+     241/     5F6 :                     
+     241/     5F6 : =$398               i set i + 152
+     241/     5F6 :                     
+     241/     5F6 : 169A                                move.b  (a2)+,(a3)
+     241/     5F8 :                     
+     241/     5F8 : 2018                        move.l  (a0)+,d0
+     241/     5FA : 01C9 0398                   movep.l d0,(i+(8*0),a1)
+     241/     5FE :                     
+     241/     5FE : 2018                        move.l  (a0)+,d0
+     241/     600 : 01C9 03A0                   movep.l d0,(i+(8*1),a1)
+     241/     604 :                     
+     241/     604 : 2018                        move.l  (a0)+,d0
+     241/     606 : 01C9 03A8                   movep.l d0,(i+(8*2),a1)
+     241/     60A :                     
+     241/     60A : 2018                        move.l  (a0)+,d0
+     241/     60C : 01C9 03B0                   movep.l d0,(i+(8*3),a1)
+     241/     610 :                     
+     241/     610 : 2018                        move.l  (a0)+,d0
+     241/     612 : 01C9 03B8                   movep.l d0,(i+(8*4),a1)
+     241/     616 :                     
+     241/     616 : 2018                        move.l  (a0)+,d0
+     241/     618 : 01C9 03C0                   movep.l d0,(i+(8*5),a1)
+     241/     61C :                     
+     241/     61C : 2018                        move.l  (a0)+,d0
+     241/     61E :                     
+     241/     61E : 169A                                move.b  (a2)+,(a3)
+     241/     620 :                     
+     241/     620 : 01C9 03C8                   movep.l d0,(i+(8*6),a1)
+     241/     624 :                     
+     241/     624 : 2018                        move.l  (a0)+,d0
+     241/     626 : 01C9 03D0                   movep.l d0,(i+(8*7),a1)
+     241/     62A :                     
+     241/     62A : 2018                        move.l  (a0)+,d0
+     241/     62C : 01C9 03D8                   movep.l d0,(i+(8*8),a1)
+     241/     630 :                     
+     241/     630 : 2018                        move.l  (a0)+,d0
+     241/     632 : 01C9 03E0                   movep.l d0,(i+(8*9),a1)
+     241/     636 :                     
+     241/     636 : 2018                        move.l  (a0)+,d0
+     241/     638 : 01C9 03E8                   movep.l d0,(i+(8*10),a1)
+     241/     63C :                     
+     241/     63C : 2018                        move.l  (a0)+,d0
+     241/     63E : 01C9 03F0                   movep.l d0,(i+(8*11),a1)
+     241/     642 :                     
+     241/     642 : 2018                        move.l  (a0)+,d0
+     241/     644 : 2218                        move.l  (a0)+,d1
+     241/     646 :                     
+     241/     646 : 169A                                move.b  (a2)+,(a3)
+     241/     648 :                     
+     241/     648 : 01C9 03F8                   movep.l d0,(i+(8*12),a1)
+     241/     64C : 03C9 0400                   movep.l d1,(i+(8*13),a1)
+     241/     650 :                     
+     241/     650 : 2018                        move.l  (a0)+,d0
+     241/     652 : 01C9 0408                   movep.l d0,(i+(8*14),a1)
+     241/     656 :                     
+     241/     656 : 2018                        move.l  (a0)+,d0
+     241/     658 : 01C9 0410                   movep.l d0,(i+(8*15),a1)
+     241/     65C :                     
+     241/     65C : 2018                        move.l  (a0)+,d0
+     241/     65E : 01C9 0418                   movep.l d0,(i+(8*16),a1)
+     241/     662 :                     
+     241/     662 : 2018                        move.l  (a0)+,d0
+     241/     664 : 01C9 0420                   movep.l d0,(i+(8*17),a1)
+     241/     668 :                     
+     241/     668 : 2018                        move.l  (a0)+,d0
+     241/     66A : 01C9 0428                   movep.l d0,(i+(8*18),a1)
+     241/     66E :                     
+     241/     66E : =$430               i set i + 152
+     241/     66E :                     
+     242/     66E :                     
+     244/     66E : 169A                		move.b	(a2)+,(a3)	; Output sample, 12 cycles
+     249/     670 :                     
+     250/     670 :                     ; --- Cycle count restarts ---
+     251/     670 : 41F9 00A0 00BE      	lea	(Z80EndRoutineAddress+1)|Z80_WRAM,a0
+     252/     676 : 10FC 0017           	move.b	#Z80Init&$FF,(a0)+
+     253/     67A : 10BC 0000           	move.b	#Z80Init>>8,(a0)
+     254/     67E :                     	
+     255/     67E : 23C2 00FF 0000      	move.l	d2,(sampleIndex)	; 20 cycles
+     256/     684 :                     
+     257/     684 : 7007                	moveq	#7,d0
+     258/     686 :                     $$timing_wait2:
+     259/     686 : 51C8 FFFE           	dbf	d0,$$timing_wait2
+     260/     68A :                     
+     261/     68A : (MACRO)[12]         	startZ80 a5	; Restart Z80
+     261/     68A :                     
+     261/     68A : 3ABC 0000                                   move.w  #0,(a5)
+     262/     68E :                     
+     263/     68E :                     	; DPLC loading queues
+     264/     68E : 4E73                	rte
+     265/     690 :                     
+     266/     690 :                     ; Horizontal interrupt
+     267/     690 :                     VDP_HBlank:
+     268/     690 : 4E73                	rte
+     269/     692 :                     
+     270/     692 :                     ; ==========================
+     271/     692 :                     
+     272/     692 :                     EntryPoint:
+     273/     692 :                     	;move.l	#"SEGA",($00A14000)
+     274/     692 :                     
+     275/     692 :                     ; ============================
+     276/     692 :                     ; VDP initialization and setup
+     277/     692 :                     ; ============================
+     278/     692 :                     
+     279/     692 :                     ; VDP setup reference: https://plutiedev.com/vdp-setup
+     280/     692 :                     
+     281/     692 : 41F9 00C0 0004      	lea	(VDP_CTRL),a0
+     282/     698 :                     
+     283/     698 : 4A50                	tst.w 	(a0) ; Testing the VDP control port safely resets it
+     284/     69A :                     	
+     285/     69A :                     ; Register reference: https://plutiedev.com/vdp-registers
+     286/     69A :                     
+     287/     69A : 20BC 8004 8174      	move.l  #(VDPREG_MODE1|%00000100)<<16|(VDPREG_MODE2|%01110100),(a0)	; Mode register #1 and Mode register #2
+     288/     6A0 : 20BC 8B00 8C81          move.l  #(VDPREG_MODE3|%00000000)<<16|(VDPREG_MODE4|%10000001),(a0)	; Mode register #3 and Mode Register #4
+     289/     6A6 :                         
+     290/     6A6 :                     ; Planes reference: https://segaretro.org/Sega_Mega_Drive/Planes
+     291/     6A6 :                     
+     292/     6A6 : 20BC 0038 8606          move.l  #VDPREG_PLANEA|(VRAM_PLANEA>>10)<<16|(VDPREG_PLANEB|(VRAM_PLANEB>>13)),(a0)	; Plane A and Plane B address
+     293/     6AC : 20BC 0078 873F      	move.l  #VDPREG_SPRITE|(VRAM_SPRITE>>9)<<16|(VDPREG_WINDOW|(VRAM_WINDOW>>10)),(a0)	; Sprite and Window address
+     294/     6B2 : 30BC 8D3F               move.w  #VDPREG_HSCROLL|(VRAM_HSCROLL>>10),(a0)										; Horizontal scroll address
+     295/     6B6 :                         
+     296/     6B6 : 20BC 9100 9200          move.l  #(VDPREG_WINX|$00)<<16|(VDPREG_WINY|$00),(a0)			; Window X split and Window Y split
+     297/     6BC : 20BC 9001 8700          move.l  #(VDPREG_SIZE|%00000001)<<16|(VDPREG_BGCOL|$00),(a0)	; Tilemap size and Background color
+     298/     6C2 : 20BC 8F02 8AFF          move.l  #(VDPREG_INCR|$02)<<16|(VDPREG_HRATE|$FF),(a0)			; Autoincrement and HBlank IRQ rate
+     299/     6C8 :                     
+     300/     6C8 :                     $$JOY_Setup
+     301/     6C8 : 7040                	moveq 	#$40,d0
+     302/     6CA : 13C0 00A1 0009      	move.b	d0,(JOY1_CTRL)
+     303/     6D0 : 13C0 00A1 0003      	move.b	d0,(JOY1_DATA)
+     304/     6D6 :                     
+     305/     6D6 :                     ; Start of ROM code
+     306/     6D6 :                     
+     307/     6D6 : 47F9 00A1 1100      	lea Z80_BUSREQ,a3
+     308/     6DC : 45F9 00A1 1200      	lea Z80_RESET,a2
+     309/     6E2 :                     
+     310/     6E2 : 343C 0100           	move.w	#$100,d2	; Assert, stop
+     311/     6E6 : 7200                	moveq	#0,d1		; Deassert, start
+     312/     6E8 :                     
+     313/     6E8 : (MACRO)[13]         	assertZ80Reset d1,a2	; Assert reset
+     313/     6E8 :                     
+     313/     6E8 : 3481                                        move.w  d1,(a2)
+     314/     6EA : (MACRO)[14]         	stopZ80 d2,a3			; Request bus
+     314/     6EA :                     
+     314/     6EA : 3682                                        move.w  d2,(a3)
+     315/     6EC : (MACRO)[15]         	deassertZ80Reset d2,a2	; Release reset
+     315/     6EC :                     
+     315/     6EC : 3482                                        move.w  d2,(a2)
+     316/     6EE :                     
+     317/     6EE :                     ; We can do more stuff while the Z80 is theoretically stopping
+     318/     6EE : 41F8 0768           	lea Z80RomStart,a0
+     319/     6F2 : 43F9 00A0 0000      	lea Z80_WRAM,a1
+     320/     6F8 : 23FC 0000 0847 00FF 	move.l 	#Music,(sampleIndex)
+              700 : 0000               
+     321/     702 : 303C 00DE           	move.w	#(Z80RomEnd-Z80RomStart)-1,d0	; Mustn't go over $7F
+     322/     706 :                     
+     323/     706 :                     $$copy_program:
+     324/     706 : 12D8                	move.b	(a0)+,(a1)+
+     325/     708 : 51C8 FFFC           	dbf d0,$$copy_program
+     326/     70C :                     
+     327/     70C : 4239 00A0 0501      	clr.b	(playedSamples|Z80_WRAM)
+     328/     712 : 4239 00A0 0502      	clr.b	(playedSamples+1|Z80_WRAM)
+     329/     718 : 4239 00FF 0004      	clr.b	(shouldStop)
+     330/     71E :                     
+     331/     71E : (MACRO)[16]         	assertZ80Reset d2,a2	; Assert reset
+     331/     71E :                     
+     331/     71E : 3482                                        move.w  d2,(a2)
+     332/     720 :                     
+     333/     720 : 7014                	moveq	#20,d0
+     334/     722 :                     $$wait:	; Wait for the YM2612
+     335/     722 : 51C8 FFFE               dbf	d0,$$wait
+     336/     726 :                     
+     337/     726 : (MACRO)[17]         	deassertZ80Reset d2,a2	; Release reset
+     337/     726 :                     
+     337/     726 : 3482                                        move.w  d2,(a2)
+     338/     728 :                     
+     339/     728 :                     	;loopTest 53
+     340/     728 :                     
+     341/     728 : (MACRO)[18]         	startZ80 d1,a3			; Release bus
+     341/     728 :                     
+     341/     728 : 3681                                        move.w  d1,(a3)
+     342/     72A :                     
+     343/     72A :                     ReadJoypad:
+     344/     72A : 41F9 00A1 0003      	lea	JOY1_DATA,a0
+     345/     730 : 10BC 0040           	move.b 	#$40,(a0)	; write $40 to request controller state
+     346/     734 : 4E71                	nop	; wait for the bus to get the controller state
+     347/     736 : 4E71                	nop
+     348/     738 : 4E71                	nop
+     349/     73A : 4E71                	nop
+     350/     73C : 1010                	move.b	(a0),d0	; put control state somewhere
+     351/     73E : 0800 0005           	btst 	#JOY_C,d0
+     352/     742 : 6700 0018           	beq.w	PlaySample
+     353/     746 :                     
+     354/     746 : 46FC 2500           	move #$2500,sr
+     355/     74A :                     HaltCPU:
+     356/     74A : 4A39 00FF 0004      	tst.b	(shouldStop)
+     357/     750 : 6606                	bne.s	$$disableCPU
+     358/     752 : 4E72 2500           	stop	#$2500
+     359/     756 : 60D2                	bra.s	ReadJoypad
+     360/     758 :                     $$disableCPU:
+     361/     758 : 4E72 2700           	stop	#$2700
+     362/     75C :                     PlaySample:
+     363/     75C : 23FC 0000 0847 00FF 	move.l	#Music,(sampleIndex)
+              764 : 0000               
+     364/     766 : 60E2                	bra.s	HaltCPU
+     365/     768 :                     
+     366/     768 :                     	include "Driver.z80"
+(1)    1/ 768 :                         	cpu Z80
+(1)    2/ 768 :                         Z80RomStart
+(1)    3/ 768 :                         
+(1)    4/   0 :                             phase 0	; Set label addresses to the start of the Z80 RAM
+(1)    5/   0 :                         
+(1)    6/   0 : 01 00 40                	ld	bc,4000h	; YM2612 bank 1 port
+(1)    7/   3 : 21 01 40                	ld	hl,4001h	; YM2612 data port
+(1)    8/   6 :                         
+(1)    9/   6 : 3E 2B                   	ld	a,DAC_ENABLE; DAC enable address
+(1)   10/   8 : 02                      	ld	(bc),a		; Switch to DAC enable register
+(1)   11/   9 : 36 80                   	ld	(hl),80h	; Enable DAC
+(1)   12/   B : 3D                      	dec	a			; Now a is 2Ah (DAC_IN)
+(1)   13/   C : 02                      	ld	(bc),a		; Switch to DAC data input
+(1)   14/   D :                         
+(1)   15/   D : 11 00 10                	ld	de,SampleBuffer	; Reset DE
+(1)   16/  10 : 31 00 20                	ld	sp,2000h		; Align stack pointer correctly
+(1)   17/  13 : F3                      	di
+(1)   18/  14 :                         
+(1)   19/  14 : C3 BD 00                	jp	Z80EndRoutineAddress
+(1)   20/  17 :                         
+(1)   21/  17 :                         Z80Init:
+(1)   22/  17 : 21 A7 00                	ld	hl,Loop_DacOnly
+(1)   23/  1A : 22 BE 00                	ld	(Z80EndRoutineAddress+1),hl
+(1)   24/  1D : 11 00 10                	ld	de,SampleBuffer	; Reset DE
+(1)   25/  20 : 21 01 40                	ld	hl,4001h		; Reset HL
+(1)   26/  23 : 31 00 20                	ld	sp,2000h		; Align stack pointer correctly
+(1)   27/  26 :                         .routineAddress:
+(1)   28/  26 : C3 26 00                	jp	$
+(1)   29/  29 :                         
+(1)   30/  29 :                         Init_DacAndEffects:
+(1)   31/  29 : 06 40                   	ld	b,64
+(1)   32/  2B :                         $$loop_DacAndEffects:
+(1)   33/  2B : 1A                      	ld	a,(de)
+(1)   34/  2C : 77                      	ld	(hl),a
+(1)   35/  2D : 13                      	inc	de
+(1)   36/  2E : 13                      	inc	de
+(1)   37/  2F :                         	rept 19
+(1)   38/  2F :                         	nop
+(1)   39/  2F :                         	endm
+(1)   38/  2F : 00                      	nop
+(1)   38/  30 : 00                      	nop
+(1)   38/  31 : 00                      	nop
+(1)   38/  32 : 00                      	nop
+(1)   38/  33 : 00                      	nop
+(1)   38/  34 : 00                      	nop
+(1)   38/  35 : 00                      	nop
+(1)   38/  36 : 00                      	nop
+(1)   38/  37 : 00                      	nop
+(1)   38/  38 : 00                      	nop
+(1)   38/  39 : 00                      	nop
+(1)   38/  3A : 00                      	nop
+(1)   38/  3B : 00                      	nop
+(1)   38/  3C : 00                      	nop
+(1)   38/  3D : 00                      	nop
+(1)   38/  3E : 00                      	nop
+(1)   38/  3F : 00                      	nop
+(1)   38/  40 : 00                      	nop
+(1)   38/  41 : 00                      	nop
+(1)   40/  42 : 10 E7                   	djnz $$loop_DacAndEffects
+(1)   41/  44 :                         
+(1)   42/  44 : 00                      	nop ;exx
+(1)   43/  45 : 1A                      	ld	a,(de)
+(1)   44/  46 : 77                      	ld	(hl),a
+(1)   45/  47 :                         
+(1)   46/  47 : 13                      	inc	de
+(1)   47/  48 : 13                      	inc	de
+(1)   48/  49 : 06 05                   	ld	b,5
+(1)   49/  4B : 10 FE                   	djnz $
+(1)   50/  4D : 00                      	nop ;exx
+(1)   51/  4E : 00                      	nop
+(1)   52/  4F :                         
+(1)   53/  4F :                         Init_DacAndFm:
+(1)   54/  4F : 06 80                   	ld	b,128
+(1)   55/  51 :                         $$loop_DacAndFm:
+(1)   56/  51 : 1A                      	ld	a,(de)
+(1)   57/  52 : 77                      	ld	(hl),a
+(1)   58/  53 : 13                      	inc	de
+(1)   59/  54 : 13                      	inc	de
+(1)   60/  55 :                         	rept 19
+(1)   61/  55 :                         	nop
+(1)   62/  55 :                         	endm
+(1)   61/  55 : 00                      	nop
+(1)   61/  56 : 00                      	nop
+(1)   61/  57 : 00                      	nop
+(1)   61/  58 : 00                      	nop
+(1)   61/  59 : 00                      	nop
+(1)   61/  5A : 00                      	nop
+(1)   61/  5B : 00                      	nop
+(1)   61/  5C : 00                      	nop
+(1)   61/  5D : 00                      	nop
+(1)   61/  5E : 00                      	nop
+(1)   61/  5F : 00                      	nop
+(1)   61/  60 : 00                      	nop
+(1)   61/  61 : 00                      	nop
+(1)   61/  62 : 00                      	nop
+(1)   61/  63 : 00                      	nop
+(1)   61/  64 : 00                      	nop
+(1)   61/  65 : 00                      	nop
+(1)   61/  66 : 00                      	nop
+(1)   61/  67 : 00                      	nop
+(1)   63/  68 : 10 E7                   	djnz $$loop_DacAndFm
+(1)   64/  6A :                         
+(1)   65/  6A : 00                      	nop ;exx
+(1)   66/  6B : 1A                      	ld	a,(de)
+(1)   67/  6C : 77                      	ld	(hl),a
+(1)   68/  6D :                         
+(1)   69/  6D : 13                      	inc	de
+(1)   70/  6E : 13                      	inc	de
+(1)   71/  6F : 06 05                   	ld	b,5
+(1)   72/  71 : 10 FE                   	djnz $
+(1)   73/  73 : 00                      	nop ;exx
+(1)   74/  74 : 00                      	nop
+(1)   75/  75 :                         
+(1)   76/  75 :                         Init_DacAndSn:
+(1)   77/  75 : 06 20                   	ld	b,32
+(1)   78/  77 :                         $$loop_DacAndSn:
+(1)   79/  77 : 1A                      	ld	a,(de)
+(1)   80/  78 : 77                      	ld	(hl),a
+(1)   81/  79 : 13                      	inc	de
+(1)   82/  7A : 13                      	inc	de
+(1)   83/  7B :                         	rept 19
+(1)   84/  7B :                         	nop
+(1)   85/  7B :                         	endm
+(1)   84/  7B : 00                      	nop
+(1)   84/  7C : 00                      	nop
+(1)   84/  7D : 00                      	nop
+(1)   84/  7E : 00                      	nop
+(1)   84/  7F : 00                      	nop
+(1)   84/  80 : 00                      	nop
+(1)   84/  81 : 00                      	nop
+(1)   84/  82 : 00                      	nop
+(1)   84/  83 : 00                      	nop
+(1)   84/  84 : 00                      	nop
+(1)   84/  85 : 00                      	nop
+(1)   84/  86 : 00                      	nop
+(1)   84/  87 : 00                      	nop
+(1)   84/  88 : 00                      	nop
+(1)   84/  89 : 00                      	nop
+(1)   84/  8A : 00                      	nop
+(1)   84/  8B : 00                      	nop
+(1)   84/  8C : 00                      	nop
+(1)   84/  8D : 00                      	nop
+(1)   86/  8E : 10 E7                   	djnz $$loop_DacAndSn
+(1)   87/  90 :                         
+(1)   88/  90 : 00                      	nop ;exx
+(1)   89/  91 : 1A                      	ld	a,(de)
+(1)   90/  92 : 77                      	ld	(hl),a
+(1)   91/  93 :                         
+(1)   92/  93 : 13                      	inc	de
+(1)   93/  94 : 13                      	inc	de
+(1)   94/  95 :                         	
+(1)   95/  95 : 42                      	ld	b,d
+(1)   96/  96 : 4B                      	ld	c,e
+(1)   97/  97 : CB 38                   	srl	b
+(1)   98/  99 : CB 19                   	rr	c
+(1)   99/  9B : ED 43 01 05             	ld	(playedSamples),bc
+(1)  100/  9F :                         ; --- 56 cycles ---
+(1)  101/  9F : 00                      	nop	;exx
+(1)  102/  A0 : 79                      	ld	a,c
+(1)  103/  A1 :                         	
+(1)  104/  A1 : 44                      	ld	b,h
+(1)  105/  A2 : 4D                      	ld	c,l
+(1)  106/  A3 :                         
+(1)  107/  A3 : 6F                      	ld	l,a
+(1)  108/  A4 : 26 00                   	ld	h,0
+(1)  109/  A6 :                         
+(1)  110/  A6 : 00                      	nop
+(1)  111/  A7 :                         
+(1)  112/  A7 :                         Loop_DacOnly:
+(1)  113/  A7 : 1A                      	ld	a,(de)
+(1)  114/  A8 : 02                      	ld	(bc),a
+(1)  115/  A9 : 23                      	inc hl
+(1)  116/  AA : 22 01 05                	ld 	(playedSamples),hl
+(1)  117/  AD : 13                      	inc	de
+(1)  118/  AE : 13                      	inc de
+(1)  119/  AF :                         	rept 10
+(1)  120/  AF :                         	nop
+(1)  121/  AF :                         	endm
+(1)  120/  AF : 00                      	nop
+(1)  120/  B0 : 00                      	nop
+(1)  120/  B1 : 00                      	nop
+(1)  120/  B2 : 00                      	nop
+(1)  120/  B3 : 00                      	nop
+(1)  120/  B4 : 00                      	nop
+(1)  120/  B5 : 00                      	nop
+(1)  120/  B6 : 00                      	nop
+(1)  120/  B7 : 00                      	nop
+(1)  120/  B8 : 00                      	nop
+(1)  122/  B9 : FE 00                   	cp	0
+(1)  123/  BB : FE 00                   	cp	0
+(1)  124/  BD :                         Z80EndRoutineAddress:
+(1)  125/  BD : C3 BD 00                	jp	$	; Will be Loop_DacOnly later on
+(1)  126/  C0 :                         
+(1)  127/  C0 :                         Init_EndSound:
+(1)  128/  C0 : 01 00 00                	ld	bc,0000h
+(1)  129/  C3 :                         $$loop_endSound1:
+(1)  130/  C3 : 1A                      	ld	a,(de)
+(1)  131/  C4 : 77                      	ld	(hl),a
+(1)  132/  C5 :                         	rept 16
+(1)  133/  C5 :                         	nop
+(1)  134/  C5 :                         	endm
+(1)  133/  C5 : 00                      	nop
+(1)  133/  C6 : 00                      	nop
+(1)  133/  C7 : 00                      	nop
+(1)  133/  C8 : 00                      	nop
+(1)  133/  C9 : 00                      	nop
+(1)  133/  CA : 00                      	nop
+(1)  133/  CB : 00                      	nop
+(1)  133/  CC : 00                      	nop
+(1)  133/  CD : 00                      	nop
+(1)  133/  CE : 00                      	nop
+(1)  133/  CF : 00                      	nop
+(1)  133/  D0 : 00                      	nop
+(1)  133/  D1 : 00                      	nop
+(1)  133/  D2 : 00                      	nop
+(1)  133/  D3 : 00                      	nop
+(1)  133/  D4 : 00                      	nop
+(1)  135/  D5 : 1C                      	inc	e
+(1)  136/  D6 : 13                      	inc de
+(1)  137/  D7 : 0B                      	dec	bc
+(1)  138/  D8 : 78                      	ld	a,b
+(1)  139/  D9 : B1                      	or	c
+(1)  140/  DA : C2 C3 00                	jp	nz,$$loop_endSound1
+(1)  141/  DD :                         
+(1)  142/  DD : F3                      	di
+(1)  143/  DE : 76                      	halt
+(1)  144/  DF :                         
+(1)  145/ 847 :                             dephase	; The rest of the labels are mapped normally
+(1)  146/ 847 :                         
+(1)  147/     847 :                     	cpu 68000
+(1)  148/     847 :                     
+(1)  149/     847 :                     Z80RomEnd
+     367/     847 :                     
+     368/     847 :                     Music:
+     369/     847 :                     	;binclude "continuity_test.bin" ; Test with increasing bytes to make sure no samples get skipped
+     370/     847 :                     	;binclude "24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; Great music right here
+     371/     847 :                     	binclude "Don't Stand So Close To Me.raw" ; Another banger
+     372/  3FB3DF :                     	;binclude "Spirits In The Material World.raw" ; This is a good one
+     373/  3FB3DF :                     	;binclude "Every Little Thing She Does Is Magic.raw" ; Another nice one
+     374/  3FB3DF :                     	;binclude "Ki.raw" ; minceraft
+     375/  3FB3DF :                     	;binclude "Droopy likes your face.raw"
+     376/  3FB3DF :                     	;binclude "Chris.raw"
+     377/  3FB3DF :                     	;binclude "music.pcm" ; Let's not talk about this
+     378/  3FB3DF :                     	;binclude "My Summary.raw"
+     379/  3FB3DF :                     
+     380/  3FB3DF :                     ROM_End
+ AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 7 - 01/20/26 09:28:36
+
+
+  Symbol Table (* = unused):
+  --------------------------
+
+*ARCHITECTURE :                                      "aarch64-apple-darwin" - |
+ AddressError :                 20A C |  BusError :                     200 C |
+*CASESENSITIVE :                  1 - | *CH1_4_ALG_FB :                  B0 - |
+*CH1_4_FREQ_H :                  A4 - | *CH1_4_FREQ_L :                  A0 - |
+*CH1_4_OP1_AR_RS :               50 - | *CH1_4_OP1_DR_AM :               60 - |
+*CH1_4_OP1_MUL_DT :              30 - | *CH1_4_OP1_RR_SL :               80 - |
+*CH1_4_OP1_SR :                  70 - | *CH1_4_OP1_SSG_EG :              90 - |
+*CH1_4_OP1_TL :                  40 - | *CH1_4_OP2_AR_RS :               58 - |
+*CH1_4_OP2_DR_AM :               68 - | *CH1_4_OP2_MUL_DT :              38 - |
+*CH1_4_OP2_RR_SL :               88 - | *CH1_4_OP2_SR :                  78 - |
+*CH1_4_OP2_SSG_EG :              98 - | *CH1_4_OP2_TL :                  48 - |
+*CH1_4_OP3_AR_RS :               54 - | *CH1_4_OP3_DR_AM :               64 - |
+*CH1_4_OP3_MUL_DT :              34 - | *CH1_4_OP3_RR_SL :               84 - |
+*CH1_4_OP3_SR :                  74 - | *CH1_4_OP3_SSG_EG :              94 - |
+*CH1_4_OP3_TL :                  44 - | *CH1_4_OP4_AR_RS :               5C - |
+*CH1_4_OP4_DR_AM :               6C - | *CH1_4_OP4_MUL_DT :              3C - |
+*CH1_4_OP4_RR_SL :               8C - | *CH1_4_OP4_SR :                  7C - |
+*CH1_4_OP4_SSG_EG :              9C - | *CH1_4_OP4_TL :                  4C - |
+*CH1_4_PAN_PMS_AMS :             B4 - | *CH2_5_ALG_FB :                  B1 - |
+*CH2_5_FREQ_H :                  A5 - | *CH2_5_FREQ_L :                  A1 - |
+*CH2_5_OP1_AR_RS :               51 - | *CH2_5_OP1_DR_AM :               61 - |
+*CH2_5_OP1_MUL_DT :              31 - | *CH2_5_OP1_RR_SL :               81 - |
+*CH2_5_OP1_SR :                  71 - | *CH2_5_OP1_SSG_EG :              91 - |
+*CH2_5_OP1_TL :                  41 - | *CH2_5_OP2_AR_RS :               59 - |
+*CH2_5_OP2_DR_AM :               69 - | *CH2_5_OP2_MUL_DT :              39 - |
+*CH2_5_OP2_RR_SL :               89 - | *CH2_5_OP2_SR :                  79 - |
+*CH2_5_OP2_SSG_EG :              99 - | *CH2_5_OP2_TL :                  49 - |
+*CH2_5_OP3_AR_RS :               55 - | *CH2_5_OP3_DR_AM :               65 - |
+*CH2_5_OP3_MUL_DT :              35 - | *CH2_5_OP3_RR_SL :               85 - |
+*CH2_5_OP3_SR :                  75 - | *CH2_5_OP3_SSG_EG :              95 - |
+*CH2_5_OP3_TL :                  45 - | *CH2_5_OP4_AR_RS :               5D - |
+*CH2_5_OP4_DR_AM :               6D - | *CH2_5_OP4_MUL_DT :              3D - |
+*CH2_5_OP4_RR_SL :               8D - | *CH2_5_OP4_SR :                  7D - |
+*CH2_5_OP4_SSG_EG :              9D - | *CH2_5_OP4_TL :                  4D - |
+*CH2_5_PAN_PMS_AMS :             B5 - | *CH3_6_ALG_FB :                  B2 - |
+*CH3_6_FREQ_H :                  A6 - | *CH3_6_FREQ_L :                  A2 - |
+*CH3_6_OP1_AR_RS :               52 - | *CH3_6_OP1_DR_AM :               62 - |
+*CH3_6_OP1_MUL_DT :              32 - | *CH3_6_OP1_RR_SL :               82 - |
+*CH3_6_OP1_SR :                  72 - | *CH3_6_OP1_SSG_EG :              92 - |
+*CH3_6_OP1_TL :                  42 - | *CH3_6_OP2_AR_RS :               5A - |
+*CH3_6_OP2_DR_AM :               6A - | *CH3_6_OP2_MUL_DT :              3A - |
+*CH3_6_OP2_RR_SL :               8A - | *CH3_6_OP2_SR :                  7A - |
+*CH3_6_OP2_SSG_EG :              9A - | *CH3_6_OP2_TL :                  4A - |
+*CH3_6_OP3_AR_RS :               56 - | *CH3_6_OP3_DR_AM :               66 - |
+*CH3_6_OP3_MUL_DT :              36 - | *CH3_6_OP3_RR_SL :               86 - |
+*CH3_6_OP3_SR :                  76 - | *CH3_6_OP3_SSG_EG :              96 - |
+*CH3_6_OP3_TL :                  46 - | *CH3_6_OP4_AR_RS :               5E - |
+*CH3_6_OP4_DR_AM :               6E - | *CH3_6_OP4_MUL_DT :              3E - |
+*CH3_6_OP4_RR_SL :               8E - | *CH3_6_OP4_SR :                  7E - |
+*CH3_6_OP4_SSG_EG :              9E - | *CH3_6_OP4_TL :                  4E - |
+*CH3_6_PAN_PMS_AMS :             B6 - | *CH3_OP1_FREQ_H :                AD - |
+*CH3_OP1_FREQ_L :                A9 - | *CH3_OP2_FREQ_H :                AE - |
+*CH3_OP2_FREQ_L :                AA - | *CH3_OP3_FREQ_H :                AC - |
+*CH3_OP3_FREQ_L :                A8 - | *CH3_OP4_FREQ_H :                A6 - |
+*CH3_OP4_FREQ_L :                A2 - | *CH3_TIMERCTRL :                 27 - |
+ CHKException :                 228 C | *CONSTPI :        3.141592653589793 - |
+ DAC_ENABLE :                    2B - | *DAC_OUT :                       2A - |
+*DATE :                  "01/20/26" - |  DivisionByZero :               21E C |
+*EXP_CTRL :                  A1000D - | *EXP_DATA :                  A10006 - |
+*EXP_SER_CTRL :              A1001E - | *EXP_SER_REC :               A1001C - |
+*EXP_SER_TRAN :              A1001A - |  EntryPoint :                   692 C |
+*FALSE :                          0 - | *FLOATMAX :      1.797693134866E308 - |
+*FULLPMMU :                       1 - | *HAS64 :                          1 - |
+*HASFPU :                         0 - | *HASPMMU :                        0 - |
+*HFLIP :                        800 - | *HIPRI :                       8000 - |
+*HVFLIP :                      1800 - |  HaltCPU :                      74A C |
+*INSUPMODE :                      1 - | *INTWIDTH :                      40 - |
+ IllegalInstruction :           214 C |  Init_DacAndEffects :            29 C |
+*Init_DacAndFm :                 4F C | *Init_DacAndSn :                 75 C |
+ Init_EndSound :                 C0 C |  InterruptRequest :             26E C |
+ JOY1_CTRL :                 A10009 - |  JOY1_DATA :                 A10003 - |
+*JOY1_SER_CTRL :             A10012 - | *JOY1_SER_REC :              A10010 - |
+*JOY1_SER_TRAN :             A1000E - | *JOY2_CTRL :                 A10005 - |
+*JOY2_DATA :                 A1000B - | *JOY2_SER_CTRL :             A10018 - |
+*JOY2_SER_REC :              A10016 - | *JOY2_SER_TRAN :             A10014 - |
+*JOY_B :                          4 - |  JOY_C :                          5 - |
+*JOY_D :                          1 - | *JOY_L :                          2 - |
+*JOY_R :                          3 - | *JOY_Setup242 :                 6C8 C |
+*JOY_U :                          0 - | *KEY_ON_OFF :                    28 - |
+*LFO_ENABLE :                    22 - | *LISTON :                         3 - |
+*LOPRI :                          0 - |  LineAEmulator :                250 C |
+ LineFEmulator :                25A C |  Loop_DacOnly :                  A7 C |
+ M68K_STACK :                FF0000 - |  M68K_WRAM :                 FF0000 - |
+*MACEXP :                         7 - | *MOMCPU :                     68000 - |
+ MOMCPUNAME :               "68000" - |  Music :                        847 C |
+*NESTMAX :                      100 - | *NOFLIP :                         0 - |
+*PADDING :                        1 - | *PAL0 :                           0 - |
+*PAL1 :                        2000 - | *PAL2 :                        4000 - |
+*PAL3 :                        6000 - | *PSG_OUT :                   C00011 - |
+ PlaySample :                   75C C |  PrivilegeViolation :           23C C |
+*REG_32X :                   A130EC - | *REG_MEMORYMODE :            A11000 - |
+*REG_SRAM :                  A130F1 - | *REG_TIME :                  A13000 - |
+*REG_TMSS :                  A14000 - | *REG_TMSS_CART :             A14101 - |
+*REG_VERSION :               A10001 - | *RELAXED :                        0 - |
+ ROM_End :                   3FB3DF C |  ROM_Start :                   1000 C |
+ ReadJoypad :                   72A C | *SIZE_CRAM :                     80 - |
+*SIZE_VRAM :                   FFFF - | *SIZE_VSRAM :                    50 - |
+*SIZE_WRAM :                   FFFF - | *SIZE_Z80WRAM :                2000 - |
+ SampleBuffer :                1000 C |  SpuriousException :            264 C |
+*TIME :                  "09:28:36" - | *TIMER_A_H :                     24 - |
+*TIMER_A_L :                     25 - | *TIMER_B :                       26 - |
+ TRACEException :               246 C |  TRAPException :                278 C |
+ TRAPVException :               232 C |  TRUE :                           1 - |
+ UnknownError :                 282 C |  VDPREG_BGCOL :                8700 - |
+*VDPREG_DMALEN_H :             9400 - | *VDPREG_DMALEN_L :             9300 - |
+*VDPREG_DMASRC_H :             9700 - | *VDPREG_DMASRC_L :             9500 - |
+*VDPREG_DMASRC_M :             9600 - |  VDPREG_HRATE :                8A00 - |
+ VDPREG_HSCROLL :              8D00 - |  VDPREG_INCR :                 8F00 - |
+ VDPREG_MODE1 :                8000 - |  VDPREG_MODE2 :                8100 - |
+ VDPREG_MODE3 :                8B00 - |  VDPREG_MODE4 :                8C00 - |
+ VDPREG_PLANEA :               8200 - |  VDPREG_PLANEB :               8400 - |
+ VDPREG_SIZE :                 9000 - |  VDPREG_SPRITE :               8500 - |
+ VDPREG_WINDOW :               8300 - |  VDPREG_WINX :                 9100 - |
+ VDPREG_WINY :                 9200 - | *VDP_CRAM :                C0000000 - |
+*VDP_CRAM_DMA :            C0000080 - |  VDP_CTRL :                  C00004 - |
+*VDP_DATA :                  C00000 - | *VDP_DEBUG :                 C0001C - |
+ VDP_HBlank :                   690 C | *VDP_HVCOUNTER :             C00008 - |
+ VDP_VBlank :                   28C C | *VDP_VRAM :                40000000 - |
+*VDP_VRAM_DMA :            40000080 - | *VDP_VSRAM :               40000010 - |
+*VDP_VSRAM_DMA :           40000090 - | *VERSION :                     142F - |
+*VFLIP :                       1000 - |  VRAM_HSCROLL :                FFFF - |
+ VRAM_PLANEA :                 E000 - |  VRAM_PLANEB :                 C000 - |
+ VRAM_SPRITE :                 F000 - |  VRAM_WINDOW :                 FFFF - |
+*WARNRELATIVE :                   0 - | *YM2612_68K_CTRL0 :          A04000 - |
+*YM2612_68K_CTRL1 :          A04002 - | *YM2612_68K_DATA0 :          A04001 - |
+ YM2612_68K_DATA1 :          A04003 - | *YM2612_CTRL0 :                4000 - |
+*YM2612_CTRL1 :                4002 - | *YM2612_DATA0 :                4001 - |
+*YM2612_DATA1 :                4003 - |  Z80EndRoutineAddress :          BD C |
+ Z80Init :                       17 C |  Z80Init.routineAddress :        26 C |
+ Z80RomEnd :                    847 C |  Z80RomStart :                  768 C |
+ Z80_BUSREQ :                A11100 - |  Z80_RESET :                 A11200 - |
+*Z80_STACK :                   2000 - |  Z80_WRAM :                  A00000 - |
+ accurateSpeed :                  1 - |  continue231 :                  314 C |
+ copy_program242 :              706 C |  disableCPU244 :                758 C |
+ i :                            430 - |  loop_DacAndEffects252 :         2B C |
+ loop_DacAndFm253 :              51 C |  loop_DacAndSn254 :              77 C |
+ loop_endSound1257 :             C3 C |  playedSamples :                501 C |
+ sampleIndex :               FF0000 C |  shouldStop :                FF0004 C |
+ skip_alignment231 :            2D6 C |  skip_tracking231 :             306 C |
+ smoothPlayback :                 1 - |  timing_wait1231 :              316 C |
+ timing_wait2240 :              686 C |  wait242 :                      722 C |
+
+    281 symbols
+    198 unused symbols
+
+ AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 8 - 01/20/26 09:28:36
+
+
+  Defined Macros:
+  ---------------
+
+addaq                                 | assertZ80Reset                       
+deassertZ80Reset                      | loadSamples                          
+loadSamplesAlt                        | loopTest                             
+startZ80                              | stopZ80                              
+subaq                                 | waitZ80                              
+
+     10 macros
+
+ AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 9 - 01/20/26 09:28:36
+
+
+  Defined Functions:
+  ------------------
+
+notaddressregister                    | notdataregister                      
+
+ AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 10 - 01/20/26 09:28:36
+
+
+  Code Pages:
+  ----------
+
+STANDARD (0 changed characters)
+
+1 code page
+
+0.04 seconds assembly time
+
+   1621 lines source file
+   2568 lines incl. macro expansions
+      2 passes
+      0 errors
+      0 warnings
