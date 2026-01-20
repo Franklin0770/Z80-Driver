@@ -157,25 +157,19 @@ GenericError:
 
 VDP_VBlank:
 ; --- ~20 cycles in total ---
+	stopZ80		; Initiate Z80 stop, 8 cycles
 	lea	YM2612_DATA|Z80_RAM,a3			; 8 cycles
-	lea	playedSamplesHigh|Z80_RAM,a4	; 8 cycles
+	lea	playedSamples+1|Z80_RAM,a4		; 8 cycles
 	lea Z80_BUSREQ,a5					; 8 cycles
-	move.w	#$100,d1					; 8 cycles
 	move.l	(sampleIndex),d2			; 12 cycles
-	moveq	#0,d3						; 4 cycles
-; --- 68 cycles in total ---
-	moveq	#8,d0		; The high 16-bit portion clears, 4 cycles
-$$z80_wait:
-	dbf d0,$$z80_wait	; 114 cycles
-; --- 186 cycles in total ---
-	stopZ80 d1,a5		; Initiate Z80 stop, 8 cycles
-	waitZ80	d3,a5		; 12 cycles (at best)
-; --- 206 cycles in total ---
-	move.w	(a4)+,d0	; Get high byte of playedSamples, 8 cycles
-	move.b	(a4),d0		; Get lower byte of playedSamples, 8 cycles
+	moveq	#0,d0
+	waitZ80	d0,a5		; 12 cycles (at best)
+; --- 76 cycles in total ---
+	move.w	(a4),d0		; Get high byte of playedSamples, 8 cycles
+	move.b	-(a4),d0	; Get lower byte of playedSamples, 8 cycles
 	add.l	d0,d2		; 8 cycles
 	movea.l	d2,a2		; Sample index while executing 68k routine, 4 cycles
-; --- 234 cycles in total ---
+; --- 104 cycles in total ---
 	if smoothPlayback
 		move.b	(a2)+,(a3)	; Output sample, 12 cycles
 	elseif accurateSpeed
@@ -189,7 +183,7 @@ $$z80_wait:
 
 	if accurateSpeed
 		addaq	21+2,a0	; Sample index after 68k routine execution (A2 at the end, basically), 8 cycles
-		move.l	a0,d2	; D2 is now the updated sample index, 4 cycles
+		move.l	a0,d2	; D1 is now the updated sample index, 4 cycles
 	endif
 
 	lea	SampleBuffer|Z80_RAM,a1	; 8 cycles
@@ -203,23 +197,23 @@ $$skip_alignment:
 	nop			; 4 cycles
 	nop			; 4 cycles
 	nop			; 4 cycles
-	move.l	#RomEnd,d1			; 12 cycles
-	cmp.l	d2,d1				; Is the audio about to end (ends on Z80 buffer)? 8 cycles
+	move.l	#RomEnd,d0			; 12 cycles
+	sub.l	d2,d0				; Is the audio about to end (ends on Z80 buffer)? 8 cycles
 ; --- 72 cycles in total ---
-	bge.s	$$skip_tracking		; 10 cycles on branch, 8 cycles no branch
+	bpl.s	$$skip_tracking		; 10 cycles on branch, 8 cycles no branch
 	; Z80 playback with sample tracking routine
-	move.b	#Loop_EndSoundInit,(Z80RoutineAddress+2)|Z80_RAM	; Little endian, 16 cycles
-	sub.l	d1,d2	; D2 is now the distance to the end of the audio (after 68k execution), 8 cycles
-	subq.l	#1,d2
-	move.b	d2,(Loop_EndSoundInit+1|Z80_RAM); 16 cycles
-	lsr.w	#8,d2							; 22 cycles
-	move.b	d2,(Loop_EndSoundInit+3|Z80_RAM); 16 cycles
+	move.b	#Init_EndSound,(Z80Init.routineAddress+2)|Z80_RAM	; Little endian, 16 cycles
+	move.b	d0,(Init_EndSound+2|Z80_RAM)	; 16 cycles
+	lsr.w	#8,d0							; 22 cycles
+	move.b	d0,(Init_EndSound+1|Z80_RAM)	; 16 cycles
 	move.b	#1,shouldStop					; 16 cycles
 	bra.s	$$continue						; 10 cycles
 ; --- 82 cycles in total ---
 $$skip_tracking:
 	; Normal Z80 playback routine
-	move.b	#Loop,(Z80RoutineAddress+2)|Z80_RAM	; Little endian, 16 cycles
+	lea	(Z80Init.routineAddress+1)|Z80_RAM,a4
+	move.b	#Init_DacAndEffects&$FF,(a4)+
+	move.b	#Init_DacAndEffects>>8,(a4)
 
 $$continue:
 ; --- 98 cycles in total ---
@@ -238,7 +232,10 @@ $$timing_wait1:		; 54 cycles
 	endif
 
 ; --- Cycle count restarts ---
-	move.b	#Wait68k.continue,((Wait68k+1)|Z80_RAM)	; 20 cycles
+	lea	(Z80EndRoutineAddress+1)|Z80_RAM,a0
+	move.b	#Z80Init&$FF,(a0)+
+	move.b	#Z80Init>>8,(a0)
+	
 	move.l	d2,(sampleIndex)	; 20 cycles
 
 	moveq	#7,d0
@@ -295,8 +292,8 @@ $$copy_program:
 	move.b	(a0)+,(a1)+
 	dbf d0,$$copy_program
 
-	clr.b	(playedSamplesHigh|Z80_RAM)
-	clr.b	(playedSamplesLow|Z80_RAM)
+	clr.b	(playedSamples|Z80_RAM)
+	clr.b	(playedSamples+1|Z80_RAM)
 	clr.b	(shouldStop)
 
 	assertZ80Reset d2,a2	; Assert reset
@@ -351,8 +348,8 @@ PlaySample:
 Music:
 	;binclude "continuity_test.bin" ; Test with increasing bytes to make sure no samples get skipped
 	;binclude "24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; Great music right here
-	;binclude "Don't Stand So Close To Me.raw" ; Another banger
-	binclude "Spirits In The Material World.raw" ; This is a good one
+	binclude "Don't Stand So Close To Me.raw" ; Another banger
+	;binclude "Spirits In The Material World.raw" ; This is a good one
 	;binclude "Every Little Thing She Does Is Magic.raw" ; Another nice one
 	;binclude "Ki.raw" ; minceraft
 	;binclude "Droopy likes your face.raw"
