@@ -1,3 +1,8 @@
+; ---------------------------------
+;      Code-specific constants
+; ---------------------------------
+BUFFER_ITERATIONS:	equ 7
+
 ; M68K: Motorola 68000 related constant
 ; Z80: Z80 related constant
 ; JOYx: controller related constant
@@ -57,7 +62,7 @@ VDP_VRAM_DMA:   equ $40000080	; DMA VRAM control port
 VDP_VSRAM_DMA:  equ $40000090	; DMA VSRAM control port
 VDP_CRAM_DMA:   equ $C0000080	; DMA CRAM control port
 
-PSG_OUT:	equ $C00011		; PSG output (or input)
+PSG_68K_PORT:	equ $C00011		; PSG port
 
 VDP_DEBUG:	equ $C0001C		; Debug register
 
@@ -116,6 +121,13 @@ YM2612_CTRL0:	equ $4000		; YM2612 bank 0 control port
 YM2612_DATA0:	equ $4001		; YM2612 bank 0 data port
 YM2612_CTRL1:	equ $4002		; YM2612 bank 1 control port
 YM2612_DATA1:	equ $4003		; YM2612 bank 1 data port
+
+; PSG port address from Z80
+PSG_PORT:	equ $7F11		; PSG port from Z80 on 68k bus
+
+; Z80 bus arbiter
+Z80BANK_CTRL:	equ $6000		; Bank selector (9 LSB serial writes)
+Z80BANK_WINDOW:	equ $8000		; Access window (8000h-FFFFh)
 
 ; --------------------------
 ;		Generic Labels
