@@ -3,32 +3,30 @@ Z80RomStart
 
     phase 0	; Set label addresses to the start of the Z80 RAM
 
-	ld	bc,4000h	; YM2612 bank 1 port
-	ld	hl,4001h	; YM2612 data port
+	ld	bc,YM2612_CTRL0	; YM2612 bank 1 port
+	ld	hl,YM2612_DATA0	; YM2612 data port
 
-	ld	a,DAC_ENABLE; DAC enable address
-	ld	(bc),a		; Switch to DAC enable register
-	ld	(hl),80h	; Enable DAC
-	dec	a			; Now a is 2Ah (DAC_IN)
-	ld	(bc),a		; Switch to DAC data input
+	ld	a,DAC_ENABLE	; DAC enable address
+	ld	(bc),a			; Switch to DAC enable register
+	ld	(hl),80h		; Enable DAC
+	dec	a				; Now a is 2Ah (DAC_IN)
+	ld	(bc),a			; Switch to DAC data input
 
 	ld	de,SampleBuffer	; Reset DE
-	ld	sp,2000h		; Align stack pointer correctly
+	ld	sp,Z80_STACK	; Align stack pointer correctly
 	di
 
 	jp	Z80EndRoutineAddress
 
 Z80Init:
-	ld	hl,Loop_DacOnly
-	ld	(Z80EndRoutineAddress+1),hl
 	ld	de,SampleBuffer	; Reset DE
-	ld	hl,4001h		; Reset HL
-	ld	sp,2000h		; Align stack pointer correctly
+	ld	hl,YM2612_DATA0	; Reset HL
+	;ld	sp,Z80_STACK	; Align stack pointer correctly
 .routineAddress:
 	jp	$
 
 Init_DacAndEffects:
-	ld	b,64
+	ld	b,92
 $$loop_DacAndEffects:
 	ld	a,(de)
 	ld	(hl),a
@@ -45,8 +43,14 @@ $$loop_DacAndEffects:
 
 	inc	de
 	inc	de
-	ld	b,5
+	ld	b,3
 	djnz $
+
+	ld	bc,Loop_DacOnly				; 10 cycles
+	ld	(Z80EndRoutineAddress+1),bc	; 20 cycles
+	ld	c,DisableDAC&0FFh			; 7 cycles
+	ld	a,2							; 7 cycles
+	ld	(bc),a						; Put LD (BC),A OP code. 7 cycles
 	nop ;exx
 	nop
 
@@ -89,8 +93,8 @@ $$loop_DacAndSn:
 	ld	a,(de)
 	ld	(hl),a
 
-	inc	de
-	inc	de
+	inc	e
+	inc	e
 	
 	ld	b,d
 	ld	c,e
@@ -107,10 +111,11 @@ $$loop_DacAndSn:
 	ld	l,a
 	ld	h,0
 
-	nop
+	cp	0
 
 Loop_DacOnly:
 	ld	a,(de)
+DisableDAC:
 	ld	(bc),a
 	inc hl
 	ld 	(playedSamples),hl
@@ -129,11 +134,13 @@ Init_EndSound:
 $$loop_endSound1:
 	ld	a,(de)
 	ld	(hl),a
-	rept 16
+	rept 14
 	nop
 	endm
-	inc	e
+	inc	de
 	inc de
+	cp	0
+	cp	0
 	dec	bc
 	ld	a,b
 	or	c

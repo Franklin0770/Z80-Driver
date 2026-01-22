@@ -91,20 +91,22 @@ ROM_Start
 ; Mega Drive ROM header (reference: https://plutiedev.com/rom-header)
 ; ===================================================================
 
-		dc.b "SEGA MEGA DRIVE "										; System type - 16 bytes
-		dc.b "(C).... YYYY.MMM"										; Copyright, release year and month (e.g. "(C)SEGA 1991.APR") - 16 bytes
-		dc.b "                                                "		; Domestic name - 48 bytes
-		dc.b "                                                "		; Overseas name - 48 bytes
-		dc.b "GM-12345678-00"										; Serial number ("xx-yyyyyyyy-zz") - 14 bytes
-		dc.w $0000													; Where this ROM gets patched with a 16-bit checksum - 2 bytes
-		dc.b "J               "										; Device support (e.g. "J" for 3-button controller) - 16 bytes
-		dc.l ROM_Start												; Start address of ROM - 4 bytes
-		dc.l ROM_End												; End address of ROM - 4 bytes
-		dc.l $FF0000												; Start address of WRAM - 4 bytes
-		dc.l $FFFFFF 												; End address of WRAM - 4 bytes
+		dc.b "SEGA MEGA DRIVE "								; System type - 16 bytes
+		dc.b "(C)BRO0 2024.OCT"								; Copyright, release year and month (e.g. "(C)SEGA 1991.APR") - 16 bytes
+		dc.b "Codename FrankPCM: a high-tech audio driver"	; Domestic name - 48 bytes
+		dc.b "     "										; Padding
+		dc.b "Codename FrankPCM: a high-tech audio driver"	; Overseas name - 48 bytes
+		dc.b "     "										; Padding
+		dc.b "GM-12345678-00"								; Serial number ("xx-yyyyyyyy-zz") - 14 bytes
+		dc.w $0000											; Where this ROM gets patched with a 16-bit checksum - 2 bytes
+		dc.b "J               "								; Device support (e.g. "J" for 3-button controller) - 16 bytes
+		dc.l ROM_Start										; Start address of ROM - 4 bytes
+		dc.l ROM_End										; End address of ROM - 4 bytes
+		dc.l $FF0000										; Start address of WRAM - 4 bytes
+		dc.l $FFFFFF 										; End address of WRAM - 4 bytes
 		dc.b "                                                                " ; padding for reserved space - 64 bytes
-		dc.b "JUE"													; Region support - 16 bytes
-		dc.b "             "										; padding for reserved space (you can put a comment if you want!) - 13 bytes
+		dc.b "JUE"											; Region support - 16 bytes
+		dc.b "             "								; padding for reserved space (you can put a comment if you want!) - 13 bytes
 
 ; ========================
 ; Error handler jump table
@@ -174,7 +176,7 @@ UnknownError:
 VDP_VBlank:
 ; --- ~20 cycles in total ---
 	stopZ80		; Initiate Z80 stop, 8 cycles
-	lea	YM2612_68K_DATA1,a3			; 8 cycles
+	lea	YM2612_68K_DATA0,a3			; 8 cycles
 	lea	playedSamples+1|Z80_WRAM,a4		; 8 cycles
 	lea Z80_BUSREQ,a5					; 8 cycles
 	move.l	(sampleIndex),d2			; 12 cycles
@@ -232,10 +234,7 @@ $$skip_tracking:
 	move.b	#Init_DacAndEffects>>8,(a4)
 
 $$continue:
-; --- 98 cycles in total ---
-	moveq	#4,d0	; 4 cycles
-$$timing_wait1:		; 54 cycles
-	dbf d0,$$timing_wait1
+	nop
 ; --- 156 cycles in total ---
 
 	loadSamples	; D0 and D1 break here
@@ -251,12 +250,15 @@ $$timing_wait1:		; 54 cycles
 	lea	(Z80EndRoutineAddress+1)|Z80_WRAM,a0
 	move.b	#Z80Init&$FF,(a0)+
 	move.b	#Z80Init>>8,(a0)
+	clr.b	(DisableDAC|Z80_WRAM)
 	
 	move.l	d2,(sampleIndex)	; 20 cycles
 
-	moveq	#7,d0
+	moveq	#5,d0
 $$timing_wait2:
 	dbf	d0,$$timing_wait2
+
+	nop
 
 	startZ80 a5	; Restart Z80
 
@@ -285,19 +287,18 @@ EntryPoint:
 ; Register reference: https://plutiedev.com/vdp-registers
 
 	move.l  #(VDPREG_MODE1|%00000100)<<16|(VDPREG_MODE2|%01110100),(a0)	; Mode register #1 and Mode register #2
-    move.l  #(VDPREG_MODE3|%00000000)<<16|(VDPREG_MODE4|%10000001),(a0)	; Mode register #3 and Mode Register #4
+	move.l  #(VDPREG_MODE3|%00000000)<<16|(VDPREG_MODE4|%10000001),(a0)	; Mode register #3 and Mode Register #4
     
 ; Planes reference: https://segaretro.org/Sega_Mega_Drive/Planes
 
-    move.l  #VDPREG_PLANEA|(VRAM_PLANEA>>10)<<16|(VDPREG_PLANEB|(VRAM_PLANEB>>13)),(a0)	; Plane A and Plane B address
+ 	move.l  #VDPREG_PLANEA|(VRAM_PLANEA>>10)<<16|(VDPREG_PLANEB|(VRAM_PLANEB>>13)),(a0)	; Plane A and Plane B address
 	move.l  #VDPREG_SPRITE|(VRAM_SPRITE>>9)<<16|(VDPREG_WINDOW|(VRAM_WINDOW>>10)),(a0)	; Sprite and Window address
-    move.w  #VDPREG_HSCROLL|(VRAM_HSCROLL>>10),(a0)										; Horizontal scroll address
+	move.w  #VDPREG_HSCROLL|(VRAM_HSCROLL>>10),(a0)										; Horizontal scroll address
     
-    move.l  #(VDPREG_WINX|$00)<<16|(VDPREG_WINY|$00),(a0)			; Window X split and Window Y split
-    move.l  #(VDPREG_SIZE|%00000001)<<16|(VDPREG_BGCOL|$00),(a0)	; Tilemap size and Background color
-    move.l  #(VDPREG_INCR|$02)<<16|(VDPREG_HRATE|$FF),(a0)			; Autoincrement and HBlank IRQ rate
+	move.l  #(VDPREG_WINX|$00)<<16|(VDPREG_WINY|$00),(a0)			; Window X split and Window Y split
+	move.l  #(VDPREG_SIZE|%00000001)<<16|(VDPREG_BGCOL|$00),(a0)	; Tilemap size and Background color
+	move.l  #(VDPREG_INCR|$02)<<16|(VDPREG_HRATE|$FF),(a0)			; Autoincrement and HBlank IRQ rate
 
-$$JOY_Setup
 	moveq 	#$40,d0
 	move.b	d0,(JOY1_CTRL)
 	move.b	d0,(JOY1_DATA)
@@ -364,9 +365,9 @@ PlaySample:
 Music:
 	;binclude "continuity_test.bin" ; Test with increasing bytes to make sure no samples get skipped
 	;binclude "24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; Great music right here
-	binclude "Don't Stand So Close To Me.raw" ; Another banger
+	;binclude "Don't Stand So Close To Me.raw" ; Another banger
 	;binclude "Spirits In The Material World.raw" ; This is a good one
-	;binclude "Every Little Thing She Does Is Magic.raw" ; Another nice one
+	binclude "Every Little Thing She Does Is Magic.raw" ; Another nice one
 	;binclude "Ki.raw" ; minceraft
 	;binclude "Droopy likes your face.raw"
 	;binclude "Chris.raw"

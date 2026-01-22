@@ -175,10 +175,13 @@ i set 0
 	move.l	(a0)+,d0		; 12 cycles
 	movep.l	d0,(i+(8*0),a1)	; 24 cycles
 
-	move.l	(a0)+,d0
-	movep.l	d0,(i+(8*1),a1)
+	move.l	(a0)+,d0		; 12 cycles
+	movep.l	d0,(i+(8*1),a1)	; 24 cycles
+
+	move.l	(a0)+,d0		; 12 cycles
+	movep.l	d0,(i+(8*2),a1)	; 24 cycles
 	; 72 cycles in total
-i set 8
+i set 24
 
 	while i < 1072
 
