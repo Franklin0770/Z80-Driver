@@ -44,25 +44,26 @@ $$loop_DacAndEffects:
 	nop
 	endm
 	djnz $$loop_DacAndEffects
+	; 112 cycles per loop
 
-	exx
-	ld	a,(de)
-	ld	(hl),a
-	inc	de
-	inc	de
+	exx								; 4
+	ld	a,(de)						; 7
+	ld	(hl),a						; 7
+	inc	de							; 6
+	inc	de							; 6
 
-	ld	b,h
-	ld	c,l
+	ld	b,h							; 4
+	ld	c,l							; 4
 
-	ld	hl,Loop_DacOnly
-	ld	(Z80EndRoutineAddress+1),hl
+	ld	hl,Loop_DacOnly				; 10
+	ld	(Z80EndRoutineAddress+1),hl	; 16
 
-	ld	l,DisableDacInjection&0FFh
-	ld	(hl),2
+	ld	l,DisableDacInjection&0FFh	; 7
+	ld	(hl),2						; 10
 
-	ld	h,b
-	ld	l,c
-	exx
+	ld	h,b							; 4
+	ld	l,c							; 4
+	exx								; 4
 
 Init_DacAndFm:
 	ld	b,128
@@ -80,16 +81,20 @@ $$loop_DacAndFm:
 	endm
 	djnz $$loop_DacAndFm
 
-	exx
-	ld	a,(de)
-	ld	(hl),a
+	exx			; 4
+	ld	a,(de)	; 7
+	ld	(hl),a	; 7
 
-	inc	de
-	inc	de
-	ld	b,2
-	djnz $
-	exx
-	nop
+	inc	de		; 6
+	inc	de		; 6
+	ld	b,2		; 7
+	djnz $		; 26
+	exx			; 4
+	nop			; 4
+	; --- 71 cycles in total ---
+
+	cp	0
+	cp	0
 
 Init_DacAndSn:
 	ld	b,32
@@ -107,29 +112,26 @@ $$loop_DacAndSn:
 	endm
 	djnz $$loop_DacAndSn
 
-	exx
-	ld	a,(de)
-	ld	(hl),a
+	exx						; 4
+	ld	a,(de)				; 7
+	ld	(hl),a				; 7
 
-	inc	e
-	inc	e
+	inc	de					; 6
+	inc	de					; 6
 	
-	ld	b,d
-	ld	c,e
-	srl	b
-	rr	c
-	ld	(playedSamples),bc
-; --- 56 cycles ---
-	exx
-	ld	a,c
-	
-	ld	b,h
-	ld	c,l
+	ld	h,d					; 4
+	ld	l,e					; 4
+	res	4,h					; 8
+	srl	h					; 8
+	rr	l					; 8
+	ld	(playedSamples),hl	; 16
+; --- 78 cycles ---
 
-	ld	l,a
-	ld	h,0
+	ld	bc,YM2612_DATA0		; 10
 
 	cp	0
+	cp	0
+	nop
 
 Loop_DacOnly:
 	ld	a,(de)

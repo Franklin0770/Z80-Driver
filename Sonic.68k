@@ -15,6 +15,8 @@
 ; These switches enable the entire purpose of this driver and disabling them likely makes the playback similar to "traditional" DAC drivers
 smoothPlayback:	equ TRUE	; Put it to FALSE to prevent 68k output during buffer load
 accurateSpeed:	equ TRUE	; Put it to FALSE to ignore 68k sample increment calculation
+; I often use this switch to test how an ideal and perfect playback would sound, and it's pretty close compared to both 68k and Z80
+pureAudio:		equ FALSE	; Put it to TRUE to make only the 68k output DAC samples by defying the whole puropose of this audio driver
 
 ROM_Start
 
@@ -173,26 +175,27 @@ UnknownError:
 ; ==========================
 
 ; A2: live samples, A0: Z80 samples for later
-; 240 68k cycles for every 32 kHz sample
+; 240 68k cycles for every ~32 kHz sample
 
 VDP_VBlank:
 	; DPLC loading queues
-; --- ~20 cycles in total ---
-	stopZ80		; Initiate Z80 stop, 8 cycles
-	lea	YM2612_68K_DATA0,a3			; 8 cycles
-	lea	playedSamples+1|Z80_WRAM,a4	; 8 cycles
-	lea Z80_BUSREQ,a5				; 8 cycles
-	move.l	(sampleIndex),d2		; 12 cycles
-	moveq	#0,d0
-	waitZ80	d0,a5		; 12 cycles (at best)
-; --- 76 cycles in total ---
-	move.w	(a4),d0		; Get high byte of playedSamples, 8 cycles
-	move.b	-(a4),d0	; Get lower byte of playedSamples, 8 cycles
-	add.l	d0,d2		; 8 cycles
-	movea.l	d2,a2		; Sample index while executing 68k routine, 4 cycles
-; --- 104 cycles in total ---
+	;move.w	#12500,d0
+	;dbf	d0,*
+; --- Variable cycles ---
+	stopZ80		; Initiate Z80 stop. 20
+	lea	YM2612_68K_DATA0,a3			; 8
+	lea	playedSamples+1|Z80_WRAM,a4	; 8
+	lea Z80_BUSREQ,a5				; 8
+	move.l	(sampleIndex),a2		; 16
+	moveq	#0,d0					; 4
+	waitZ80	d0,a5					; 12 (at best)
+	; --- 76 cycles in total ---
+	move.w	(a4),d0		; Get high byte of playedSamples. 8
+	move.b	-(a4),d0	; Get lower byte of playedSamples. 8
+	adda.l	d0,a2		; 8
+
 	if smoothPlayback
-		move.b	(a2)+,(a3)	; Output sample, 12 cycles
+		move.b	(a2)+,(a3)	; Output sample. 12
 	elseif accurateSpeed
 		addq.l	#1,a2
 		nop
@@ -200,45 +203,47 @@ VDP_VBlank:
 
 ; --- Cycle count restarts ---
 
-	movea.l	d2,a0	; 4 cycles
+	movea.l	a2,a0	; 4
 
 	if accurateSpeed
-		addaq	21+2,a0	; Sample index after 68k routine execution (A2 at the end, basically), 8 cycles
-		move.l	a0,d2	; D2 is now the updated sample index, 4 cycles
+		addaq	(BUFFER_ITERATIONS*3)+2,a0	; Sample index after 68k routine execution (A2 at the end, basically). 8
 	endif
 
-	lea	SampleBuffer|Z80_WRAM,a1	; 8 cycles
+	move.l	a0,d2	; D2 is now the updated sample index. 4
+
+	lea	SampleBuffer|Z80_WRAM,a1	; 8
 ; --- 24 cycles in total ---
-	btst	#0,d2				; Is the sample index even? 6 cycles
-	beq.s	$$skip_alignment	; If yes, skip the alignment, 10 cycles
-	move.b	(a0)+,(a1)			; If not, the 68k will crash, so we avoid it. 12 cycles
-	addq.l	#2,a1
-	move.l	a0,d2	; D2 is now the updated sample index, 4 cycles
+	btst	#0,d2					; Is the sample index even? 6
+	beq.s	$$skip_alignment		; If yes, skip the alignment. 10
+	move.b	(a0)+,(a1)				; If not, the 68k will crash, so we avoid it. 12
+	addq.l	#2,a1					; 8
+	move.l	a0,d2	; D2 is now the updated sample index. 4
 $$skip_alignment:
-	nop			; 4 cycles
-	nop			; 4 cycles
-	nop			; 4 cycles
-	move.l	#ROM_End,d0			; 12 cycles
-	sub.l	d2,d0				; Is the audio about to end (ends on Z80 buffer)? 8 cycles
-; --- 72 cycles in total ---
+	nop				; 4
+	nop				; 4
+	nop				; 4
+	move.l	#ROM_End,d0			; 12
+	sub.l	d2,d0				; Is the audio about to end (ends on Z80 buffer)? 8
+; --- 84 cycles in total ---
 	bpl.s	$$skip_tracking		; 10 cycles on branch, 8 cycles no branch
 	; Z80 playback with sample tracking routine
 	move.b	#Init_EndSound,(Z80Init.routineAddress+2)|Z80_WRAM	; Little endian, 16 cycles
-	move.b	d0,(Init_EndSound+2|Z80_WRAM)	; 16 cycles
-	lsr.w	#8,d0							; 22 cycles
-	move.b	d0,(Init_EndSound+1|Z80_WRAM)	; 16 cycles
-	move.b	#1,shouldStop					; 16 cycles
-	bra.s	$$continue						; 10 cycles
+	lea	(Init_EndSound+2)|Z80_WRAM,a4		; 8
+	move.b	d0,(a4)							; 8
+	lsr.w	#8,d0							; 22
+	move.b	d0,-(a4)						; 8
+	move.b	#1,shouldStop					; 16
+	bra.s	$$continue						; 10
 ; --- 82 cycles in total ---
 $$skip_tracking:
 	; Normal Z80 playback routine
-	lea	(Z80Init.routineAddress+1)|Z80_WRAM,a4
-	move.b	#Init_DacAndEffects&$FF,(a4)+
-	move.b	#Init_DacAndEffects>>8,(a4)
+	lea	(Z80Init.routineAddress+1)|Z80_WRAM,a4	; 8
+	move.b	#Init_DacAndEffects&$FF,(a4)+		; 12
+	move.b	#Init_DacAndEffects>>8,(a4)			; 12
 
 $$continue:
-; --- 98 cycles in total ---
-	clr.b	(DisableDacInjection|Z80_WRAM)
+; --- 126 cycles in total ---
+	clr.b	(DisableDacInjection|Z80_WRAM)		; 16
 
 	loadSamples	; D0 and D1 break here
 
@@ -250,16 +255,17 @@ $$continue:
 	endif
 
 ; --- Cycle count restarts ---
-	lea	(Z80EndRoutineAddress+1)|Z80_WRAM,a0
-	move.b	#Z80Init&$FF,(a0)+
-	move.b	#Z80Init>>8,(a0)
-	clr.b	(DisableDAC|Z80_WRAM)
+	lea	(Z80EndRoutineAddress+1)|Z80_WRAM,a0	; 8
+	move.b	#Z80Init&$FF,(a0)+					; 12
+	move.b	#Z80Init>>8,(a0)					; 12
 	
-	move.l	d2,(sampleIndex)	; 20 cycles
+	move.l	d2,(sampleIndex)					; 20
 
 	startZ80 a5	; Restart Z80
 
 	rte
+
+; ==========================
 
 ; Horizontal interrupt
 VDP_HBlank:
@@ -276,7 +282,7 @@ EntryPoint:
 
 ; VDP setup reference: https://plutiedev.com/vdp-setup
 
-	lea	(VDP_CTRL),a0
+	lea VDP_CTRL,a0
 
 	tst.w 	(a0) ; Testing the VDP control port safely resets it
 	
@@ -332,6 +338,11 @@ $$wait:	; Wait for the YM2612
     dbf	d0,$$wait
 
 	deassertZ80Reset d2,a2	; Release reset
+
+	if pureAudio
+		loopTest 53
+	endif
+
 	startZ80 d1,a3			; Release bus
 
 ReadJoypad:
@@ -363,11 +374,12 @@ Music:
 	;binclude "24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; Great music right here
 	;binclude "Don't Stand So Close To Me.raw" ; Another banger
 	;binclude "Spirits In The Material World.raw" ; This is a good one
-	binclude "Every Little Thing She Does Is Magic.raw" ; Another nice one
+	;binclude "Every Little Thing She Does Is Magic.raw" ; Another nice one
 	;binclude "Ki.raw" ; minceraft
-	;binclude "Droopy likes your face.raw"
-	;binclude "Chris.raw"
-	;binclude "music.pcm" ; Let's not talk about this
+	;binclude "Droopy likes your face.raw" ; Underrated
+	;binclude "Chris.raw" ; Chris
+	;binclude "Magnetic Circuit.raw" ; Notch what are you doing
+	binclude "music.pcm" ; Let's not talk about this
 	;binclude "My Summary.raw"
 
 ROM_End

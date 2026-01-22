@@ -12,7 +12,7 @@
 		"VSRAM"
 	],
 	"megaenvironment.sourceCodeControl.currentWorkingFolders": [
-		"assets"
+		"Assets"
 	],
 	"workbench.colorTheme": "MegaEnvironment Dark",
 	"megaenvironment.buildControl.enablePreviousBuilds": false

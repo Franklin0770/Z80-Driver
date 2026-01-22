@@ -178,10 +178,11 @@ i set 0
 	move.l	(a0)+,d0
 	movep.l	d0,(i+(8*1),a1)
 
-	move.l	(a0)+,d0
-	movep.l	d0,(i+(8*2),a1)
-	; --- 238 cycles in total ---
-i set 24
+	; --- 214 cycles in total ---
+	rept 3
+	nop
+	endm
+i set 16
 
 	while i < 152 * BUFFER_ITERATIONS
 
@@ -269,11 +270,11 @@ i set i + 152
 	endm
 
 loopTest: macro pitch
-	lea	(YM2612_CONTROL|Z80_RAM),a2
-	lea	(YM2612_DATA|Z80_RAM),a1
+	lea	(YM2612_CTRL0|Z80_WRAM),a2
+	lea	(YM2612_DATA0|Z80_WRAM),a1
 	move.b	#DAC_ENABLE,(a2)
 	move.b	#$80,(a1)
-	move.b	#DAC_IN,(a2)
+	move.b	#DAC_OUT,(a2)
 	lea	Music,a0
 $$loop:
 	move.b	(a0)+,(a1)	; 12 cycles
