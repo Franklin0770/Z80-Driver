@@ -169,7 +169,7 @@ subaq: macro v0,r0
 ; How to check a character from a string charfromstr(*string*,*character position*) -> character
 
 loadSamples: macro
-	
+	; --- 118 cycles in total ---
 i set 0
 
 	move.l	(a0)+,d0		; 12 cycles
@@ -177,10 +177,13 @@ i set 0
 
 	move.l	(a0)+,d0
 	movep.l	d0,(i+(8*1),a1)
-	; 72 cycles in total
-i set 8
 
-	while i < 1072
+	move.l	(a0)+,d0
+	movep.l	d0,(i+(8*2),a1)
+	; --- 238 cycles in total ---
+i set 24
+
+	while i < 152 * BUFFER_ITERATIONS
 
 	if smoothPlayback
 		move.b	(a2)+,(a3)
@@ -265,7 +268,7 @@ i set i + 152
 	endm
 	endm
 
-loopTest: macro rate
+loopTest: macro pitch
 	lea	(YM2612_CONTROL|Z80_RAM),a2
 	lea	(YM2612_DATA|Z80_RAM),a1
 	move.b	#DAC_ENABLE,(a2)
@@ -275,7 +278,7 @@ loopTest: macro rate
 $$loop:
 	move.b	(a0)+,(a1)	; 12 cycles
 	cmp.l	d0,d0		; 6 cycles
-	rept rate
+	rept pitch
 	nop		; 4 cycles
 	endm
 	bra.w	$$loop	; 10 cycles

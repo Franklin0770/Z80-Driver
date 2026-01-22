@@ -4,6 +4,8 @@
 ; MainRoutineAndLables
 ; sub_routine
 
+	listing off
+
 	include "Constants.asm"
 	include "Variables.asm"
 	include "Macros.asm"
@@ -172,12 +174,13 @@ UnknownError:
 ; 240 68k cycles for every 32 kHz sample
 
 VDP_VBlank:
+	; DPLC loading queues
 ; --- ~20 cycles in total ---
 	stopZ80		; Initiate Z80 stop, 8 cycles
-	lea	YM2612_68K_DATA1,a3			; 8 cycles
-	lea	playedSamples+1|Z80_WRAM,a4		; 8 cycles
-	lea Z80_BUSREQ,a5					; 8 cycles
-	move.l	(sampleIndex),d2			; 12 cycles
+	lea	YM2612_68K_DATA0,a3			; 8 cycles
+	lea	playedSamples+1|Z80_WRAM,a4	; 8 cycles
+	lea Z80_BUSREQ,a5				; 8 cycles
+	move.l	(sampleIndex),d2		; 12 cycles
 	moveq	#0,d0
 	waitZ80	d0,a5		; 12 cycles (at best)
 ; --- 76 cycles in total ---
@@ -199,7 +202,7 @@ VDP_VBlank:
 
 	if accurateSpeed
 		addaq	21+2,a0	; Sample index after 68k routine execution (A2 at the end, basically), 8 cycles
-		move.l	a0,d2	; D1 is now the updated sample index, 4 cycles
+		move.l	a0,d2	; D2 is now the updated sample index, 4 cycles
 	endif
 
 	lea	SampleBuffer|Z80_WRAM,a1	; 8 cycles
@@ -233,10 +236,7 @@ $$skip_tracking:
 
 $$continue:
 ; --- 98 cycles in total ---
-	moveq	#4,d0	; 4 cycles
-$$timing_wait1:		; 54 cycles
-	dbf d0,$$timing_wait1
-; --- 156 cycles in total ---
+	clr.b	(DisableDacInjection|Z80_WRAM)
 
 	loadSamples	; D0 and D1 break here
 
@@ -254,13 +254,8 @@ $$timing_wait1:		; 54 cycles
 	
 	move.l	d2,(sampleIndex)	; 20 cycles
 
-	moveq	#7,d0
-$$timing_wait2:
-	dbf	d0,$$timing_wait2
-
 	startZ80 a5	; Restart Z80
 
-	; DPLC loading queues
 	rte
 
 ; Horizontal interrupt
@@ -270,7 +265,7 @@ VDP_HBlank:
 ; ==========================
 
 EntryPoint:
-	;move.l	#"SEGA",($00A14000)
+	;move.l	#"SEGA",(REG_TMSS)
 
 ; ============================
 ; VDP initialization and setup

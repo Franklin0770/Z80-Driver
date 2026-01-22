@@ -21,6 +21,9 @@ shouldStop:		ds.b 1	; It's zero when the execution continues
 playedSamples:	ds.w 1	; Little-endian
 
 	org $1000
-SampleBuffer
+SampleBuffer	; Where the 68k buffers samples
+
+	org	$1500
+CommandBuffer	; Where the 68k buffers commands (both control and data)
 
 	padding on
