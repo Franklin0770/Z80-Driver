@@ -373,13 +373,13 @@ Music:
 	;binclude "continuity_test.bin" ; Test with increasing bytes to make sure no samples get skipped
 	;binclude "24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; Great music right here
 	;binclude "Don't Stand So Close To Me.raw" ; Another banger
-	;binclude "Spirits In The Material World.raw" ; This is a good one
+	binclude "Spirits In The Material World.raw" ; This is a good one
 	;binclude "Every Little Thing She Does Is Magic.raw" ; Another nice one
 	;binclude "Ki.raw" ; minceraft
 	;binclude "Droopy likes your face.raw" ; Underrated
 	;binclude "Chris.raw" ; Chris
 	;binclude "Magnetic Circuit.raw" ; Notch what are you doing
-	binclude "music.pcm" ; Let's not talk about this
+	;binclude "music.pcm" ; Let's not talk about this
 	;binclude "My Summary.raw"
 
 ROM_End

@@ -1,4 +1,4 @@
- AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 1 - 1/22/2026 21:8:49
+ AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 1 - 1/23/2026 19:42:2
 
 
        1/       0 :                     ; Naming conventions:
@@ -116,7 +116,7 @@
      106/     190 : 4A20 2020 2020 2020 		dc.b "J               "								; Device support (e.g. "J" for 3-button controller) - 16 bytes
               198 : 2020 2020 2020 2020
      107/     1A0 : 0000 1500           		dc.l ROM_Start										; Start address of ROM - 4 bytes
-     108/     1A4 : 003F B3F2           		dc.l ROM_End										; End address of ROM - 4 bytes
+     108/     1A4 : 003B 7A13           		dc.l ROM_End										; End address of ROM - 4 bytes
      109/     1A8 : 00FF 0000           		dc.l $FF0000										; Start address of WRAM - 4 bytes
      110/     1AC : 00FF FFFF           		dc.l $FFFFFF 										; End address of WRAM - 4 bytes
      111/     1B0 : 2020 2020 2020 2020 		dc.b "                                                                " ; padding for reserved space - 64 bytes
@@ -246,7 +246,7 @@
      222/     2D4 : 4E71                	nop				; 4
      223/     2D6 : 4E71                	nop				; 4
      224/     2D8 : 4E71                	nop				; 4
-     225/     2DA : 203C 003F B3F2      	move.l	#ROM_End,d0			; 12
+     225/     2DA : 203C 003B 7A13      	move.l	#ROM_End,d0			; 12
      226/     2E0 : 9082                	sub.l	d2,d0				; Is the audio about to end (ends on Z80 buffer)? 8
      227/     2E2 :                     ; --- 84 cycles in total ---
      228/     2E2 : 6A1E                	bpl.s	$$skip_tracking		; 10 cycles on branch, 8 cycles no branch
@@ -1220,17 +1220,17 @@
      373/     85A :                     	;binclude "continuity_test.bin" ; Test with increasing bytes to make sure no samples get skipped
      374/     85A :                     	;binclude "24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; Great music right here
      375/     85A :                     	;binclude "Don't Stand So Close To Me.raw" ; Another banger
-     376/     85A :                     	;binclude "Spirits In The Material World.raw" ; This is a good one
-     377/     85A :                     	;binclude "Every Little Thing She Does Is Magic.raw" ; Another nice one
-     378/     85A :                     	;binclude "Ki.raw" ; minceraft
-     379/     85A :                     	;binclude "Droopy likes your face.raw" ; Underrated
-     380/     85A :                     	;binclude "Chris.raw" ; Chris
-     381/     85A :                     	;binclude "Magnetic Circuit.raw" ; Notch what are you doing
-     382/     85A :                     	binclude "music.pcm" ; Let's not talk about this
-     383/  3FB3F2 :                     	;binclude "My Summary.raw"
-     384/  3FB3F2 :                     
-     385/  3FB3F2 :                     ROM_End
- AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 2 - 1/22/2026 21:8:49
+     376/     85A :                     	binclude "Spirits In The Material World.raw" ; This is a good one
+     377/  3B7A13 :                     	;binclude "Every Little Thing She Does Is Magic.raw" ; Another nice one
+     378/  3B7A13 :                     	;binclude "Ki.raw" ; minceraft
+     379/  3B7A13 :                     	;binclude "Droopy likes your face.raw" ; Underrated
+     380/  3B7A13 :                     	;binclude "Chris.raw" ; Chris
+     381/  3B7A13 :                     	;binclude "Magnetic Circuit.raw" ; Notch what are you doing
+     382/  3B7A13 :                     	;binclude "music.pcm" ; Let's not talk about this
+     383/  3B7A13 :                     	;binclude "My Summary.raw"
+     384/  3B7A13 :                     
+     385/  3B7A13 :                     ROM_End
+ AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 2 - 1/23/2026 19:42:2
 
 
   Symbol Table (* = unused):
@@ -1294,7 +1294,7 @@
 *CH3_TIMERCTRL :                 27 - |  CHKException :                 228 C |
 *CONSTPI :        3.141592653589793 - |  CommandBuffer :               1500 C |
  DAC_ENABLE :                    2B - | *DAC_OUT :                       2A - |
-*DATE :                 "1/22/2026" - |  DisableDacInjection :           C1 C |
+*DATE :                 "1/23/2026" - |  DisableDacInjection :           C1 C |
  DivisionByZero :               21E C | *EXP_CTRL :                  A1000D - |
 *EXP_DATA :                  A10006 - | *EXP_SER_CTRL :              A1001E - |
 *EXP_SER_REC :               A1001C - | *EXP_SER_TRAN :              A1001A - |
@@ -1331,12 +1331,12 @@
 *REG_MEMORYMODE :            A11000 - | *REG_SRAM :                  A130F1 - |
 *REG_TIME :                  A13000 - | *REG_TMSS :                  A14000 - |
 *REG_TMSS_CART :             A14101 - | *REG_VERSION :               A10001 - |
-*RELAXED :                        0 - |  ROM_End :                   3FB3F2 C |
+*RELAXED :                        0 - |  ROM_End :                   3B7A13 C |
  ROM_Start :                   1500 C |  ReadJoypad :                   726 C |
 *SIZE_CRAM :                     80 - | *SIZE_VRAM :                   FFFF - |
 *SIZE_VSRAM :                    50 - | *SIZE_WRAM :                   FFFF - |
 *SIZE_Z80WRAM :                2000 - |  SampleBuffer :                1000 C |
- SpuriousException :            264 C | *TIME :                   "21:8:49" - |
+ SpuriousException :            264 C | *TIME :                   "19:42:2" - |
 *TIMER_A_H :                     24 - | *TIMER_A_L :                     25 - |
 *TIMER_B :                       26 - |  TRACEException :               246 C |
  TRAPException :                278 C |  TRAPVException :               232 C |
@@ -1383,7 +1383,7 @@
     285 symbols
     196 unused symbols
 
- AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 3 - 1/22/2026 21:8:49
+ AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 3 - 1/23/2026 19:42:2
 
 
   Defined Macros:
@@ -1397,7 +1397,7 @@ subaq                                 | waitZ80
 
      10 macros
 
- AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 4 - 1/22/2026 21:8:49
+ AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 4 - 1/23/2026 19:42:2
 
 
   Defined Functions:
@@ -1405,7 +1405,7 @@ subaq                                 | waitZ80
 
 notaddressregister                    | notdataregister                      
 
- AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 5 - 1/22/2026 21:8:49
+ AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 5 - 1/23/2026 19:42:2
 
 
   Code Pages:
@@ -1415,7 +1415,7 @@ STANDARD (0 changed characters)
 
 1 code page
 
-0.04 seconds assembly time
+0.05 seconds assembly time
 
    1672 lines source file
    2618 lines incl. macro expansions
