@@ -1,4 +1,4 @@
- AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 1 - 1/23/2026 19:42:2
+ AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 1 - 1/29/2026 22:3:7
 
 
        1/       0 :                     ; Naming conventions:
@@ -14,112 +14,113 @@
       17/    1500 : =$1                 accurateSpeed:	equ TRUE	; Put it to FALSE to ignore 68k sample increment calculation
       18/    1500 :                     ; I often use this switch to test how an ideal and perfect playback would sound, and it's pretty close compared to both 68k and Z80
       19/    1500 : =$0                 pureAudio:		equ FALSE	; Put it to TRUE to make only the 68k output DAC samples by defying the whole puropose of this audio driver
-      20/    1500 :                     
-      21/    1500 :                     ROM_Start
-      22/    1500 :                     
-      23/       0 :                     	org 0
-      24/       0 :                     
-      25/       0 :                     ; ================================================================
-      26/       0 :                     ; 68000 vectors (with its error code in square brackets, AAAAAAxx)
-      27/       0 :                     ; ================================================================
-      28/       0 :                     
-      29/       0 : 00FF 0000           		dc.l M68K_STACK			; Initial stack pointer value (SP value)
-      30/       4 : 0000 068E           		dc.l EntryPoint			; Start of program (PC value)
-      31/       8 : 0000 0200           		dc.l BusError			; Bus error							[1]
-      32/       C : 0000 020A           		dc.l AddressError		; Address error						[2]
-      33/      10 : 0000 0214           		dc.l IllegalInstruction	; Illegal instruction				[3]
-      34/      14 : 0000 021E           		dc.l DivisionByZero		; Division by zero					[4]
-      35/      18 : 0000 0228           		dc.l CHKException		; CHK exception						[5]
-      36/      1C : 0000 0232           		dc.l TRAPVException		; TRAPV exception					[6]
-      37/      20 : 0000 023C           		dc.l PrivilegeViolation	; Privilege violation				[7]
-      38/      24 : 0000 0246           		dc.l TRACEException		; TRACE exception					[8]
-      39/      28 : 0000 0250           		dc.l LineAEmulator		; Line-A emulator					[9]
-      40/      2C : 0000 025A           		dc.l LineFEmulator		; Line-F emulator					[10]
-      41/      30 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      42/      34 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      43/      38 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      44/      3C : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      45/      40 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      46/      44 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      47/      48 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      48/      4C : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      49/      50 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      50/      54 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      51/      58 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      52/      5C : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      53/      60 : 0000 0264           		dc.l SpuriousException	; Spurious exception				[11]
-      54/      64 : 0000 026E           		dc.l InterruptRequest	; IRQ level 1						[12]
-      55/      68 : 0000 026E           		dc.l InterruptRequest	; IRQ level 2						[12]
-      56/      6C : 0000 026E           		dc.l InterruptRequest	; IRQ level 3 						[12]
-      57/      70 : 0000 068C           		dc.l VDP_HBlank			; IRQ level 4 (horizontal retrace)
-      58/      74 : 0000 026E           		dc.l InterruptRequest	; IRQ level 5						[12]
-      59/      78 : 0000 028C           		dc.l VDP_VBlank			; IRQ level 6 (vertical retrace)
-      60/      7C : 0000 026E           		dc.l InterruptRequest	; IRQ level 7						[12]
-      61/      80 : 0000 0278           		dc.l TRAPException		; TRAP #00 exception				[13]
-      62/      84 : 0000 0278           		dc.l TRAPException		; TRAP #01 exception				[13]
-      63/      88 : 0000 0278           		dc.l TRAPException		; TRAP #02 exception				[13]
-      64/      8C : 0000 0278           		dc.l TRAPException		; TRAP #03 exception				[13]
-      65/      90 : 0000 0278           		dc.l TRAPException		; TRAP #04 exception				[13]
-      66/      94 : 0000 0278           		dc.l TRAPException		; TRAP #05 exception				[13]
-      67/      98 : 0000 0278           		dc.l TRAPException		; TRAP #06 exception				[13]
-      68/      9C : 0000 0278           		dc.l TRAPException		; TRAP #07 exception				[13]
-      69/      A0 : 0000 0278           		dc.l TRAPException		; TRAP #08 exception				[13]
-      70/      A4 : 0000 0278           		dc.l TRAPException		; TRAP #09 exception				[13]
-      71/      A8 : 0000 0278           		dc.l TRAPException		; TRAP #10 exception				[13]
-      72/      AC : 0000 0278           		dc.l TRAPException		; TRAP #11 exception				[13]
-      73/      B0 : 0000 0278           		dc.l TRAPException		; TRAP #12 exception				[13]
-      74/      B4 : 0000 0278           		dc.l TRAPException		; TRAP #13 exception				[13]
-      75/      B8 : 0000 0278           		dc.l TRAPException		; TRAP #14 exception				[13]
-      76/      BC : 0000 0278           		dc.l TRAPException		; TRAP #15 exception				[13]
-      77/      C0 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      78/      C4 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      79/      C8 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      80/      CC : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      81/      D0 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      82/      D4 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      83/      D8 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      84/      DC : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      85/      E0 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      86/      E4 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      87/      E8 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      88/      EC : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      89/      F0 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      90/      F4 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      91/      F8 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      92/      FC : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
-      93/     100 :                     
-      94/     100 :                     ; ===================================================================
-      95/     100 :                     ; Mega Drive ROM header (reference: https://plutiedev.com/rom-header)
-      96/     100 :                     ; ===================================================================
-      97/     100 :                     
-      98/     100 : 5345 4741 204D 4547 		dc.b "SEGA MEGA DRIVE "								; System type - 16 bytes
+      20/    1500 : =$1                 hardwareEarrape:	equ TRUE	; Put this to TRUE to test the true power of the YM2612's DAC output (SW: EXTREMELY LOUD AUDIO)
+      21/    1500 :                     
+      22/    1500 :                     ROM_Start
+      23/    1500 :                     
+      24/       0 :                     	org 0
+      25/       0 :                     
+      26/       0 :                     ; ================================================================
+      27/       0 :                     ; 68000 vectors (with its error code in square brackets, AAAAAAxx)
+      28/       0 :                     ; ================================================================
+      29/       0 :                     
+      30/       0 : 00FF 0000           		dc.l M68K_STACK			; Initial stack pointer value (SP value)
+      31/       4 : 0000 068E           		dc.l EntryPoint			; Start of program (PC value)
+      32/       8 : 0000 0200           		dc.l BusError			; Bus error							[1]
+      33/       C : 0000 020A           		dc.l AddressError		; Address error						[2]
+      34/      10 : 0000 0214           		dc.l IllegalInstruction	; Illegal instruction				[3]
+      35/      14 : 0000 021E           		dc.l DivisionByZero		; Division by zero					[4]
+      36/      18 : 0000 0228           		dc.l CHKException		; CHK exception						[5]
+      37/      1C : 0000 0232           		dc.l TRAPVException		; TRAPV exception					[6]
+      38/      20 : 0000 023C           		dc.l PrivilegeViolation	; Privilege violation				[7]
+      39/      24 : 0000 0246           		dc.l TRACEException		; TRACE exception					[8]
+      40/      28 : 0000 0250           		dc.l LineAEmulator		; Line-A emulator					[9]
+      41/      2C : 0000 025A           		dc.l LineFEmulator		; Line-F emulator					[10]
+      42/      30 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      43/      34 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      44/      38 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      45/      3C : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      46/      40 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      47/      44 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      48/      48 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      49/      4C : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      50/      50 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      51/      54 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      52/      58 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      53/      5C : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      54/      60 : 0000 0264           		dc.l SpuriousException	; Spurious exception				[11]
+      55/      64 : 0000 026E           		dc.l InterruptRequest	; IRQ level 1						[12]
+      56/      68 : 0000 026E           		dc.l InterruptRequest	; IRQ level 2						[12]
+      57/      6C : 0000 026E           		dc.l InterruptRequest	; IRQ level 3 						[12]
+      58/      70 : 0000 068C           		dc.l VDP_HBlank			; IRQ level 4 (horizontal retrace)
+      59/      74 : 0000 026E           		dc.l InterruptRequest	; IRQ level 5						[12]
+      60/      78 : 0000 028C           		dc.l VDP_VBlank			; IRQ level 6 (vertical retrace)
+      61/      7C : 0000 026E           		dc.l InterruptRequest	; IRQ level 7						[12]
+      62/      80 : 0000 0278           		dc.l TRAPException		; TRAP #00 exception				[13]
+      63/      84 : 0000 0278           		dc.l TRAPException		; TRAP #01 exception				[13]
+      64/      88 : 0000 0278           		dc.l TRAPException		; TRAP #02 exception				[13]
+      65/      8C : 0000 0278           		dc.l TRAPException		; TRAP #03 exception				[13]
+      66/      90 : 0000 0278           		dc.l TRAPException		; TRAP #04 exception				[13]
+      67/      94 : 0000 0278           		dc.l TRAPException		; TRAP #05 exception				[13]
+      68/      98 : 0000 0278           		dc.l TRAPException		; TRAP #06 exception				[13]
+      69/      9C : 0000 0278           		dc.l TRAPException		; TRAP #07 exception				[13]
+      70/      A0 : 0000 0278           		dc.l TRAPException		; TRAP #08 exception				[13]
+      71/      A4 : 0000 0278           		dc.l TRAPException		; TRAP #09 exception				[13]
+      72/      A8 : 0000 0278           		dc.l TRAPException		; TRAP #10 exception				[13]
+      73/      AC : 0000 0278           		dc.l TRAPException		; TRAP #11 exception				[13]
+      74/      B0 : 0000 0278           		dc.l TRAPException		; TRAP #12 exception				[13]
+      75/      B4 : 0000 0278           		dc.l TRAPException		; TRAP #13 exception				[13]
+      76/      B8 : 0000 0278           		dc.l TRAPException		; TRAP #14 exception				[13]
+      77/      BC : 0000 0278           		dc.l TRAPException		; TRAP #15 exception				[13]
+      78/      C0 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      79/      C4 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      80/      C8 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      81/      CC : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      82/      D0 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      83/      D4 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      84/      D8 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      85/      DC : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      86/      E0 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      87/      E4 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      88/      E8 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      89/      EC : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      90/      F0 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      91/      F4 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      92/      F8 : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      93/      FC : 0000 0282           		dc.l UnknownError		; Unused (reserved)					[14]
+      94/     100 :                     
+      95/     100 :                     ; ===================================================================
+      96/     100 :                     ; Mega Drive ROM header (reference: https://plutiedev.com/rom-header)
+      97/     100 :                     ; ===================================================================
+      98/     100 :                     
+      99/     100 : 5345 4741 204D 4547 		dc.b "SEGA MEGA DRIVE "								; System type - 16 bytes
               108 : 4120 4452 4956 4520
-      99/     110 : 2843 2942 524F 3020 		dc.b "(C)BRO0 2024.OCT"								; Copyright, release year and month (e.g. "(C)SEGA 1991.APR") - 16 bytes
+     100/     110 : 2843 2942 524F 3020 		dc.b "(C)BRO0 2024.OCT"								; Copyright, release year and month (e.g. "(C)SEGA 1991.APR") - 16 bytes
               118 : 3230 3234 2E4F 4354
-     100/     120 : 436F 6465 6E61 6D65 		dc.b "Codename FrankPCM: a high-tech audio driver"	; Domestic name - 48 bytes
+     101/     120 : 436F 6465 6E61 6D65 		dc.b "Codename FrankPCM: a high-tech audio driver"	; Domestic name - 48 bytes
               128 : 2046 7261 6E6B 5043
               130 : 4D3A 2061 2068 6967
               138 : 682D 7465 6368 2061
               140 : 7564 696F 2064 7269
               148 : 7665 72            
-     101/     14B : 2020 2020 20        		dc.b "     "										; Padding
-     102/     150 : 436F 6465 6E61 6D65 		dc.b "Codename FrankPCM: a high-tech audio driver"	; Overseas name - 48 bytes
+     102/     14B : 2020 2020 20        		dc.b "     "										; Padding
+     103/     150 : 436F 6465 6E61 6D65 		dc.b "Codename FrankPCM: a high-tech audio driver"	; Overseas name - 48 bytes
               158 : 2046 7261 6E6B 5043
               160 : 4D3A 2061 2068 6967
               168 : 682D 7465 6368 2061
               170 : 7564 696F 2064 7269
               178 : 7665 72            
-     103/     17B : 2020 2020 20        		dc.b "     "										; Padding
-     104/     180 : 474D 2D31 3233 3435 		dc.b "GM-12345678-00"								; Serial number ("xx-yyyyyyyy-zz") - 14 bytes
+     104/     17B : 2020 2020 20        		dc.b "     "										; Padding
+     105/     180 : 474D 2D31 3233 3435 		dc.b "GM-12345678-00"								; Serial number ("xx-yyyyyyyy-zz") - 14 bytes
               188 : 3637 382D 3030   
-     105/     18E : 0000                		dc.w $0000											; Where this ROM gets patched with a 16-bit checksum - 2 bytes
-     106/     190 : 4A20 2020 2020 2020 		dc.b "J               "								; Device support (e.g. "J" for 3-button controller) - 16 bytes
+     106/     18E : 0000                		dc.w $0000											; Where this ROM gets patched with a 16-bit checksum - 2 bytes
+     107/     190 : 4A20 2020 2020 2020 		dc.b "J               "								; Device support (e.g. "J" for 3-button controller) - 16 bytes
               198 : 2020 2020 2020 2020
-     107/     1A0 : 0000 1500           		dc.l ROM_Start										; Start address of ROM - 4 bytes
-     108/     1A4 : 003B 7A13           		dc.l ROM_End										; End address of ROM - 4 bytes
-     109/     1A8 : 00FF 0000           		dc.l $FF0000										; Start address of WRAM - 4 bytes
-     110/     1AC : 00FF FFFF           		dc.l $FFFFFF 										; End address of WRAM - 4 bytes
-     111/     1B0 : 2020 2020 2020 2020 		dc.b "                                                                " ; padding for reserved space - 64 bytes
+     108/     1A0 : 0000 1500           		dc.l ROM_Start										; Start address of ROM - 4 bytes
+     109/     1A4 : 0057 88BA           		dc.l ROM_End										; End address of ROM - 4 bytes
+     110/     1A8 : 00FF 0000           		dc.l $FF0000										; Start address of WRAM - 4 bytes
+     111/     1AC : 00FF FFFF           		dc.l $FFFFFF 										; End address of WRAM - 4 bytes
+     112/     1B0 : 2020 2020 2020 2020 		dc.b "                                                                " ; padding for reserved space - 64 bytes
               1B8 : 2020 2020 2020 2020
               1C0 : 2020 2020 2020 2020
               1C8 : 2020 2020 2020 2020
@@ -127,843 +128,841 @@
               1D8 : 2020 2020 2020 2020
               1E0 : 2020 2020 2020 2020
               1E8 : 2020 2020 2020 2020
-     112/     1F0 : 4A55 45             		dc.b "JUE"											; Region support - 16 bytes
-     113/     1F3 : 2020 2020 2020 2020 		dc.b "             "								; padding for reserved space (you can put a comment if you want!) - 13 bytes
+     113/     1F0 : 4A55 45             		dc.b "JUE"											; Region support - 16 bytes
+     114/     1F3 : 2020 2020 2020 2020 		dc.b "             "								; padding for reserved space (you can put a comment if you want!) - 13 bytes
               1FB : 2020 2020 20      
-     114/     200 :                     
-     115/     200 :                     ; ========================
-     116/     200 :                     ; Error handler jump table
-     117/     200 :                     ; ========================
-     118/     200 :                     
-     119/     200 :                     BusError:
-     120/     200 : 2E3C AAAA AAA1      	move.l	#$AAAAAAA1,d7
-     121/     206 : 4E72 2700           	stop #$2700 ; some emulators might not recognize this instruction
-     122/     20A :                     
-     123/     20A :                     AddressError:
-     124/     20A : 2E3C AAAA AAA2      	move.l	#$AAAAAAA2,d7
-     125/     210 : 4E72 2700           	stop #$2700
-     126/     214 :                     
-     127/     214 :                     IllegalInstruction:
-     128/     214 : 2E3C AAAA AAA3      	move.l	#$AAAAAAA3,d7
-     129/     21A : 4E72 2700           	stop #$2700
-     130/     21E :                     
-     131/     21E :                     DivisionByZero:
-     132/     21E : 2E3C AAAA AAA4      	move.l	#$AAAAAAA4,d7
-     133/     224 : 4E72 2700           	stop #$2700
-     134/     228 :                     
-     135/     228 :                     CHKException:
-     136/     228 : 2E3C AAAA AAA5      	move.l	#$AAAAAAA5,d7
-     137/     22E : 4E72 2700           	stop #$2700
-     138/     232 :                     
-     139/     232 :                     TRAPVException:
-     140/     232 : 2E3C AAAA AAA6      	move.l	#$AAAAAAA6,d7
-     141/     238 : 4E72 2700           	stop #$2700
-     142/     23C :                     
-     143/     23C :                     PrivilegeViolation:
-     144/     23C : 2E3C AAAA AAA7      	move.l	#$AAAAAAA7,d7
-     145/     242 : 4E72 2700           	stop #$2700
-     146/     246 :                     
-     147/     246 :                     TRACEException:
-     148/     246 : 2E3C AAAA AAA8      	move.l	#$AAAAAAA8,d7
-     149/     24C : 4E72 2700           	stop #$2700
-     150/     250 :                     
-     151/     250 :                     LineAEmulator:
-     152/     250 : 2E3C AAAA AAA9      	move.l	#$AAAAAAA9,d7
-     153/     256 : 4E72 2700           	stop #$2700
-     154/     25A :                     
-     155/     25A :                     LineFEmulator:
-     156/     25A : 2E3C AAAA AA10      	move.l	#$AAAAAA10,d7
-     157/     260 : 4E72 2700           	stop #$2700
-     158/     264 :                     
-     159/     264 :                     SpuriousException:
-     160/     264 : 2E3C AAAA AA11      	move.l	#$AAAAAA11,d7
-     161/     26A : 4E72 2700           	stop #$2700
-     162/     26E :                     
-     163/     26E :                     InterruptRequest:
-     164/     26E : 2E3C AAAA AA12      	move.l	#$AAAAAA12,d7
-     165/     274 : 4E72 2700           	stop #$2700
-     166/     278 :                     
-     167/     278 :                     TRAPException:
-     168/     278 : 2E3C AAAA AA13      	move.l	#$AAAAAA13,d7
-     169/     27E : 4E72 2700           	stop #$2700
-     170/     282 :                     
-     171/     282 :                     UnknownError:
-     172/     282 : 2E3C AAAA AA14      	move.l	#$AAAAAA14,d7
-     173/     288 : 4E72 2700           	stop #$2700
-     174/     28C :                     
-     175/     28C :                     ; ==========================
-     176/     28C :                     
-     177/     28C :                     ; A2: live samples, A0: Z80 samples for later
-     178/     28C :                     ; 240 68k cycles for every ~32 kHz sample
-     179/     28C :                     
-     180/     28C :                     VDP_VBlank:
-     181/     28C :                     	; DPLC loading queues
-     182/     28C :                     	;move.w	#12500,d0
-     183/     28C :                     	;dbf	d0,*
-     184/     28C :                     ; --- Variable cycles ---
-     185/     28C : (MACRO)[0]          	stopZ80		; Initiate Z80 stop. 20
-     185/     28C :                     
-     185/     28C : 33FC 0100 00A1 1100                 move.w  #$100,(Z80_BUSREQ).l
-     186/     294 : 47F9 00A0 4001      	lea	YM2612_68K_DATA0,a3			; 8
-     187/     29A : 49F9 00A0 0502      	lea	playedSamples+1|Z80_WRAM,a4	; 8
-     188/     2A0 : 4BF9 00A1 1100      	lea Z80_BUSREQ,a5				; 8
-     189/     2A6 : 2479 00FF 0000      	move.l	(sampleIndex),a2		; 16
-     190/     2AC : 7000                	moveq	#0,d0					; 4
-     191/     2AE : (MACRO)[1]          	waitZ80	d0,a5					; 12 (at best)
-     191/     2AE :                     
-     191/     2AE :                     
-     191/     2AE :                     
-     191/     2AE :                     $$wait: 
-     191/     2AE : 0115                        btst    d0,(a5)
-     191/     2B0 : 66FC                        bne.s   $$wait
-     192/     2B2 :                     	; --- 76 cycles in total ---
-     193/     2B2 : 3014                	move.w	(a4),d0		; Get high byte of playedSamples. 8
-     194/     2B4 : 1024                	move.b	-(a4),d0	; Get lower byte of playedSamples. 8
-     195/     2B6 : D5C0                	adda.l	d0,a2		; 8
-     196/     2B8 :                     
-     198/     2B8 : 169A                		move.b	(a2)+,(a3)	; Output sample. 12
-     203/     2BA :                     
-     204/     2BA :                     ; --- Cycle count restarts ---
-     205/     2BA :                     
-     206/     2BA : 204A                	movea.l	a2,a0	; 4
-     207/     2BC :                     
-     209/     2BC : (MACRO)[2]          		addaq	(BUFFER_ITERATIONS*3)+2,a0	; Sample index after 68k routine execution (A2 at the end, basically). 8
-     209/     2BC :                     
-     209/     2BC :                     
-     209/     2BC :                     
-     209/     2BC : 41E8 0017                   lea ((BUFFER_ITERATIONS*3)+2,a0),a0
-     211/     2C0 :                     
-     212/     2C0 : 2408                	move.l	a0,d2	; D2 is now the updated sample index. 4
-     213/     2C2 :                     
-     214/     2C2 : 43F9 00A0 1000      	lea	SampleBuffer|Z80_WRAM,a1	; 8
-     215/     2C8 :                     ; --- 24 cycles in total ---
-     216/     2C8 : 0802 0000           	btst	#0,d2					; Is the sample index even? 6
-     217/     2CC : 6706                	beq.s	$$skip_alignment		; If yes, skip the alignment. 10
-     218/     2CE : 1298                	move.b	(a0)+,(a1)				; If not, the 68k will crash, so we avoid it. 12
-     219/     2D0 : 5489                	addq.l	#2,a1					; 8
-     220/     2D2 : 2408                	move.l	a0,d2	; D2 is now the updated sample index. 4
-     221/     2D4 :                     $$skip_alignment:
-     222/     2D4 : 4E71                	nop				; 4
-     223/     2D6 : 4E71                	nop				; 4
-     224/     2D8 : 4E71                	nop				; 4
-     225/     2DA : 203C 003B 7A13      	move.l	#ROM_End,d0			; 12
-     226/     2E0 : 9082                	sub.l	d2,d0				; Is the audio about to end (ends on Z80 buffer)? 8
-     227/     2E2 :                     ; --- 84 cycles in total ---
-     228/     2E2 : 6A1E                	bpl.s	$$skip_tracking		; 10 cycles on branch, 8 cycles no branch
-     229/     2E4 :                     	; Z80 playback with sample tracking routine
-     230/     2E4 : 13FC 00D9 00A0 0027 	move.b	#Init_EndSound,(Z80Init.routineAddress+2)|Z80_WRAM	; Little endian, 16 cycles
-     231/     2EC : 49F9 00A0 00DB      	lea	(Init_EndSound+2)|Z80_WRAM,a4		; 8
-     232/     2F2 : 1880                	move.b	d0,(a4)							; 8
-     233/     2F4 : E048                	lsr.w	#8,d0							; 22
-     234/     2F6 : 1900                	move.b	d0,-(a4)						; 8
-     235/     2F8 : 13FC 0001 00FF 0004 	move.b	#1,shouldStop					; 16
-     236/     300 : 600E                	bra.s	$$continue						; 10
-     237/     302 :                     ; --- 82 cycles in total ---
-     238/     302 :                     $$skip_tracking:
-     239/     302 :                     	; Normal Z80 playback routine
-     240/     302 : 49F9 00A0 0026      	lea	(Z80Init.routineAddress+1)|Z80_WRAM,a4	; 8
-     241/     308 : 18FC 0028           	move.b	#Init_DacAndEffects&$FF,(a4)+		; 12
-     242/     30C : 18BC 0000           	move.b	#Init_DacAndEffects>>8,(a4)			; 12
-     243/     310 :                     
-     244/     310 :                     $$continue:
-     245/     310 :                     ; --- 126 cycles in total ---
-     246/     310 : 4239 00A0 00C1      	clr.b	(DisableDacInjection|Z80_WRAM)		; 16
+     115/     200 :                     
+     116/     200 :                     ; ========================
+     117/     200 :                     ; Error handler jump table
+     118/     200 :                     ; ========================
+     119/     200 :                     
+     120/     200 :                     BusError:
+     121/     200 : 2E3C AAAA AAA1      	move.l	#$AAAAAAA1,d7
+     122/     206 : 4E72 2700           	stop #$2700 ; some emulators might not recognize this instruction
+     123/     20A :                     
+     124/     20A :                     AddressError:
+     125/     20A : 2E3C AAAA AAA2      	move.l	#$AAAAAAA2,d7
+     126/     210 : 4E72 2700           	stop #$2700
+     127/     214 :                     
+     128/     214 :                     IllegalInstruction:
+     129/     214 : 2E3C AAAA AAA3      	move.l	#$AAAAAAA3,d7
+     130/     21A : 4E72 2700           	stop #$2700
+     131/     21E :                     
+     132/     21E :                     DivisionByZero:
+     133/     21E : 2E3C AAAA AAA4      	move.l	#$AAAAAAA4,d7
+     134/     224 : 4E72 2700           	stop #$2700
+     135/     228 :                     
+     136/     228 :                     CHKException:
+     137/     228 : 2E3C AAAA AAA5      	move.l	#$AAAAAAA5,d7
+     138/     22E : 4E72 2700           	stop #$2700
+     139/     232 :                     
+     140/     232 :                     TRAPVException:
+     141/     232 : 2E3C AAAA AAA6      	move.l	#$AAAAAAA6,d7
+     142/     238 : 4E72 2700           	stop #$2700
+     143/     23C :                     
+     144/     23C :                     PrivilegeViolation:
+     145/     23C : 2E3C AAAA AAA7      	move.l	#$AAAAAAA7,d7
+     146/     242 : 4E72 2700           	stop #$2700
+     147/     246 :                     
+     148/     246 :                     TRACEException:
+     149/     246 : 2E3C AAAA AAA8      	move.l	#$AAAAAAA8,d7
+     150/     24C : 4E72 2700           	stop #$2700
+     151/     250 :                     
+     152/     250 :                     LineAEmulator:
+     153/     250 : 2E3C AAAA AAA9      	move.l	#$AAAAAAA9,d7
+     154/     256 : 4E72 2700           	stop #$2700
+     155/     25A :                     
+     156/     25A :                     LineFEmulator:
+     157/     25A : 2E3C AAAA AA10      	move.l	#$AAAAAA10,d7
+     158/     260 : 4E72 2700           	stop #$2700
+     159/     264 :                     
+     160/     264 :                     SpuriousException:
+     161/     264 : 2E3C AAAA AA11      	move.l	#$AAAAAA11,d7
+     162/     26A : 4E72 2700           	stop #$2700
+     163/     26E :                     
+     164/     26E :                     InterruptRequest:
+     165/     26E : 2E3C AAAA AA12      	move.l	#$AAAAAA12,d7
+     166/     274 : 4E72 2700           	stop #$2700
+     167/     278 :                     
+     168/     278 :                     TRAPException:
+     169/     278 : 2E3C AAAA AA13      	move.l	#$AAAAAA13,d7
+     170/     27E : 4E72 2700           	stop #$2700
+     171/     282 :                     
+     172/     282 :                     UnknownError:
+     173/     282 : 2E3C AAAA AA14      	move.l	#$AAAAAA14,d7
+     174/     288 : 4E72 2700           	stop #$2700
+     175/     28C :                     
+     176/     28C :                     ; ==========================
+     177/     28C :                     
+     178/     28C :                     ; A2: live samples, A0: Z80 samples for later
+     179/     28C :                     ; 240 68k cycles for every ~32 kHz sample
+     180/     28C :                     
+     181/     28C :                     VDP_VBlank:
+     182/     28C :                     	; DPLC loading queues
+     183/     28C :                     ; --- Variable cycles ---
+     184/     28C : (MACRO)[0]          	stopZ80		; Initiate Z80 stop. 20
+     184/     28C :                     
+     184/     28C : 33FC 0100 00A1 1100                 move.w  #$100,(Z80_BUSREQ).l
+     185/     294 : 47F9 00A0 4001      	lea	YM2612_68K_DATA0,a3			; 8
+     186/     29A : 49F9 00A0 0502      	lea	playedSamples+1|Z80_WRAM,a4	; 8
+     187/     2A0 : 4BF9 00A1 1100      	lea Z80_BUSREQ,a5				; 8
+     188/     2A6 : 2479 00FF 0000      	move.l	(sampleIndex),a2		; 16
+     189/     2AC : 7000                	moveq	#0,d0					; 4
+     190/     2AE : (MACRO)[1]          	waitZ80	d0,a5					; 12 (at best)
+     190/     2AE :                     
+     190/     2AE :                     
+     190/     2AE :                     
+     190/     2AE :                     $$wait: 
+     190/     2AE : 0115                        btst    d0,(a5)
+     190/     2B0 : 66FC                        bne.s   $$wait
+     191/     2B2 :                     	; --- 76 cycles in total ---
+     192/     2B2 : 3014                	move.w	(a4),d0		; Get high byte of playedSamples. 8
+     193/     2B4 : 1024                	move.b	-(a4),d0	; Get lower byte of playedSamples. 8
+     194/     2B6 : D5C0                	adda.l	d0,a2		; 8
+     195/     2B8 :                     
+     197/     2B8 : 169A                		move.b	(a2)+,(a3)	; Output sample. 12
+     202/     2BA :                     
+     203/     2BA :                     ; --- Cycle count restarts ---
+     204/     2BA :                     
+     205/     2BA : 204A                	movea.l	a2,a0	; 4
+     206/     2BC :                     
+     208/     2BC : (MACRO)[2]          		addaq	(BUFFER_ITERATIONS*3)+2,a0	; Sample index after 68k routine execution (A2 at the end, basically). 8
+     208/     2BC :                     
+     208/     2BC :                     
+     208/     2BC :                     
+     208/     2BC : 41E8 0017                   lea ((BUFFER_ITERATIONS*3)+2,a0),a0
+     210/     2C0 :                     
+     211/     2C0 : 2408                	move.l	a0,d2	; D2 is now the updated sample index. 4
+     212/     2C2 :                     
+     213/     2C2 : 43F9 00A0 1000      	lea	SampleBuffer|Z80_WRAM,a1	; 8
+     214/     2C8 :                     ; --- 24 cycles in total ---
+     215/     2C8 : 0802 0000           	btst	#0,d2					; Is the sample index even? 6
+     216/     2CC : 6706                	beq.s	$$skip_alignment		; If yes, skip the alignment. 10
+     217/     2CE : 1298                	move.b	(a0)+,(a1)				; If not, the 68k will crash, so we avoid it. 12
+     218/     2D0 : 5489                	addq.l	#2,a1					; 8
+     219/     2D2 : 2408                	move.l	a0,d2	; D2 is now the updated sample index. 4
+     220/     2D4 :                     $$skip_alignment:
+     221/     2D4 : 4E71                	nop				; 4
+     222/     2D6 : 4E71                	nop				; 4
+     223/     2D8 : 4E71                	nop				; 4
+     224/     2DA : 203C 0057 88BA      	move.l	#ROM_End,d0			; 12
+     225/     2E0 : 9082                	sub.l	d2,d0				; Is the audio about to end (ends on Z80 buffer)? 8
+     226/     2E2 :                     ; --- 84 cycles in total ---
+     227/     2E2 : 6A1E                	bpl.s	$$skip_tracking		; 10 cycles on branch, 8 cycles no branch
+     228/     2E4 :                     	; Z80 playback with sample tracking routine
+     229/     2E4 : 13FC 00D1 00A0 001F 	move.b	#Init_EndSound,(Z80Init.routineAddress+2)|Z80_WRAM	; Little endian, 16 cycles
+     230/     2EC : 49F9 00A0 00D3      	lea	(Init_EndSound+2)|Z80_WRAM,a4		; 8
+     231/     2F2 : 1880                	move.b	d0,(a4)							; 8
+     232/     2F4 : E048                	lsr.w	#8,d0							; 22
+     233/     2F6 : 1900                	move.b	d0,-(a4)						; 8
+     234/     2F8 : 13FC 0001 00FF 0004 	move.b	#1,shouldStop					; 16
+     235/     300 : 600E                	bra.s	$$continue						; 10
+     236/     302 :                     ; --- 82 cycles in total ---
+     237/     302 :                     $$skip_tracking:
+     238/     302 :                     	; Normal Z80 playback routine
+     239/     302 : 49F9 00A0 001E      	lea	(Z80Init.routineAddress+1)|Z80_WRAM,a4	; 8
+     240/     308 : 18FC 0020           	move.b	#Init_DacAndEffects&$FF,(a4)+		; 12
+     241/     30C : 18BC 0000           	move.b	#Init_DacAndEffects>>8,(a4)			; 12
+     242/     310 :                     
+     243/     310 :                     $$continue:
+     244/     310 :                     ; --- 126 cycles in total ---
+     245/     310 : 4239 00A0 00B9      	clr.b	(DisableDacInjection|Z80_WRAM)		; 16
+     246/     316 :                     
+     247/     316 : (MACRO)[3]          	loadSamples	; D0 and D1 break here
+     247/     316 :                             ; --- 118 cycles in total ---
+     247/     316 : =$0                 i set 0
      247/     316 :                     
-     248/     316 : (MACRO)[3]          	loadSamples	; D0 and D1 break here
-     248/     316 :                             ; --- 118 cycles in total ---
-     248/     316 : =$0                 i set 0
-     248/     316 :                     
-     248/     316 : 2018                        move.l  (a0)+,d0                ; 12 cycles
-     248/     318 : 01C9 0000                   movep.l d0,(i+(8*0),a1) ; 24 cycles
-     248/     31C :                     
-     248/     31C : 2018                        move.l  (a0)+,d0
-     248/     31E : 01C9 0008                   movep.l d0,(i+(8*1),a1)
-     248/     322 :                     
-     248/     322 :                             ; --- 214 cycles in total ---
-     248/     322 :                             rept 3
-     248/     322 :                             nop
-     248/     322 :                             endm
-     248/     322 : 4E71                        nop
-     248/     324 : 4E71                        nop
-     248/     326 : 4E71                        nop
-     248/     328 : =$10                i set 16
-     248/     328 :                     
-     248/     328 :                             while i < 152 * BUFFER_ITERATIONS
-     248/     328 :                     
-     248/     328 :                             if smoothPlayback
-     248/     328 :                                     move.b  (a2)+,(a3)
-     248/     328 :                             elseif accurateSpeed
-     248/     328 :                                     addq.l  #1,a2
-     248/     328 :                                     nop
-     248/     328 :                             endif
-     248/     328 :                     
-     248/     328 :                             move.l  (a0)+,d0
-     248/     328 :                             movep.l d0,(i+(8*0),a1)
-     248/     328 :                     
-     248/     328 :                             move.l  (a0)+,d0
-     248/     328 :                             movep.l d0,(i+(8*1),a1)
-     248/     328 :                     
-     248/     328 :                             move.l  (a0)+,d0
-     248/     328 :                             movep.l d0,(i+(8*2),a1)
-     248/     328 :                     
-     248/     328 :                             move.l  (a0)+,d0
-     248/     328 :                             movep.l d0,(i+(8*3),a1)
-     248/     328 :                     
-     248/     328 :                             move.l  (a0)+,d0
-     248/     328 :                             movep.l d0,(i+(8*4),a1)
-     248/     328 :                     
-     248/     328 :                             move.l  (a0)+,d0
-     248/     328 :                             movep.l d0,(i+(8*5),a1)
-     248/     328 :                     
-     248/     328 :                             move.l  (a0)+,d0
-     248/     328 :                     
-     248/     328 :                             if smoothPlayback
-     248/     328 :                                     move.b  (a2)+,(a3)
-     248/     328 :                             elseif accurateSpeed
-     248/     328 :                                     addq.l  #1,a2
-     248/     328 :                                     nop
-     248/     328 :                             endif
-     248/     328 :                     
-     248/     328 :                             movep.l d0,(i+(8*6),a1)
-     248/     328 :                     
-     248/     328 :                             move.l  (a0)+,d0
-     248/     328 :                             movep.l d0,(i+(8*7),a1)
-     248/     328 :                     
-     248/     328 :                             move.l  (a0)+,d0
-     248/     328 :                             movep.l d0,(i+(8*8),a1)
-     248/     328 :                     
-     248/     328 :                             move.l  (a0)+,d0
-     248/     328 :                             movep.l d0,(i+(8*9),a1)
-     248/     328 :                     
-     248/     328 :                             move.l  (a0)+,d0
-     248/     328 :                             movep.l d0,(i+(8*10),a1)
-     248/     328 :                     
-     248/     328 :                             move.l  (a0)+,d0
-     248/     328 :                             movep.l d0,(i+(8*11),a1)
-     248/     328 :                     
-     248/     328 :                             move.l  (a0)+,d0
-     248/     328 :                             move.l  (a0)+,d1
-     248/     328 :                     
-     248/     328 :                             if smoothPlayback
-     248/     328 :                                     move.b  (a2)+,(a3)
-     248/     328 :                             elseif accurateSpeed
-     248/     328 :                                     addq.l  #1,a2
-     248/     328 :                                     nop
-     248/     328 :                             endif
-     248/     328 :                     
-     248/     328 :                             movep.l d0,(i+(8*12),a1)
-     248/     328 :                             movep.l d1,(i+(8*13),a1)
-     248/     328 :                     
-     248/     328 :                             move.l  (a0)+,d0
-     248/     328 :                             movep.l d0,(i+(8*14),a1)
-     248/     328 :                     
-     248/     328 :                             move.l  (a0)+,d0
-     248/     328 :                             movep.l d0,(i+(8*15),a1)
-     248/     328 :                     
-     248/     328 :                             move.l  (a0)+,d0
-     248/     328 :                             movep.l d0,(i+(8*16),a1)
-     248/     328 :                     
-     248/     328 :                             move.l  (a0)+,d0
-     248/     328 :                             movep.l d0,(i+(8*17),a1)
-     248/     328 :                     
-     248/     328 :                             move.l  (a0)+,d0
-     248/     328 :                             movep.l d0,(i+(8*18),a1)
-     248/     328 :                     
-     248/     328 :                     i set i + 152
-     248/     328 :                             endm
-     248/     328 :                     
-     248/     328 : 169A                                move.b  (a2)+,(a3)
-     248/     32A :                     
-     248/     32A : 2018                        move.l  (a0)+,d0
-     248/     32C : 01C9 0010                   movep.l d0,(i+(8*0),a1)
-     248/     330 :                     
-     248/     330 : 2018                        move.l  (a0)+,d0
-     248/     332 : 01C9 0018                   movep.l d0,(i+(8*1),a1)
-     248/     336 :                     
-     248/     336 : 2018                        move.l  (a0)+,d0
-     248/     338 : 01C9 0020                   movep.l d0,(i+(8*2),a1)
-     248/     33C :                     
-     248/     33C : 2018                        move.l  (a0)+,d0
-     248/     33E : 01C9 0028                   movep.l d0,(i+(8*3),a1)
-     248/     342 :                     
-     248/     342 : 2018                        move.l  (a0)+,d0
-     248/     344 : 01C9 0030                   movep.l d0,(i+(8*4),a1)
-     248/     348 :                     
-     248/     348 : 2018                        move.l  (a0)+,d0
-     248/     34A : 01C9 0038                   movep.l d0,(i+(8*5),a1)
-     248/     34E :                     
-     248/     34E : 2018                        move.l  (a0)+,d0
-     248/     350 :                     
-     248/     350 : 169A                                move.b  (a2)+,(a3)
-     248/     352 :                     
-     248/     352 : 01C9 0040                   movep.l d0,(i+(8*6),a1)
-     248/     356 :                     
-     248/     356 : 2018                        move.l  (a0)+,d0
-     248/     358 : 01C9 0048                   movep.l d0,(i+(8*7),a1)
-     248/     35C :                     
-     248/     35C : 2018                        move.l  (a0)+,d0
-     248/     35E : 01C9 0050                   movep.l d0,(i+(8*8),a1)
-     248/     362 :                     
-     248/     362 : 2018                        move.l  (a0)+,d0
-     248/     364 : 01C9 0058                   movep.l d0,(i+(8*9),a1)
-     248/     368 :                     
-     248/     368 : 2018                        move.l  (a0)+,d0
-     248/     36A : 01C9 0060                   movep.l d0,(i+(8*10),a1)
-     248/     36E :                     
-     248/     36E : 2018                        move.l  (a0)+,d0
-     248/     370 : 01C9 0068                   movep.l d0,(i+(8*11),a1)
-     248/     374 :                     
-     248/     374 : 2018                        move.l  (a0)+,d0
-     248/     376 : 2218                        move.l  (a0)+,d1
-     248/     378 :                     
-     248/     378 : 169A                                move.b  (a2)+,(a3)
-     248/     37A :                     
-     248/     37A : 01C9 0070                   movep.l d0,(i+(8*12),a1)
-     248/     37E : 03C9 0078                   movep.l d1,(i+(8*13),a1)
-     248/     382 :                     
-     248/     382 : 2018                        move.l  (a0)+,d0
-     248/     384 : 01C9 0080                   movep.l d0,(i+(8*14),a1)
-     248/     388 :                     
-     248/     388 : 2018                        move.l  (a0)+,d0
-     248/     38A : 01C9 0088                   movep.l d0,(i+(8*15),a1)
-     248/     38E :                     
-     248/     38E : 2018                        move.l  (a0)+,d0
-     248/     390 : 01C9 0090                   movep.l d0,(i+(8*16),a1)
-     248/     394 :                     
-     248/     394 : 2018                        move.l  (a0)+,d0
-     248/     396 : 01C9 0098                   movep.l d0,(i+(8*17),a1)
-     248/     39A :                     
-     248/     39A : 2018                        move.l  (a0)+,d0
-     248/     39C : 01C9 00A0                   movep.l d0,(i+(8*18),a1)
-     248/     3A0 :                     
-     248/     3A0 : =$A8                i set i + 152
-     248/     3A0 :                     
-     248/     3A0 : 169A                                move.b  (a2)+,(a3)
-     248/     3A2 :                     
-     248/     3A2 : 2018                        move.l  (a0)+,d0
-     248/     3A4 : 01C9 00A8                   movep.l d0,(i+(8*0),a1)
-     248/     3A8 :                     
-     248/     3A8 : 2018                        move.l  (a0)+,d0
-     248/     3AA : 01C9 00B0                   movep.l d0,(i+(8*1),a1)
-     248/     3AE :                     
-     248/     3AE : 2018                        move.l  (a0)+,d0
-     248/     3B0 : 01C9 00B8                   movep.l d0,(i+(8*2),a1)
-     248/     3B4 :                     
-     248/     3B4 : 2018                        move.l  (a0)+,d0
-     248/     3B6 : 01C9 00C0                   movep.l d0,(i+(8*3),a1)
-     248/     3BA :                     
-     248/     3BA : 2018                        move.l  (a0)+,d0
-     248/     3BC : 01C9 00C8                   movep.l d0,(i+(8*4),a1)
-     248/     3C0 :                     
-     248/     3C0 : 2018                        move.l  (a0)+,d0
-     248/     3C2 : 01C9 00D0                   movep.l d0,(i+(8*5),a1)
-     248/     3C6 :                     
-     248/     3C6 : 2018                        move.l  (a0)+,d0
-     248/     3C8 :                     
-     248/     3C8 : 169A                                move.b  (a2)+,(a3)
-     248/     3CA :                     
-     248/     3CA : 01C9 00D8                   movep.l d0,(i+(8*6),a1)
-     248/     3CE :                     
-     248/     3CE : 2018                        move.l  (a0)+,d0
-     248/     3D0 : 01C9 00E0                   movep.l d0,(i+(8*7),a1)
-     248/     3D4 :                     
-     248/     3D4 : 2018                        move.l  (a0)+,d0
-     248/     3D6 : 01C9 00E8                   movep.l d0,(i+(8*8),a1)
-     248/     3DA :                     
-     248/     3DA : 2018                        move.l  (a0)+,d0
-     248/     3DC : 01C9 00F0                   movep.l d0,(i+(8*9),a1)
-     248/     3E0 :                     
-     248/     3E0 : 2018                        move.l  (a0)+,d0
-     248/     3E2 : 01C9 00F8                   movep.l d0,(i+(8*10),a1)
-     248/     3E6 :                     
-     248/     3E6 : 2018                        move.l  (a0)+,d0
-     248/     3E8 : 01C9 0100                   movep.l d0,(i+(8*11),a1)
-     248/     3EC :                     
-     248/     3EC : 2018                        move.l  (a0)+,d0
-     248/     3EE : 2218                        move.l  (a0)+,d1
-     248/     3F0 :                     
-     248/     3F0 : 169A                                move.b  (a2)+,(a3)
-     248/     3F2 :                     
-     248/     3F2 : 01C9 0108                   movep.l d0,(i+(8*12),a1)
-     248/     3F6 : 03C9 0110                   movep.l d1,(i+(8*13),a1)
-     248/     3FA :                     
-     248/     3FA : 2018                        move.l  (a0)+,d0
-     248/     3FC : 01C9 0118                   movep.l d0,(i+(8*14),a1)
-     248/     400 :                     
-     248/     400 : 2018                        move.l  (a0)+,d0
-     248/     402 : 01C9 0120                   movep.l d0,(i+(8*15),a1)
-     248/     406 :                     
-     248/     406 : 2018                        move.l  (a0)+,d0
-     248/     408 : 01C9 0128                   movep.l d0,(i+(8*16),a1)
-     248/     40C :                     
-     248/     40C : 2018                        move.l  (a0)+,d0
-     248/     40E : 01C9 0130                   movep.l d0,(i+(8*17),a1)
-     248/     412 :                     
-     248/     412 : 2018                        move.l  (a0)+,d0
-     248/     414 : 01C9 0138                   movep.l d0,(i+(8*18),a1)
-     248/     418 :                     
-     248/     418 : =$140               i set i + 152
-     248/     418 :                     
-     248/     418 : 169A                                move.b  (a2)+,(a3)
-     248/     41A :                     
-     248/     41A : 2018                        move.l  (a0)+,d0
-     248/     41C : 01C9 0140                   movep.l d0,(i+(8*0),a1)
-     248/     420 :                     
-     248/     420 : 2018                        move.l  (a0)+,d0
-     248/     422 : 01C9 0148                   movep.l d0,(i+(8*1),a1)
-     248/     426 :                     
-     248/     426 : 2018                        move.l  (a0)+,d0
-     248/     428 : 01C9 0150                   movep.l d0,(i+(8*2),a1)
-     248/     42C :                     
-     248/     42C : 2018                        move.l  (a0)+,d0
-     248/     42E : 01C9 0158                   movep.l d0,(i+(8*3),a1)
-     248/     432 :                     
-     248/     432 : 2018                        move.l  (a0)+,d0
-     248/     434 : 01C9 0160                   movep.l d0,(i+(8*4),a1)
-     248/     438 :                     
-     248/     438 : 2018                        move.l  (a0)+,d0
-     248/     43A : 01C9 0168                   movep.l d0,(i+(8*5),a1)
-     248/     43E :                     
-     248/     43E : 2018                        move.l  (a0)+,d0
-     248/     440 :                     
-     248/     440 : 169A                                move.b  (a2)+,(a3)
-     248/     442 :                     
-     248/     442 : 01C9 0170                   movep.l d0,(i+(8*6),a1)
-     248/     446 :                     
-     248/     446 : 2018                        move.l  (a0)+,d0
-     248/     448 : 01C9 0178                   movep.l d0,(i+(8*7),a1)
-     248/     44C :                     
-     248/     44C : 2018                        move.l  (a0)+,d0
-     248/     44E : 01C9 0180                   movep.l d0,(i+(8*8),a1)
-     248/     452 :                     
-     248/     452 : 2018                        move.l  (a0)+,d0
-     248/     454 : 01C9 0188                   movep.l d0,(i+(8*9),a1)
-     248/     458 :                     
-     248/     458 : 2018                        move.l  (a0)+,d0
-     248/     45A : 01C9 0190                   movep.l d0,(i+(8*10),a1)
-     248/     45E :                     
-     248/     45E : 2018                        move.l  (a0)+,d0
-     248/     460 : 01C9 0198                   movep.l d0,(i+(8*11),a1)
-     248/     464 :                     
-     248/     464 : 2018                        move.l  (a0)+,d0
-     248/     466 : 2218                        move.l  (a0)+,d1
-     248/     468 :                     
-     248/     468 : 169A                                move.b  (a2)+,(a3)
-     248/     46A :                     
-     248/     46A : 01C9 01A0                   movep.l d0,(i+(8*12),a1)
-     248/     46E : 03C9 01A8                   movep.l d1,(i+(8*13),a1)
-     248/     472 :                     
-     248/     472 : 2018                        move.l  (a0)+,d0
-     248/     474 : 01C9 01B0                   movep.l d0,(i+(8*14),a1)
-     248/     478 :                     
-     248/     478 : 2018                        move.l  (a0)+,d0
-     248/     47A : 01C9 01B8                   movep.l d0,(i+(8*15),a1)
-     248/     47E :                     
-     248/     47E : 2018                        move.l  (a0)+,d0
-     248/     480 : 01C9 01C0                   movep.l d0,(i+(8*16),a1)
-     248/     484 :                     
-     248/     484 : 2018                        move.l  (a0)+,d0
-     248/     486 : 01C9 01C8                   movep.l d0,(i+(8*17),a1)
-     248/     48A :                     
-     248/     48A : 2018                        move.l  (a0)+,d0
-     248/     48C : 01C9 01D0                   movep.l d0,(i+(8*18),a1)
-     248/     490 :                     
-     248/     490 : =$1D8               i set i + 152
-     248/     490 :                     
-     248/     490 : 169A                                move.b  (a2)+,(a3)
-     248/     492 :                     
-     248/     492 : 2018                        move.l  (a0)+,d0
-     248/     494 : 01C9 01D8                   movep.l d0,(i+(8*0),a1)
-     248/     498 :                     
-     248/     498 : 2018                        move.l  (a0)+,d0
-     248/     49A : 01C9 01E0                   movep.l d0,(i+(8*1),a1)
-     248/     49E :                     
-     248/     49E : 2018                        move.l  (a0)+,d0
-     248/     4A0 : 01C9 01E8                   movep.l d0,(i+(8*2),a1)
-     248/     4A4 :                     
-     248/     4A4 : 2018                        move.l  (a0)+,d0
-     248/     4A6 : 01C9 01F0                   movep.l d0,(i+(8*3),a1)
-     248/     4AA :                     
-     248/     4AA : 2018                        move.l  (a0)+,d0
-     248/     4AC : 01C9 01F8                   movep.l d0,(i+(8*4),a1)
-     248/     4B0 :                     
-     248/     4B0 : 2018                        move.l  (a0)+,d0
-     248/     4B2 : 01C9 0200                   movep.l d0,(i+(8*5),a1)
-     248/     4B6 :                     
-     248/     4B6 : 2018                        move.l  (a0)+,d0
-     248/     4B8 :                     
-     248/     4B8 : 169A                                move.b  (a2)+,(a3)
-     248/     4BA :                     
-     248/     4BA : 01C9 0208                   movep.l d0,(i+(8*6),a1)
-     248/     4BE :                     
-     248/     4BE : 2018                        move.l  (a0)+,d0
-     248/     4C0 : 01C9 0210                   movep.l d0,(i+(8*7),a1)
-     248/     4C4 :                     
-     248/     4C4 : 2018                        move.l  (a0)+,d0
-     248/     4C6 : 01C9 0218                   movep.l d0,(i+(8*8),a1)
-     248/     4CA :                     
-     248/     4CA : 2018                        move.l  (a0)+,d0
-     248/     4CC : 01C9 0220                   movep.l d0,(i+(8*9),a1)
-     248/     4D0 :                     
-     248/     4D0 : 2018                        move.l  (a0)+,d0
-     248/     4D2 : 01C9 0228                   movep.l d0,(i+(8*10),a1)
-     248/     4D6 :                     
-     248/     4D6 : 2018                        move.l  (a0)+,d0
-     248/     4D8 : 01C9 0230                   movep.l d0,(i+(8*11),a1)
-     248/     4DC :                     
-     248/     4DC : 2018                        move.l  (a0)+,d0
-     248/     4DE : 2218                        move.l  (a0)+,d1
-     248/     4E0 :                     
-     248/     4E0 : 169A                                move.b  (a2)+,(a3)
-     248/     4E2 :                     
-     248/     4E2 : 01C9 0238                   movep.l d0,(i+(8*12),a1)
-     248/     4E6 : 03C9 0240                   movep.l d1,(i+(8*13),a1)
-     248/     4EA :                     
-     248/     4EA : 2018                        move.l  (a0)+,d0
-     248/     4EC : 01C9 0248                   movep.l d0,(i+(8*14),a1)
-     248/     4F0 :                     
-     248/     4F0 : 2018                        move.l  (a0)+,d0
-     248/     4F2 : 01C9 0250                   movep.l d0,(i+(8*15),a1)
-     248/     4F6 :                     
-     248/     4F6 : 2018                        move.l  (a0)+,d0
-     248/     4F8 : 01C9 0258                   movep.l d0,(i+(8*16),a1)
-     248/     4FC :                     
-     248/     4FC : 2018                        move.l  (a0)+,d0
-     248/     4FE : 01C9 0260                   movep.l d0,(i+(8*17),a1)
-     248/     502 :                     
-     248/     502 : 2018                        move.l  (a0)+,d0
-     248/     504 : 01C9 0268                   movep.l d0,(i+(8*18),a1)
-     248/     508 :                     
-     248/     508 : =$270               i set i + 152
-     248/     508 :                     
-     248/     508 : 169A                                move.b  (a2)+,(a3)
-     248/     50A :                     
-     248/     50A : 2018                        move.l  (a0)+,d0
-     248/     50C : 01C9 0270                   movep.l d0,(i+(8*0),a1)
-     248/     510 :                     
-     248/     510 : 2018                        move.l  (a0)+,d0
-     248/     512 : 01C9 0278                   movep.l d0,(i+(8*1),a1)
-     248/     516 :                     
-     248/     516 : 2018                        move.l  (a0)+,d0
-     248/     518 : 01C9 0280                   movep.l d0,(i+(8*2),a1)
-     248/     51C :                     
-     248/     51C : 2018                        move.l  (a0)+,d0
-     248/     51E : 01C9 0288                   movep.l d0,(i+(8*3),a1)
-     248/     522 :                     
-     248/     522 : 2018                        move.l  (a0)+,d0
-     248/     524 : 01C9 0290                   movep.l d0,(i+(8*4),a1)
-     248/     528 :                     
-     248/     528 : 2018                        move.l  (a0)+,d0
-     248/     52A : 01C9 0298                   movep.l d0,(i+(8*5),a1)
-     248/     52E :                     
-     248/     52E : 2018                        move.l  (a0)+,d0
-     248/     530 :                     
-     248/     530 : 169A                                move.b  (a2)+,(a3)
-     248/     532 :                     
-     248/     532 : 01C9 02A0                   movep.l d0,(i+(8*6),a1)
-     248/     536 :                     
-     248/     536 : 2018                        move.l  (a0)+,d0
-     248/     538 : 01C9 02A8                   movep.l d0,(i+(8*7),a1)
-     248/     53C :                     
-     248/     53C : 2018                        move.l  (a0)+,d0
-     248/     53E : 01C9 02B0                   movep.l d0,(i+(8*8),a1)
-     248/     542 :                     
-     248/     542 : 2018                        move.l  (a0)+,d0
-     248/     544 : 01C9 02B8                   movep.l d0,(i+(8*9),a1)
-     248/     548 :                     
-     248/     548 : 2018                        move.l  (a0)+,d0
-     248/     54A : 01C9 02C0                   movep.l d0,(i+(8*10),a1)
-     248/     54E :                     
-     248/     54E : 2018                        move.l  (a0)+,d0
-     248/     550 : 01C9 02C8                   movep.l d0,(i+(8*11),a1)
-     248/     554 :                     
-     248/     554 : 2018                        move.l  (a0)+,d0
-     248/     556 : 2218                        move.l  (a0)+,d1
-     248/     558 :                     
-     248/     558 : 169A                                move.b  (a2)+,(a3)
-     248/     55A :                     
-     248/     55A : 01C9 02D0                   movep.l d0,(i+(8*12),a1)
-     248/     55E : 03C9 02D8                   movep.l d1,(i+(8*13),a1)
-     248/     562 :                     
-     248/     562 : 2018                        move.l  (a0)+,d0
-     248/     564 : 01C9 02E0                   movep.l d0,(i+(8*14),a1)
-     248/     568 :                     
-     248/     568 : 2018                        move.l  (a0)+,d0
-     248/     56A : 01C9 02E8                   movep.l d0,(i+(8*15),a1)
-     248/     56E :                     
-     248/     56E : 2018                        move.l  (a0)+,d0
-     248/     570 : 01C9 02F0                   movep.l d0,(i+(8*16),a1)
-     248/     574 :                     
-     248/     574 : 2018                        move.l  (a0)+,d0
-     248/     576 : 01C9 02F8                   movep.l d0,(i+(8*17),a1)
-     248/     57A :                     
-     248/     57A : 2018                        move.l  (a0)+,d0
-     248/     57C : 01C9 0300                   movep.l d0,(i+(8*18),a1)
-     248/     580 :                     
-     248/     580 : =$308               i set i + 152
-     248/     580 :                     
-     248/     580 : 169A                                move.b  (a2)+,(a3)
-     248/     582 :                     
-     248/     582 : 2018                        move.l  (a0)+,d0
-     248/     584 : 01C9 0308                   movep.l d0,(i+(8*0),a1)
-     248/     588 :                     
-     248/     588 : 2018                        move.l  (a0)+,d0
-     248/     58A : 01C9 0310                   movep.l d0,(i+(8*1),a1)
-     248/     58E :                     
-     248/     58E : 2018                        move.l  (a0)+,d0
-     248/     590 : 01C9 0318                   movep.l d0,(i+(8*2),a1)
-     248/     594 :                     
-     248/     594 : 2018                        move.l  (a0)+,d0
-     248/     596 : 01C9 0320                   movep.l d0,(i+(8*3),a1)
-     248/     59A :                     
-     248/     59A : 2018                        move.l  (a0)+,d0
-     248/     59C : 01C9 0328                   movep.l d0,(i+(8*4),a1)
-     248/     5A0 :                     
-     248/     5A0 : 2018                        move.l  (a0)+,d0
-     248/     5A2 : 01C9 0330                   movep.l d0,(i+(8*5),a1)
-     248/     5A6 :                     
-     248/     5A6 : 2018                        move.l  (a0)+,d0
-     248/     5A8 :                     
-     248/     5A8 : 169A                                move.b  (a2)+,(a3)
-     248/     5AA :                     
-     248/     5AA : 01C9 0338                   movep.l d0,(i+(8*6),a1)
-     248/     5AE :                     
-     248/     5AE : 2018                        move.l  (a0)+,d0
-     248/     5B0 : 01C9 0340                   movep.l d0,(i+(8*7),a1)
-     248/     5B4 :                     
-     248/     5B4 : 2018                        move.l  (a0)+,d0
-     248/     5B6 : 01C9 0348                   movep.l d0,(i+(8*8),a1)
-     248/     5BA :                     
-     248/     5BA : 2018                        move.l  (a0)+,d0
-     248/     5BC : 01C9 0350                   movep.l d0,(i+(8*9),a1)
-     248/     5C0 :                     
-     248/     5C0 : 2018                        move.l  (a0)+,d0
-     248/     5C2 : 01C9 0358                   movep.l d0,(i+(8*10),a1)
-     248/     5C6 :                     
-     248/     5C6 : 2018                        move.l  (a0)+,d0
-     248/     5C8 : 01C9 0360                   movep.l d0,(i+(8*11),a1)
-     248/     5CC :                     
-     248/     5CC : 2018                        move.l  (a0)+,d0
-     248/     5CE : 2218                        move.l  (a0)+,d1
-     248/     5D0 :                     
-     248/     5D0 : 169A                                move.b  (a2)+,(a3)
-     248/     5D2 :                     
-     248/     5D2 : 01C9 0368                   movep.l d0,(i+(8*12),a1)
-     248/     5D6 : 03C9 0370                   movep.l d1,(i+(8*13),a1)
-     248/     5DA :                     
-     248/     5DA : 2018                        move.l  (a0)+,d0
-     248/     5DC : 01C9 0378                   movep.l d0,(i+(8*14),a1)
-     248/     5E0 :                     
-     248/     5E0 : 2018                        move.l  (a0)+,d0
-     248/     5E2 : 01C9 0380                   movep.l d0,(i+(8*15),a1)
-     248/     5E6 :                     
-     248/     5E6 : 2018                        move.l  (a0)+,d0
-     248/     5E8 : 01C9 0388                   movep.l d0,(i+(8*16),a1)
-     248/     5EC :                     
-     248/     5EC : 2018                        move.l  (a0)+,d0
-     248/     5EE : 01C9 0390                   movep.l d0,(i+(8*17),a1)
-     248/     5F2 :                     
-     248/     5F2 : 2018                        move.l  (a0)+,d0
-     248/     5F4 : 01C9 0398                   movep.l d0,(i+(8*18),a1)
-     248/     5F8 :                     
-     248/     5F8 : =$3A0               i set i + 152
-     248/     5F8 :                     
-     248/     5F8 : 169A                                move.b  (a2)+,(a3)
-     248/     5FA :                     
-     248/     5FA : 2018                        move.l  (a0)+,d0
-     248/     5FC : 01C9 03A0                   movep.l d0,(i+(8*0),a1)
-     248/     600 :                     
-     248/     600 : 2018                        move.l  (a0)+,d0
-     248/     602 : 01C9 03A8                   movep.l d0,(i+(8*1),a1)
-     248/     606 :                     
-     248/     606 : 2018                        move.l  (a0)+,d0
-     248/     608 : 01C9 03B0                   movep.l d0,(i+(8*2),a1)
-     248/     60C :                     
-     248/     60C : 2018                        move.l  (a0)+,d0
-     248/     60E : 01C9 03B8                   movep.l d0,(i+(8*3),a1)
-     248/     612 :                     
-     248/     612 : 2018                        move.l  (a0)+,d0
-     248/     614 : 01C9 03C0                   movep.l d0,(i+(8*4),a1)
-     248/     618 :                     
-     248/     618 : 2018                        move.l  (a0)+,d0
-     248/     61A : 01C9 03C8                   movep.l d0,(i+(8*5),a1)
-     248/     61E :                     
-     248/     61E : 2018                        move.l  (a0)+,d0
-     248/     620 :                     
-     248/     620 : 169A                                move.b  (a2)+,(a3)
-     248/     622 :                     
-     248/     622 : 01C9 03D0                   movep.l d0,(i+(8*6),a1)
-     248/     626 :                     
-     248/     626 : 2018                        move.l  (a0)+,d0
-     248/     628 : 01C9 03D8                   movep.l d0,(i+(8*7),a1)
-     248/     62C :                     
-     248/     62C : 2018                        move.l  (a0)+,d0
-     248/     62E : 01C9 03E0                   movep.l d0,(i+(8*8),a1)
-     248/     632 :                     
-     248/     632 : 2018                        move.l  (a0)+,d0
-     248/     634 : 01C9 03E8                   movep.l d0,(i+(8*9),a1)
-     248/     638 :                     
-     248/     638 : 2018                        move.l  (a0)+,d0
-     248/     63A : 01C9 03F0                   movep.l d0,(i+(8*10),a1)
-     248/     63E :                     
-     248/     63E : 2018                        move.l  (a0)+,d0
-     248/     640 : 01C9 03F8                   movep.l d0,(i+(8*11),a1)
-     248/     644 :                     
-     248/     644 : 2018                        move.l  (a0)+,d0
-     248/     646 : 2218                        move.l  (a0)+,d1
-     248/     648 :                     
-     248/     648 : 169A                                move.b  (a2)+,(a3)
-     248/     64A :                     
-     248/     64A : 01C9 0400                   movep.l d0,(i+(8*12),a1)
-     248/     64E : 03C9 0408                   movep.l d1,(i+(8*13),a1)
-     248/     652 :                     
-     248/     652 : 2018                        move.l  (a0)+,d0
-     248/     654 : 01C9 0410                   movep.l d0,(i+(8*14),a1)
-     248/     658 :                     
-     248/     658 : 2018                        move.l  (a0)+,d0
-     248/     65A : 01C9 0418                   movep.l d0,(i+(8*15),a1)
-     248/     65E :                     
-     248/     65E : 2018                        move.l  (a0)+,d0
-     248/     660 : 01C9 0420                   movep.l d0,(i+(8*16),a1)
-     248/     664 :                     
-     248/     664 : 2018                        move.l  (a0)+,d0
-     248/     666 : 01C9 0428                   movep.l d0,(i+(8*17),a1)
-     248/     66A :                     
-     248/     66A : 2018                        move.l  (a0)+,d0
-     248/     66C : 01C9 0430                   movep.l d0,(i+(8*18),a1)
+     247/     316 : 2018                        move.l  (a0)+,d0                ; 12 cycles
+     247/     318 : 01C9 0000                   movep.l d0,(i+(8*0),a1) ; 24 cycles
+     247/     31C :                     
+     247/     31C : 2018                        move.l  (a0)+,d0
+     247/     31E : 01C9 0008                   movep.l d0,(i+(8*1),a1)
+     247/     322 :                     
+     247/     322 :                             ; --- 214 cycles in total ---
+     247/     322 :                             rept 3
+     247/     322 :                             nop
+     247/     322 :                             endm
+     247/     322 : 4E71                        nop
+     247/     324 : 4E71                        nop
+     247/     326 : 4E71                        nop
+     247/     328 : =$10                i set 16
+     247/     328 :                     
+     247/     328 :                             while i < 152 * BUFFER_ITERATIONS
+     247/     328 :                     
+     247/     328 :                             if smoothPlayback
+     247/     328 :                                     move.b  (a2)+,(a3)
+     247/     328 :                             elseif accurateSpeed
+     247/     328 :                                     addq.l  #1,a2
+     247/     328 :                                     nop
+     247/     328 :                             endif
+     247/     328 :                     
+     247/     328 :                             move.l  (a0)+,d0
+     247/     328 :                             movep.l d0,(i+(8*0),a1)
+     247/     328 :                     
+     247/     328 :                             move.l  (a0)+,d0
+     247/     328 :                             movep.l d0,(i+(8*1),a1)
+     247/     328 :                     
+     247/     328 :                             move.l  (a0)+,d0
+     247/     328 :                             movep.l d0,(i+(8*2),a1)
+     247/     328 :                     
+     247/     328 :                             move.l  (a0)+,d0
+     247/     328 :                             movep.l d0,(i+(8*3),a1)
+     247/     328 :                     
+     247/     328 :                             move.l  (a0)+,d0
+     247/     328 :                             movep.l d0,(i+(8*4),a1)
+     247/     328 :                     
+     247/     328 :                             move.l  (a0)+,d0
+     247/     328 :                             movep.l d0,(i+(8*5),a1)
+     247/     328 :                     
+     247/     328 :                             move.l  (a0)+,d0
+     247/     328 :                     
+     247/     328 :                             if smoothPlayback
+     247/     328 :                                     move.b  (a2)+,(a3)
+     247/     328 :                             elseif accurateSpeed
+     247/     328 :                                     addq.l  #1,a2
+     247/     328 :                                     nop
+     247/     328 :                             endif
+     247/     328 :                     
+     247/     328 :                             movep.l d0,(i+(8*6),a1)
+     247/     328 :                     
+     247/     328 :                             move.l  (a0)+,d0
+     247/     328 :                             movep.l d0,(i+(8*7),a1)
+     247/     328 :                     
+     247/     328 :                             move.l  (a0)+,d0
+     247/     328 :                             movep.l d0,(i+(8*8),a1)
+     247/     328 :                     
+     247/     328 :                             move.l  (a0)+,d0
+     247/     328 :                             movep.l d0,(i+(8*9),a1)
+     247/     328 :                     
+     247/     328 :                             move.l  (a0)+,d0
+     247/     328 :                             movep.l d0,(i+(8*10),a1)
+     247/     328 :                     
+     247/     328 :                             move.l  (a0)+,d0
+     247/     328 :                             movep.l d0,(i+(8*11),a1)
+     247/     328 :                     
+     247/     328 :                             move.l  (a0)+,d0
+     247/     328 :                             move.l  (a0)+,d1
+     247/     328 :                     
+     247/     328 :                             if smoothPlayback
+     247/     328 :                                     move.b  (a2)+,(a3)
+     247/     328 :                             elseif accurateSpeed
+     247/     328 :                                     addq.l  #1,a2
+     247/     328 :                                     nop
+     247/     328 :                             endif
+     247/     328 :                     
+     247/     328 :                             movep.l d0,(i+(8*12),a1)
+     247/     328 :                             movep.l d1,(i+(8*13),a1)
+     247/     328 :                     
+     247/     328 :                             move.l  (a0)+,d0
+     247/     328 :                             movep.l d0,(i+(8*14),a1)
+     247/     328 :                     
+     247/     328 :                             move.l  (a0)+,d0
+     247/     328 :                             movep.l d0,(i+(8*15),a1)
+     247/     328 :                     
+     247/     328 :                             move.l  (a0)+,d0
+     247/     328 :                             movep.l d0,(i+(8*16),a1)
+     247/     328 :                     
+     247/     328 :                             move.l  (a0)+,d0
+     247/     328 :                             movep.l d0,(i+(8*17),a1)
+     247/     328 :                     
+     247/     328 :                             move.l  (a0)+,d0
+     247/     328 :                             movep.l d0,(i+(8*18),a1)
+     247/     328 :                     
+     247/     328 :                     i set i + 152
+     247/     328 :                             endm
+     247/     328 :                     
+     247/     328 : 169A                                move.b  (a2)+,(a3)
+     247/     32A :                     
+     247/     32A : 2018                        move.l  (a0)+,d0
+     247/     32C : 01C9 0010                   movep.l d0,(i+(8*0),a1)
+     247/     330 :                     
+     247/     330 : 2018                        move.l  (a0)+,d0
+     247/     332 : 01C9 0018                   movep.l d0,(i+(8*1),a1)
+     247/     336 :                     
+     247/     336 : 2018                        move.l  (a0)+,d0
+     247/     338 : 01C9 0020                   movep.l d0,(i+(8*2),a1)
+     247/     33C :                     
+     247/     33C : 2018                        move.l  (a0)+,d0
+     247/     33E : 01C9 0028                   movep.l d0,(i+(8*3),a1)
+     247/     342 :                     
+     247/     342 : 2018                        move.l  (a0)+,d0
+     247/     344 : 01C9 0030                   movep.l d0,(i+(8*4),a1)
+     247/     348 :                     
+     247/     348 : 2018                        move.l  (a0)+,d0
+     247/     34A : 01C9 0038                   movep.l d0,(i+(8*5),a1)
+     247/     34E :                     
+     247/     34E : 2018                        move.l  (a0)+,d0
+     247/     350 :                     
+     247/     350 : 169A                                move.b  (a2)+,(a3)
+     247/     352 :                     
+     247/     352 : 01C9 0040                   movep.l d0,(i+(8*6),a1)
+     247/     356 :                     
+     247/     356 : 2018                        move.l  (a0)+,d0
+     247/     358 : 01C9 0048                   movep.l d0,(i+(8*7),a1)
+     247/     35C :                     
+     247/     35C : 2018                        move.l  (a0)+,d0
+     247/     35E : 01C9 0050                   movep.l d0,(i+(8*8),a1)
+     247/     362 :                     
+     247/     362 : 2018                        move.l  (a0)+,d0
+     247/     364 : 01C9 0058                   movep.l d0,(i+(8*9),a1)
+     247/     368 :                     
+     247/     368 : 2018                        move.l  (a0)+,d0
+     247/     36A : 01C9 0060                   movep.l d0,(i+(8*10),a1)
+     247/     36E :                     
+     247/     36E : 2018                        move.l  (a0)+,d0
+     247/     370 : 01C9 0068                   movep.l d0,(i+(8*11),a1)
+     247/     374 :                     
+     247/     374 : 2018                        move.l  (a0)+,d0
+     247/     376 : 2218                        move.l  (a0)+,d1
+     247/     378 :                     
+     247/     378 : 169A                                move.b  (a2)+,(a3)
+     247/     37A :                     
+     247/     37A : 01C9 0070                   movep.l d0,(i+(8*12),a1)
+     247/     37E : 03C9 0078                   movep.l d1,(i+(8*13),a1)
+     247/     382 :                     
+     247/     382 : 2018                        move.l  (a0)+,d0
+     247/     384 : 01C9 0080                   movep.l d0,(i+(8*14),a1)
+     247/     388 :                     
+     247/     388 : 2018                        move.l  (a0)+,d0
+     247/     38A : 01C9 0088                   movep.l d0,(i+(8*15),a1)
+     247/     38E :                     
+     247/     38E : 2018                        move.l  (a0)+,d0
+     247/     390 : 01C9 0090                   movep.l d0,(i+(8*16),a1)
+     247/     394 :                     
+     247/     394 : 2018                        move.l  (a0)+,d0
+     247/     396 : 01C9 0098                   movep.l d0,(i+(8*17),a1)
+     247/     39A :                     
+     247/     39A : 2018                        move.l  (a0)+,d0
+     247/     39C : 01C9 00A0                   movep.l d0,(i+(8*18),a1)
+     247/     3A0 :                     
+     247/     3A0 : =$A8                i set i + 152
+     247/     3A0 :                     
+     247/     3A0 : 169A                                move.b  (a2)+,(a3)
+     247/     3A2 :                     
+     247/     3A2 : 2018                        move.l  (a0)+,d0
+     247/     3A4 : 01C9 00A8                   movep.l d0,(i+(8*0),a1)
+     247/     3A8 :                     
+     247/     3A8 : 2018                        move.l  (a0)+,d0
+     247/     3AA : 01C9 00B0                   movep.l d0,(i+(8*1),a1)
+     247/     3AE :                     
+     247/     3AE : 2018                        move.l  (a0)+,d0
+     247/     3B0 : 01C9 00B8                   movep.l d0,(i+(8*2),a1)
+     247/     3B4 :                     
+     247/     3B4 : 2018                        move.l  (a0)+,d0
+     247/     3B6 : 01C9 00C0                   movep.l d0,(i+(8*3),a1)
+     247/     3BA :                     
+     247/     3BA : 2018                        move.l  (a0)+,d0
+     247/     3BC : 01C9 00C8                   movep.l d0,(i+(8*4),a1)
+     247/     3C0 :                     
+     247/     3C0 : 2018                        move.l  (a0)+,d0
+     247/     3C2 : 01C9 00D0                   movep.l d0,(i+(8*5),a1)
+     247/     3C6 :                     
+     247/     3C6 : 2018                        move.l  (a0)+,d0
+     247/     3C8 :                     
+     247/     3C8 : 169A                                move.b  (a2)+,(a3)
+     247/     3CA :                     
+     247/     3CA : 01C9 00D8                   movep.l d0,(i+(8*6),a1)
+     247/     3CE :                     
+     247/     3CE : 2018                        move.l  (a0)+,d0
+     247/     3D0 : 01C9 00E0                   movep.l d0,(i+(8*7),a1)
+     247/     3D4 :                     
+     247/     3D4 : 2018                        move.l  (a0)+,d0
+     247/     3D6 : 01C9 00E8                   movep.l d0,(i+(8*8),a1)
+     247/     3DA :                     
+     247/     3DA : 2018                        move.l  (a0)+,d0
+     247/     3DC : 01C9 00F0                   movep.l d0,(i+(8*9),a1)
+     247/     3E0 :                     
+     247/     3E0 : 2018                        move.l  (a0)+,d0
+     247/     3E2 : 01C9 00F8                   movep.l d0,(i+(8*10),a1)
+     247/     3E6 :                     
+     247/     3E6 : 2018                        move.l  (a0)+,d0
+     247/     3E8 : 01C9 0100                   movep.l d0,(i+(8*11),a1)
+     247/     3EC :                     
+     247/     3EC : 2018                        move.l  (a0)+,d0
+     247/     3EE : 2218                        move.l  (a0)+,d1
+     247/     3F0 :                     
+     247/     3F0 : 169A                                move.b  (a2)+,(a3)
+     247/     3F2 :                     
+     247/     3F2 : 01C9 0108                   movep.l d0,(i+(8*12),a1)
+     247/     3F6 : 03C9 0110                   movep.l d1,(i+(8*13),a1)
+     247/     3FA :                     
+     247/     3FA : 2018                        move.l  (a0)+,d0
+     247/     3FC : 01C9 0118                   movep.l d0,(i+(8*14),a1)
+     247/     400 :                     
+     247/     400 : 2018                        move.l  (a0)+,d0
+     247/     402 : 01C9 0120                   movep.l d0,(i+(8*15),a1)
+     247/     406 :                     
+     247/     406 : 2018                        move.l  (a0)+,d0
+     247/     408 : 01C9 0128                   movep.l d0,(i+(8*16),a1)
+     247/     40C :                     
+     247/     40C : 2018                        move.l  (a0)+,d0
+     247/     40E : 01C9 0130                   movep.l d0,(i+(8*17),a1)
+     247/     412 :                     
+     247/     412 : 2018                        move.l  (a0)+,d0
+     247/     414 : 01C9 0138                   movep.l d0,(i+(8*18),a1)
+     247/     418 :                     
+     247/     418 : =$140               i set i + 152
+     247/     418 :                     
+     247/     418 : 169A                                move.b  (a2)+,(a3)
+     247/     41A :                     
+     247/     41A : 2018                        move.l  (a0)+,d0
+     247/     41C : 01C9 0140                   movep.l d0,(i+(8*0),a1)
+     247/     420 :                     
+     247/     420 : 2018                        move.l  (a0)+,d0
+     247/     422 : 01C9 0148                   movep.l d0,(i+(8*1),a1)
+     247/     426 :                     
+     247/     426 : 2018                        move.l  (a0)+,d0
+     247/     428 : 01C9 0150                   movep.l d0,(i+(8*2),a1)
+     247/     42C :                     
+     247/     42C : 2018                        move.l  (a0)+,d0
+     247/     42E : 01C9 0158                   movep.l d0,(i+(8*3),a1)
+     247/     432 :                     
+     247/     432 : 2018                        move.l  (a0)+,d0
+     247/     434 : 01C9 0160                   movep.l d0,(i+(8*4),a1)
+     247/     438 :                     
+     247/     438 : 2018                        move.l  (a0)+,d0
+     247/     43A : 01C9 0168                   movep.l d0,(i+(8*5),a1)
+     247/     43E :                     
+     247/     43E : 2018                        move.l  (a0)+,d0
+     247/     440 :                     
+     247/     440 : 169A                                move.b  (a2)+,(a3)
+     247/     442 :                     
+     247/     442 : 01C9 0170                   movep.l d0,(i+(8*6),a1)
+     247/     446 :                     
+     247/     446 : 2018                        move.l  (a0)+,d0
+     247/     448 : 01C9 0178                   movep.l d0,(i+(8*7),a1)
+     247/     44C :                     
+     247/     44C : 2018                        move.l  (a0)+,d0
+     247/     44E : 01C9 0180                   movep.l d0,(i+(8*8),a1)
+     247/     452 :                     
+     247/     452 : 2018                        move.l  (a0)+,d0
+     247/     454 : 01C9 0188                   movep.l d0,(i+(8*9),a1)
+     247/     458 :                     
+     247/     458 : 2018                        move.l  (a0)+,d0
+     247/     45A : 01C9 0190                   movep.l d0,(i+(8*10),a1)
+     247/     45E :                     
+     247/     45E : 2018                        move.l  (a0)+,d0
+     247/     460 : 01C9 0198                   movep.l d0,(i+(8*11),a1)
+     247/     464 :                     
+     247/     464 : 2018                        move.l  (a0)+,d0
+     247/     466 : 2218                        move.l  (a0)+,d1
+     247/     468 :                     
+     247/     468 : 169A                                move.b  (a2)+,(a3)
+     247/     46A :                     
+     247/     46A : 01C9 01A0                   movep.l d0,(i+(8*12),a1)
+     247/     46E : 03C9 01A8                   movep.l d1,(i+(8*13),a1)
+     247/     472 :                     
+     247/     472 : 2018                        move.l  (a0)+,d0
+     247/     474 : 01C9 01B0                   movep.l d0,(i+(8*14),a1)
+     247/     478 :                     
+     247/     478 : 2018                        move.l  (a0)+,d0
+     247/     47A : 01C9 01B8                   movep.l d0,(i+(8*15),a1)
+     247/     47E :                     
+     247/     47E : 2018                        move.l  (a0)+,d0
+     247/     480 : 01C9 01C0                   movep.l d0,(i+(8*16),a1)
+     247/     484 :                     
+     247/     484 : 2018                        move.l  (a0)+,d0
+     247/     486 : 01C9 01C8                   movep.l d0,(i+(8*17),a1)
+     247/     48A :                     
+     247/     48A : 2018                        move.l  (a0)+,d0
+     247/     48C : 01C9 01D0                   movep.l d0,(i+(8*18),a1)
+     247/     490 :                     
+     247/     490 : =$1D8               i set i + 152
+     247/     490 :                     
+     247/     490 : 169A                                move.b  (a2)+,(a3)
+     247/     492 :                     
+     247/     492 : 2018                        move.l  (a0)+,d0
+     247/     494 : 01C9 01D8                   movep.l d0,(i+(8*0),a1)
+     247/     498 :                     
+     247/     498 : 2018                        move.l  (a0)+,d0
+     247/     49A : 01C9 01E0                   movep.l d0,(i+(8*1),a1)
+     247/     49E :                     
+     247/     49E : 2018                        move.l  (a0)+,d0
+     247/     4A0 : 01C9 01E8                   movep.l d0,(i+(8*2),a1)
+     247/     4A4 :                     
+     247/     4A4 : 2018                        move.l  (a0)+,d0
+     247/     4A6 : 01C9 01F0                   movep.l d0,(i+(8*3),a1)
+     247/     4AA :                     
+     247/     4AA : 2018                        move.l  (a0)+,d0
+     247/     4AC : 01C9 01F8                   movep.l d0,(i+(8*4),a1)
+     247/     4B0 :                     
+     247/     4B0 : 2018                        move.l  (a0)+,d0
+     247/     4B2 : 01C9 0200                   movep.l d0,(i+(8*5),a1)
+     247/     4B6 :                     
+     247/     4B6 : 2018                        move.l  (a0)+,d0
+     247/     4B8 :                     
+     247/     4B8 : 169A                                move.b  (a2)+,(a3)
+     247/     4BA :                     
+     247/     4BA : 01C9 0208                   movep.l d0,(i+(8*6),a1)
+     247/     4BE :                     
+     247/     4BE : 2018                        move.l  (a0)+,d0
+     247/     4C0 : 01C9 0210                   movep.l d0,(i+(8*7),a1)
+     247/     4C4 :                     
+     247/     4C4 : 2018                        move.l  (a0)+,d0
+     247/     4C6 : 01C9 0218                   movep.l d0,(i+(8*8),a1)
+     247/     4CA :                     
+     247/     4CA : 2018                        move.l  (a0)+,d0
+     247/     4CC : 01C9 0220                   movep.l d0,(i+(8*9),a1)
+     247/     4D0 :                     
+     247/     4D0 : 2018                        move.l  (a0)+,d0
+     247/     4D2 : 01C9 0228                   movep.l d0,(i+(8*10),a1)
+     247/     4D6 :                     
+     247/     4D6 : 2018                        move.l  (a0)+,d0
+     247/     4D8 : 01C9 0230                   movep.l d0,(i+(8*11),a1)
+     247/     4DC :                     
+     247/     4DC : 2018                        move.l  (a0)+,d0
+     247/     4DE : 2218                        move.l  (a0)+,d1
+     247/     4E0 :                     
+     247/     4E0 : 169A                                move.b  (a2)+,(a3)
+     247/     4E2 :                     
+     247/     4E2 : 01C9 0238                   movep.l d0,(i+(8*12),a1)
+     247/     4E6 : 03C9 0240                   movep.l d1,(i+(8*13),a1)
+     247/     4EA :                     
+     247/     4EA : 2018                        move.l  (a0)+,d0
+     247/     4EC : 01C9 0248                   movep.l d0,(i+(8*14),a1)
+     247/     4F0 :                     
+     247/     4F0 : 2018                        move.l  (a0)+,d0
+     247/     4F2 : 01C9 0250                   movep.l d0,(i+(8*15),a1)
+     247/     4F6 :                     
+     247/     4F6 : 2018                        move.l  (a0)+,d0
+     247/     4F8 : 01C9 0258                   movep.l d0,(i+(8*16),a1)
+     247/     4FC :                     
+     247/     4FC : 2018                        move.l  (a0)+,d0
+     247/     4FE : 01C9 0260                   movep.l d0,(i+(8*17),a1)
+     247/     502 :                     
+     247/     502 : 2018                        move.l  (a0)+,d0
+     247/     504 : 01C9 0268                   movep.l d0,(i+(8*18),a1)
+     247/     508 :                     
+     247/     508 : =$270               i set i + 152
+     247/     508 :                     
+     247/     508 : 169A                                move.b  (a2)+,(a3)
+     247/     50A :                     
+     247/     50A : 2018                        move.l  (a0)+,d0
+     247/     50C : 01C9 0270                   movep.l d0,(i+(8*0),a1)
+     247/     510 :                     
+     247/     510 : 2018                        move.l  (a0)+,d0
+     247/     512 : 01C9 0278                   movep.l d0,(i+(8*1),a1)
+     247/     516 :                     
+     247/     516 : 2018                        move.l  (a0)+,d0
+     247/     518 : 01C9 0280                   movep.l d0,(i+(8*2),a1)
+     247/     51C :                     
+     247/     51C : 2018                        move.l  (a0)+,d0
+     247/     51E : 01C9 0288                   movep.l d0,(i+(8*3),a1)
+     247/     522 :                     
+     247/     522 : 2018                        move.l  (a0)+,d0
+     247/     524 : 01C9 0290                   movep.l d0,(i+(8*4),a1)
+     247/     528 :                     
+     247/     528 : 2018                        move.l  (a0)+,d0
+     247/     52A : 01C9 0298                   movep.l d0,(i+(8*5),a1)
+     247/     52E :                     
+     247/     52E : 2018                        move.l  (a0)+,d0
+     247/     530 :                     
+     247/     530 : 169A                                move.b  (a2)+,(a3)
+     247/     532 :                     
+     247/     532 : 01C9 02A0                   movep.l d0,(i+(8*6),a1)
+     247/     536 :                     
+     247/     536 : 2018                        move.l  (a0)+,d0
+     247/     538 : 01C9 02A8                   movep.l d0,(i+(8*7),a1)
+     247/     53C :                     
+     247/     53C : 2018                        move.l  (a0)+,d0
+     247/     53E : 01C9 02B0                   movep.l d0,(i+(8*8),a1)
+     247/     542 :                     
+     247/     542 : 2018                        move.l  (a0)+,d0
+     247/     544 : 01C9 02B8                   movep.l d0,(i+(8*9),a1)
+     247/     548 :                     
+     247/     548 : 2018                        move.l  (a0)+,d0
+     247/     54A : 01C9 02C0                   movep.l d0,(i+(8*10),a1)
+     247/     54E :                     
+     247/     54E : 2018                        move.l  (a0)+,d0
+     247/     550 : 01C9 02C8                   movep.l d0,(i+(8*11),a1)
+     247/     554 :                     
+     247/     554 : 2018                        move.l  (a0)+,d0
+     247/     556 : 2218                        move.l  (a0)+,d1
+     247/     558 :                     
+     247/     558 : 169A                                move.b  (a2)+,(a3)
+     247/     55A :                     
+     247/     55A : 01C9 02D0                   movep.l d0,(i+(8*12),a1)
+     247/     55E : 03C9 02D8                   movep.l d1,(i+(8*13),a1)
+     247/     562 :                     
+     247/     562 : 2018                        move.l  (a0)+,d0
+     247/     564 : 01C9 02E0                   movep.l d0,(i+(8*14),a1)
+     247/     568 :                     
+     247/     568 : 2018                        move.l  (a0)+,d0
+     247/     56A : 01C9 02E8                   movep.l d0,(i+(8*15),a1)
+     247/     56E :                     
+     247/     56E : 2018                        move.l  (a0)+,d0
+     247/     570 : 01C9 02F0                   movep.l d0,(i+(8*16),a1)
+     247/     574 :                     
+     247/     574 : 2018                        move.l  (a0)+,d0
+     247/     576 : 01C9 02F8                   movep.l d0,(i+(8*17),a1)
+     247/     57A :                     
+     247/     57A : 2018                        move.l  (a0)+,d0
+     247/     57C : 01C9 0300                   movep.l d0,(i+(8*18),a1)
+     247/     580 :                     
+     247/     580 : =$308               i set i + 152
+     247/     580 :                     
+     247/     580 : 169A                                move.b  (a2)+,(a3)
+     247/     582 :                     
+     247/     582 : 2018                        move.l  (a0)+,d0
+     247/     584 : 01C9 0308                   movep.l d0,(i+(8*0),a1)
+     247/     588 :                     
+     247/     588 : 2018                        move.l  (a0)+,d0
+     247/     58A : 01C9 0310                   movep.l d0,(i+(8*1),a1)
+     247/     58E :                     
+     247/     58E : 2018                        move.l  (a0)+,d0
+     247/     590 : 01C9 0318                   movep.l d0,(i+(8*2),a1)
+     247/     594 :                     
+     247/     594 : 2018                        move.l  (a0)+,d0
+     247/     596 : 01C9 0320                   movep.l d0,(i+(8*3),a1)
+     247/     59A :                     
+     247/     59A : 2018                        move.l  (a0)+,d0
+     247/     59C : 01C9 0328                   movep.l d0,(i+(8*4),a1)
+     247/     5A0 :                     
+     247/     5A0 : 2018                        move.l  (a0)+,d0
+     247/     5A2 : 01C9 0330                   movep.l d0,(i+(8*5),a1)
+     247/     5A6 :                     
+     247/     5A6 : 2018                        move.l  (a0)+,d0
+     247/     5A8 :                     
+     247/     5A8 : 169A                                move.b  (a2)+,(a3)
+     247/     5AA :                     
+     247/     5AA : 01C9 0338                   movep.l d0,(i+(8*6),a1)
+     247/     5AE :                     
+     247/     5AE : 2018                        move.l  (a0)+,d0
+     247/     5B0 : 01C9 0340                   movep.l d0,(i+(8*7),a1)
+     247/     5B4 :                     
+     247/     5B4 : 2018                        move.l  (a0)+,d0
+     247/     5B6 : 01C9 0348                   movep.l d0,(i+(8*8),a1)
+     247/     5BA :                     
+     247/     5BA : 2018                        move.l  (a0)+,d0
+     247/     5BC : 01C9 0350                   movep.l d0,(i+(8*9),a1)
+     247/     5C0 :                     
+     247/     5C0 : 2018                        move.l  (a0)+,d0
+     247/     5C2 : 01C9 0358                   movep.l d0,(i+(8*10),a1)
+     247/     5C6 :                     
+     247/     5C6 : 2018                        move.l  (a0)+,d0
+     247/     5C8 : 01C9 0360                   movep.l d0,(i+(8*11),a1)
+     247/     5CC :                     
+     247/     5CC : 2018                        move.l  (a0)+,d0
+     247/     5CE : 2218                        move.l  (a0)+,d1
+     247/     5D0 :                     
+     247/     5D0 : 169A                                move.b  (a2)+,(a3)
+     247/     5D2 :                     
+     247/     5D2 : 01C9 0368                   movep.l d0,(i+(8*12),a1)
+     247/     5D6 : 03C9 0370                   movep.l d1,(i+(8*13),a1)
+     247/     5DA :                     
+     247/     5DA : 2018                        move.l  (a0)+,d0
+     247/     5DC : 01C9 0378                   movep.l d0,(i+(8*14),a1)
+     247/     5E0 :                     
+     247/     5E0 : 2018                        move.l  (a0)+,d0
+     247/     5E2 : 01C9 0380                   movep.l d0,(i+(8*15),a1)
+     247/     5E6 :                     
+     247/     5E6 : 2018                        move.l  (a0)+,d0
+     247/     5E8 : 01C9 0388                   movep.l d0,(i+(8*16),a1)
+     247/     5EC :                     
+     247/     5EC : 2018                        move.l  (a0)+,d0
+     247/     5EE : 01C9 0390                   movep.l d0,(i+(8*17),a1)
+     247/     5F2 :                     
+     247/     5F2 : 2018                        move.l  (a0)+,d0
+     247/     5F4 : 01C9 0398                   movep.l d0,(i+(8*18),a1)
+     247/     5F8 :                     
+     247/     5F8 : =$3A0               i set i + 152
+     247/     5F8 :                     
+     247/     5F8 : 169A                                move.b  (a2)+,(a3)
+     247/     5FA :                     
+     247/     5FA : 2018                        move.l  (a0)+,d0
+     247/     5FC : 01C9 03A0                   movep.l d0,(i+(8*0),a1)
+     247/     600 :                     
+     247/     600 : 2018                        move.l  (a0)+,d0
+     247/     602 : 01C9 03A8                   movep.l d0,(i+(8*1),a1)
+     247/     606 :                     
+     247/     606 : 2018                        move.l  (a0)+,d0
+     247/     608 : 01C9 03B0                   movep.l d0,(i+(8*2),a1)
+     247/     60C :                     
+     247/     60C : 2018                        move.l  (a0)+,d0
+     247/     60E : 01C9 03B8                   movep.l d0,(i+(8*3),a1)
+     247/     612 :                     
+     247/     612 : 2018                        move.l  (a0)+,d0
+     247/     614 : 01C9 03C0                   movep.l d0,(i+(8*4),a1)
+     247/     618 :                     
+     247/     618 : 2018                        move.l  (a0)+,d0
+     247/     61A : 01C9 03C8                   movep.l d0,(i+(8*5),a1)
+     247/     61E :                     
+     247/     61E : 2018                        move.l  (a0)+,d0
+     247/     620 :                     
+     247/     620 : 169A                                move.b  (a2)+,(a3)
+     247/     622 :                     
+     247/     622 : 01C9 03D0                   movep.l d0,(i+(8*6),a1)
+     247/     626 :                     
+     247/     626 : 2018                        move.l  (a0)+,d0
+     247/     628 : 01C9 03D8                   movep.l d0,(i+(8*7),a1)
+     247/     62C :                     
+     247/     62C : 2018                        move.l  (a0)+,d0
+     247/     62E : 01C9 03E0                   movep.l d0,(i+(8*8),a1)
+     247/     632 :                     
+     247/     632 : 2018                        move.l  (a0)+,d0
+     247/     634 : 01C9 03E8                   movep.l d0,(i+(8*9),a1)
+     247/     638 :                     
+     247/     638 : 2018                        move.l  (a0)+,d0
+     247/     63A : 01C9 03F0                   movep.l d0,(i+(8*10),a1)
+     247/     63E :                     
+     247/     63E : 2018                        move.l  (a0)+,d0
+     247/     640 : 01C9 03F8                   movep.l d0,(i+(8*11),a1)
+     247/     644 :                     
+     247/     644 : 2018                        move.l  (a0)+,d0
+     247/     646 : 2218                        move.l  (a0)+,d1
+     247/     648 :                     
+     247/     648 : 169A                                move.b  (a2)+,(a3)
+     247/     64A :                     
+     247/     64A : 01C9 0400                   movep.l d0,(i+(8*12),a1)
+     247/     64E : 03C9 0408                   movep.l d1,(i+(8*13),a1)
+     247/     652 :                     
+     247/     652 : 2018                        move.l  (a0)+,d0
+     247/     654 : 01C9 0410                   movep.l d0,(i+(8*14),a1)
+     247/     658 :                     
+     247/     658 : 2018                        move.l  (a0)+,d0
+     247/     65A : 01C9 0418                   movep.l d0,(i+(8*15),a1)
+     247/     65E :                     
+     247/     65E : 2018                        move.l  (a0)+,d0
+     247/     660 : 01C9 0420                   movep.l d0,(i+(8*16),a1)
+     247/     664 :                     
+     247/     664 : 2018                        move.l  (a0)+,d0
+     247/     666 : 01C9 0428                   movep.l d0,(i+(8*17),a1)
+     247/     66A :                     
+     247/     66A : 2018                        move.l  (a0)+,d0
+     247/     66C : 01C9 0430                   movep.l d0,(i+(8*18),a1)
+     247/     670 :                     
+     247/     670 : =$438               i set i + 152
+     247/     670 :                     
      248/     670 :                     
-     248/     670 : =$438               i set i + 152
-     248/     670 :                     
-     249/     670 :                     
-     251/     670 : 169A                		move.b	(a2)+,(a3)	; Output sample, 12 cycles
-     256/     672 :                     
-     257/     672 :                     ; --- Cycle count restarts ---
-     258/     672 : 41F9 00A0 00D7      	lea	(Z80EndRoutineAddress+1)|Z80_WRAM,a0	; 8
-     259/     678 : 10FC 001E           	move.b	#Z80Init&$FF,(a0)+					; 12
-     260/     67C : 10BC 0000           	move.b	#Z80Init>>8,(a0)					; 12
-     261/     680 :                     	
-     262/     680 : 23C2 00FF 0000      	move.l	d2,(sampleIndex)					; 20
+     250/     670 : 169A                		move.b	(a2)+,(a3)	; Output sample, 12 cycles
+     255/     672 :                     
+     256/     672 :                     ; --- Cycle count restarts ---
+     257/     672 : 41F9 00A0 00CF      	lea	(Z80EndRoutineAddress+1)|Z80_WRAM,a0	; 8
+     258/     678 : 10FC 0016           	move.b	#Z80Init&$FF,(a0)+					; 12
+     259/     67C : 10BC 0000           	move.b	#Z80Init>>8,(a0)					; 12
+     260/     680 :                     	
+     261/     680 : 23C2 00FF 0000      	move.l	d2,(sampleIndex)					; 20
+     262/     686 :                     
+     263/     686 : (MACRO)[15]         	startZ80 a5	; Restart Z80
      263/     686 :                     
-     264/     686 : (MACRO)[15]         	startZ80 a5	; Restart Z80
-     264/     686 :                     
-     264/     686 : 3ABC 0000                                   move.w  #0,(a5)
-     265/     68A :                     
-     266/     68A : 4E73                	rte
-     267/     68C :                     
-     268/     68C :                     ; ==========================
-     269/     68C :                     
-     270/     68C :                     ; Horizontal interrupt
-     271/     68C :                     VDP_HBlank:
-     272/     68C : 4E73                	rte
-     273/     68E :                     
-     274/     68E :                     ; ==========================
-     275/     68E :                     
-     276/     68E :                     EntryPoint:
-     277/     68E :                     	;move.l	#"SEGA",(REG_TMSS)
-     278/     68E :                     
-     279/     68E :                     ; ============================
-     280/     68E :                     ; VDP initialization and setup
-     281/     68E :                     ; ============================
-     282/     68E :                     
-     283/     68E :                     ; VDP setup reference: https://plutiedev.com/vdp-setup
-     284/     68E :                     
-     285/     68E : 41F9 00C0 0004      	lea VDP_CTRL,a0
-     286/     694 :                     
-     287/     694 : 4A50                	tst.w 	(a0) ; Testing the VDP control port safely resets it
-     288/     696 :                     	
-     289/     696 :                     ; Register reference: https://plutiedev.com/vdp-registers
-     290/     696 :                     
-     291/     696 : 20BC 8004 8174      	move.l  #(VDPREG_MODE1|%00000100)<<16|(VDPREG_MODE2|%01110100),(a0)	; Mode register #1 and Mode register #2
-     292/     69C : 20BC 8B00 8C81      	move.l  #(VDPREG_MODE3|%00000000)<<16|(VDPREG_MODE4|%10000001),(a0)	; Mode register #3 and Mode Register #4
-     293/     6A2 :                         
-     294/     6A2 :                     ; Planes reference: https://segaretro.org/Sega_Mega_Drive/Planes
-     295/     6A2 :                     
-     296/     6A2 : 20BC 0038 8606       	move.l  #VDPREG_PLANEA|(VRAM_PLANEA>>10)<<16|(VDPREG_PLANEB|(VRAM_PLANEB>>13)),(a0)	; Plane A and Plane B address
-     297/     6A8 : 20BC 0078 873F      	move.l  #VDPREG_SPRITE|(VRAM_SPRITE>>9)<<16|(VDPREG_WINDOW|(VRAM_WINDOW>>10)),(a0)	; Sprite and Window address
-     298/     6AE : 30BC 8D3F           	move.w  #VDPREG_HSCROLL|(VRAM_HSCROLL>>10),(a0)										; Horizontal scroll address
-     299/     6B2 :                         
-     300/     6B2 : 20BC 9100 9200      	move.l  #(VDPREG_WINX|$00)<<16|(VDPREG_WINY|$00),(a0)			; Window X split and Window Y split
-     301/     6B8 : 20BC 9001 8700      	move.l  #(VDPREG_SIZE|%00000001)<<16|(VDPREG_BGCOL|$00),(a0)	; Tilemap size and Background color
-     302/     6BE : 20BC 8F02 8AFF      	move.l  #(VDPREG_INCR|$02)<<16|(VDPREG_HRATE|$FF),(a0)			; Autoincrement and HBlank IRQ rate
-     303/     6C4 :                     
-     304/     6C4 : 7040                	moveq 	#$40,d0
-     305/     6C6 : 13C0 00A1 0009      	move.b	d0,(JOY1_CTRL)
-     306/     6CC : 13C0 00A1 0003      	move.b	d0,(JOY1_DATA)
-     307/     6D2 :                     
-     308/     6D2 :                     ; Start of ROM code
-     309/     6D2 :                     
-     310/     6D2 : 47F9 00A1 1100      	lea Z80_BUSREQ,a3
-     311/     6D8 : 45F9 00A1 1200      	lea Z80_RESET,a2
-     312/     6DE :                     
-     313/     6DE : 343C 0100           	move.w	#$100,d2	; Assert, stop
-     314/     6E2 : 7200                	moveq	#0,d1		; Deassert, start
+     263/     686 : 3ABC 0000                                   move.w  #0,(a5)
+     264/     68A :                     
+     265/     68A : 4E73                	rte
+     266/     68C :                     
+     267/     68C :                     ; ==========================
+     268/     68C :                     
+     269/     68C :                     ; Horizontal interrupt
+     270/     68C :                     VDP_HBlank:
+     271/     68C : 4E73                	rte
+     272/     68E :                     
+     273/     68E :                     ; ==========================
+     274/     68E :                     
+     275/     68E :                     EntryPoint:
+     276/     68E :                     	;move.l	#"SEGA",(REG_TMSS)
+     277/     68E :                     
+     278/     68E :                     ; ============================
+     279/     68E :                     ; VDP initialization and setup
+     280/     68E :                     ; ============================
+     281/     68E :                     
+     282/     68E :                     ; VDP setup reference: https://plutiedev.com/vdp-setup
+     283/     68E :                     
+     284/     68E : 41F9 00C0 0004      	lea VDP_CTRL,a0
+     285/     694 :                     
+     286/     694 : 4A50                	tst.w 	(a0) ; Testing the VDP control port safely resets it
+     287/     696 :                     	
+     288/     696 :                     ; Register reference: https://plutiedev.com/vdp-registers
+     289/     696 :                     
+     290/     696 : 20BC 8004 8174      	move.l  #(VDPREG_MODE1|%00000100)<<16|(VDPREG_MODE2|%01110100),(a0)	; Mode register #1 and Mode register #2
+     291/     69C : 20BC 8B00 8C81      	move.l  #(VDPREG_MODE3|%00000000)<<16|(VDPREG_MODE4|%10000001),(a0)	; Mode register #3 and Mode Register #4
+     292/     6A2 :                         
+     293/     6A2 :                     ; Planes reference: https://segaretro.org/Sega_Mega_Drive/Planes
+     294/     6A2 :                     
+     295/     6A2 : 20BC 0038 8606       	move.l  #VDPREG_PLANEA|(VRAM_PLANEA>>10)<<16|(VDPREG_PLANEB|(VRAM_PLANEB>>13)),(a0)	; Plane A and Plane B address
+     296/     6A8 : 20BC 0078 873F      	move.l  #VDPREG_SPRITE|(VRAM_SPRITE>>9)<<16|(VDPREG_WINDOW|(VRAM_WINDOW>>10)),(a0)	; Sprite and Window address
+     297/     6AE : 30BC 8D3F           	move.w  #VDPREG_HSCROLL|(VRAM_HSCROLL>>10),(a0)										; Horizontal scroll address
+     298/     6B2 :                         
+     299/     6B2 : 20BC 9100 9200      	move.l  #(VDPREG_WINX|$00)<<16|(VDPREG_WINY|$00),(a0)			; Window X split and Window Y split
+     300/     6B8 : 20BC 9001 8700      	move.l  #(VDPREG_SIZE|%00000001)<<16|(VDPREG_BGCOL|$00),(a0)	; Tilemap size and Background color
+     301/     6BE : 20BC 8F02 8AFF      	move.l  #(VDPREG_INCR|$02)<<16|(VDPREG_HRATE|$FF),(a0)			; Autoincrement and HBlank IRQ rate
+     302/     6C4 :                     
+     303/     6C4 : 7040                	moveq 	#$40,d0
+     304/     6C6 : 13C0 00A1 0009      	move.b	d0,(JOY1_CTRL)
+     305/     6CC : 13C0 00A1 0003      	move.b	d0,(JOY1_DATA)
+     306/     6D2 :                     
+     307/     6D2 :                     ; Start of ROM code
+     308/     6D2 :                     
+     309/     6D2 : 47F9 00A1 1100      	lea Z80_BUSREQ,a3
+     310/     6D8 : 45F9 00A1 1200      	lea Z80_RESET,a2
+     311/     6DE :                     
+     312/     6DE : 343C 0100           	move.w	#$100,d2	; Assert, stop
+     313/     6E2 : 7200                	moveq	#0,d1		; Deassert, start
+     314/     6E4 :                     
+     315/     6E4 : (MACRO)[16]         	assertZ80Reset d1,a2	; Assert reset
      315/     6E4 :                     
-     316/     6E4 : (MACRO)[16]         	assertZ80Reset d1,a2	; Assert reset
-     316/     6E4 :                     
-     316/     6E4 : 3481                                        move.w  d1,(a2)
-     317/     6E6 : (MACRO)[17]         	stopZ80 d2,a3			; Request bus
-     317/     6E6 :                     
-     317/     6E6 : 3682                                        move.w  d2,(a3)
-     318/     6E8 : (MACRO)[18]         	deassertZ80Reset d2,a2	; Release reset
-     318/     6E8 :                     
-     318/     6E8 : 3482                                        move.w  d2,(a2)
-     319/     6EA :                     
-     320/     6EA :                     ; We can do more stuff while the Z80 is theoretically stopping
-     321/     6EA : 41F8 0760           	lea Z80RomStart,a0
-     322/     6EE : 43F9 00A0 0000      	lea Z80_WRAM,a1
-     323/     6F4 : 23FC 0000 085A 00FF 	move.l 	#Music,(sampleIndex)
+     315/     6E4 : 3481                                        move.w  d1,(a2)
+     316/     6E6 : (MACRO)[17]         	stopZ80 d2,a3			; Request bus
+     316/     6E6 :                     
+     316/     6E6 : 3682                                        move.w  d2,(a3)
+     317/     6E8 : (MACRO)[18]         	deassertZ80Reset d2,a2	; Release reset
+     317/     6E8 :                     
+     317/     6E8 : 3482                                        move.w  d2,(a2)
+     318/     6EA :                     
+     319/     6EA :                     ; We can do more stuff while the Z80 is theoretically stopping
+     320/     6EA : 41F8 0760           	lea Z80RomStart,a0
+     321/     6EE : 43F9 00A0 0000      	lea Z80_WRAM,a1
+     322/     6F4 : 23FC 0000 0852 00FF 	move.l 	#Music,(sampleIndex)
               6FC : 0000               
-     324/     6FE : 303C 00F9           	move.w	#(Z80RomEnd-Z80RomStart)-1,d0	; Mustn't go over $7F
-     325/     702 :                     
-     326/     702 :                     $$copy_program:
-     327/     702 : 12D8                	move.b	(a0)+,(a1)+
-     328/     704 : 51C8 FFFC           	dbf d0,$$copy_program
-     329/     708 :                     
-     330/     708 : 4239 00A0 0501      	clr.b	(playedSamples|Z80_WRAM)
-     331/     70E : 4239 00A0 0502      	clr.b	(playedSamples+1|Z80_WRAM)
-     332/     714 : 4239 00FF 0004      	clr.b	(shouldStop)
+     323/     6FE : 303C 00F1           	move.w	#(Z80RomEnd-Z80RomStart)-1,d0	; Mustn't go over $7F
+     324/     702 :                     
+     325/     702 :                     $$copy_program:
+     326/     702 : 12D8                	move.b	(a0)+,(a1)+
+     327/     704 : 51C8 FFFC           	dbf d0,$$copy_program
+     328/     708 :                     
+     329/     708 : 4239 00A0 0501      	clr.b	(playedSamples|Z80_WRAM)
+     330/     70E : 4239 00A0 0502      	clr.b	(playedSamples+1|Z80_WRAM)
+     331/     714 : 4239 00FF 0004      	clr.b	(shouldStop)
+     332/     71A :                     
+     333/     71A : (MACRO)[19]         	assertZ80Reset d2,a2	; Assert reset
      333/     71A :                     
-     334/     71A : (MACRO)[19]         	assertZ80Reset d2,a2	; Assert reset
-     334/     71A :                     
-     334/     71A : 3482                                        move.w  d2,(a2)
-     335/     71C :                     
-     336/     71C : 7014                	moveq	#20,d0
-     337/     71E :                     $$wait:	; Wait for the YM2612
-     338/     71E : 51C8 FFFE               dbf	d0,$$wait
+     333/     71A : 3482                                        move.w  d2,(a2)
+     334/     71C :                     
+     335/     71C : 7014                	moveq	#20,d0
+     336/     71E :                     $$wait:	; Wait for the YM2612
+     337/     71E : 51C8 FFFE               dbf	d0,$$wait
+     338/     722 :                     
+     339/     722 : (MACRO)[20]         	deassertZ80Reset d2,a2	; Release reset
      339/     722 :                     
-     340/     722 : (MACRO)[20]         	deassertZ80Reset d2,a2	; Release reset
-     340/     722 :                     
-     340/     722 : 3482                                        move.w  d2,(a2)
-     341/     724 :                     
+     339/     722 : 3482                                        move.w  d2,(a2)
+     340/     724 :                     
+     344/     724 :                     
+     345/     724 : (MACRO)[21]         	startZ80 d1,a3			; Release bus
      345/     724 :                     
-     346/     724 : (MACRO)[21]         	startZ80 d1,a3			; Release bus
-     346/     724 :                     
-     346/     724 : 3681                                        move.w  d1,(a3)
-     347/     726 :                     
-     348/     726 :                     ReadJoypad:
-     349/     726 : 41F9 00A1 0003      	lea	JOY1_DATA,a0
-     350/     72C : 10BC 0040           	move.b 	#$40,(a0)	; write $40 to request controller state
-     351/     730 : 4E71                	nop	; wait for the bus to get the controller state
-     352/     732 : 4E71                	nop
-     353/     734 : 4E71                	nop
-     354/     736 : 4E71                	nop
-     355/     738 : 1010                	move.b	(a0),d0	; put control state somewhere
-     356/     73A : 0800 0005           	btst 	#JOY_C,d0
-     357/     73E : 6700 0014           	beq.w	PlaySample
-     358/     742 :                     
-     359/     742 :                     HaltCPU:
-     360/     742 : 4A39 00FF 0004      	tst.b	(shouldStop)
-     361/     748 : 6606                	bne.s	$$disable_cpu
-     362/     74A : 4E72 2500           	stop	#$2500
-     363/     74E : 60D6                	bra.s	ReadJoypad
-     364/     750 :                     $$disable_cpu:
-     365/     750 : 4E72 2700           	stop	#$2700
-     366/     754 :                     PlaySample:
-     367/     754 : 23FC 0000 085A 00FF 	move.l	#Music,(sampleIndex)
+     345/     724 : 3681                                        move.w  d1,(a3)
+     346/     726 :                     
+     347/     726 :                     ReadJoypad:
+     348/     726 : 41F9 00A1 0003      	lea	JOY1_DATA,a0
+     349/     72C : 10BC 0040           	move.b 	#$40,(a0)	; write $40 to request controller state
+     350/     730 : 4E71                	nop	; wait for the bus to get the controller state
+     351/     732 : 4E71                	nop
+     352/     734 : 4E71                	nop
+     353/     736 : 4E71                	nop
+     354/     738 : 1010                	move.b	(a0),d0	; put control state somewhere
+     355/     73A : 0800 0005           	btst 	#JOY_C,d0
+     356/     73E : 6700 0014           	beq.w	PlaySample
+     357/     742 :                     
+     358/     742 :                     HaltCPU:
+     359/     742 : 4A39 00FF 0004      	tst.b	(shouldStop)
+     360/     748 : 6606                	bne.s	$$disable_cpu
+     361/     74A : 4E72 2500           	stop	#$2500
+     362/     74E : 60D6                	bra.s	ReadJoypad
+     363/     750 :                     $$disable_cpu:
+     364/     750 : 4E72 2700           	stop	#$2700
+     365/     754 :                     PlaySample:
+     366/     754 : 23FC 0000 0852 00FF 	move.l	#Music,(sampleIndex)
               75C : 0000               
-     368/     75E : 60E2                	bra.s	HaltCPU
-     369/     760 :                     
-     370/     760 :                     	include "Driver.z80"
+     367/     75E : 60E2                	bra.s	HaltCPU
+     368/     760 :                     
+     369/     760 :                     	include "Driver.z80"
 (1)    1/ 760 :                         	cpu Z80
 (1)    2/ 760 :                         Z80RomStart
 (1)    3/ 760 :                         
@@ -971,266 +970,264 @@
 (1)    5/   0 :                         
 (1)    6/   0 : 01 00 40                	ld	bc,YM2612_CTRL0	; YM2612 bank 1 port
 (1)    7/   3 : 21 01 40                	ld	hl,YM2612_DATA0	; YM2612 data port
-(1)    8/   6 : 01 00 40                	ld	bc,YM2612_CTRL0	; YM2612 bank 1 port
-(1)    9/   9 : 21 01 40                	ld	hl,YM2612_DATA0	; YM2612 data port
-(1)   10/   C :                         
-(1)   11/   C : 3E 2B                   	ld	a,DAC_ENABLE	; DAC enable address
-(1)   12/   E : 02                      	ld	(bc),a			; Switch to DAC enable register
-(1)   13/   F : 36 80                   	ld	(hl),80h		; Enable DAC
-(1)   14/  11 : 3D                      	dec	a				; Now a is 2Ah (DAC_IN)
-(1)   15/  12 : 02                      	ld	(bc),a			; Switch to DAC data input
-(1)   16/  13 : 3E 2B                   	ld	a,DAC_ENABLE	; DAC enable address
-(1)   17/  15 : 02                      	ld	(bc),a			; Switch to DAC enable register
-(1)   18/  16 : 36 80                   	ld	(hl),80h		; Enable DAC
-(1)   19/  18 : 3D                      	dec	a				; Now a is 2Ah (DAC_IN)
-(1)   20/  19 : 02                      	ld	(bc),a			; Switch to DAC data input
-(1)   21/  1A :                         
-(1)   22/  1A : F3                      	di
-(1)   23/  1B :                         
-(1)   24/  1B : C3 D6 00                	jp	Z80EndRoutineAddress
-(1)   25/  1E :                         
-(1)   26/  1E :                         Z80Init:
-(1)   27/  1E : 11 00 10                	ld	de,SampleBuffer	; Reset DE
-(1)   28/  21 : 21 01 40                	ld	hl,YM2612_DATA0	; Reset HL
-(1)   29/  24 :                         	;ld	sp,Z80_STACK	; Align stack pointer correctly
-(1)   30/  24 : D9                      	exx
-(1)   31/  25 :                         .routineAddress:
-(1)   32/  25 : C3 25 00                	jp	$
-(1)   33/  28 :                         
-(1)   34/  28 :                         Init_DacAndEffects:
-(1)   35/  28 : 06 5C                   	ld	b,92
-(1)   36/  2A :                         $$loop_DacAndEffects:
-(1)   37/  2A : D9                      	exx
-(1)   38/  2B : 1A                      	ld	a,(de)
-(1)   39/  2C : 77                      	ld	(hl),a
-(1)   40/  2D : 13                      	inc	de
-(1)   41/  2E : 13                      	inc	de
-(1)   42/  2F : D9                      	exx
-(1)   43/  30 :                         	rept 17
-(1)   44/  30 :                         	nop
-(1)   45/  30 :                         	endm
-(1)   44/  30 : 00                      	nop
-(1)   44/  31 : 00                      	nop
-(1)   44/  32 : 00                      	nop
-(1)   44/  33 : 00                      	nop
-(1)   44/  34 : 00                      	nop
-(1)   44/  35 : 00                      	nop
-(1)   44/  36 : 00                      	nop
-(1)   44/  37 : 00                      	nop
-(1)   44/  38 : 00                      	nop
-(1)   44/  39 : 00                      	nop
-(1)   44/  3A : 00                      	nop
-(1)   44/  3B : 00                      	nop
-(1)   44/  3C : 00                      	nop
-(1)   44/  3D : 00                      	nop
-(1)   44/  3E : 00                      	nop
-(1)   44/  3F : 00                      	nop
-(1)   44/  40 : 00                      	nop
-(1)   46/  41 : 10 E7                   	djnz $$loop_DacAndEffects
-(1)   47/  43 :                         	; 112 cycles per loop
-(1)   48/  43 :                         
-(1)   49/  43 : D9                      	exx								; 4
-(1)   50/  44 : 1A                      	ld	a,(de)						; 7
-(1)   51/  45 : 77                      	ld	(hl),a						; 7
-(1)   52/  46 : 13                      	inc	de							; 6
-(1)   53/  47 : 13                      	inc	de							; 6
-(1)   54/  48 :                         
-(1)   55/  48 : 44                      	ld	b,h							; 4
-(1)   56/  49 : 4D                      	ld	c,l							; 4
-(1)   57/  4A :                         
-(1)   58/  4A : 21 C0 00                	ld	hl,Loop_DacOnly				; 10
-(1)   59/  4D : 22 D7 00                	ld	(Z80EndRoutineAddress+1),hl	; 16
-(1)   60/  50 :                         
-(1)   61/  50 : 2E C1                   	ld	l,DisableDacInjection&0FFh	; 7
-(1)   62/  52 : 36 02                   	ld	(hl),2						; 10
-(1)   63/  54 :                         
-(1)   64/  54 : 60                      	ld	h,b							; 4
-(1)   65/  55 : 69                      	ld	l,c							; 4
-(1)   66/  56 : D9                      	exx								; 4
-(1)   67/  57 :                         
-(1)   68/  57 :                         Init_DacAndFm:
-(1)   69/  57 : 06 80                   	ld	b,128
-(1)   70/  59 : 11 00 15                	ld	de,CommandBuffer
-(1)   71/  5C : 21 00 40                	ld	hl,YM2612_CTRL0
-(1)   72/  5F :                         $$loop_DacAndFm:
-(1)   73/  5F : D9                      	exx
-(1)   74/  60 : 1A                      	ld	a,(de)
-(1)   75/  61 : 77                      	ld	(hl),a
-(1)   76/  62 : 13                      	inc	de
-(1)   77/  63 : 13                      	inc	de
-(1)   78/  64 : D9                      	exx
-(1)   79/  65 :                         	rept 17
-(1)   80/  65 :                         	nop
-(1)   81/  65 :                         	endm
-(1)   80/  65 : 00                      	nop
-(1)   80/  66 : 00                      	nop
-(1)   80/  67 : 00                      	nop
-(1)   80/  68 : 00                      	nop
-(1)   80/  69 : 00                      	nop
-(1)   80/  6A : 00                      	nop
-(1)   80/  6B : 00                      	nop
-(1)   80/  6C : 00                      	nop
-(1)   80/  6D : 00                      	nop
-(1)   80/  6E : 00                      	nop
-(1)   80/  6F : 00                      	nop
-(1)   80/  70 : 00                      	nop
-(1)   80/  71 : 00                      	nop
-(1)   80/  72 : 00                      	nop
-(1)   80/  73 : 00                      	nop
-(1)   80/  74 : 00                      	nop
-(1)   80/  75 : 00                      	nop
-(1)   82/  76 : 10 E7                   	djnz $$loop_DacAndFm
-(1)   83/  78 :                         
-(1)   84/  78 : D9                      	exx			; 4
-(1)   85/  79 : 1A                      	ld	a,(de)	; 7
-(1)   86/  7A : 77                      	ld	(hl),a	; 7
-(1)   87/  7B :                         
-(1)   88/  7B : 13                      	inc	de		; 6
-(1)   89/  7C : 13                      	inc	de		; 6
-(1)   90/  7D : 06 02                   	ld	b,2		; 7
-(1)   91/  7F : 10 FE                   	djnz $		; 26
-(1)   92/  81 : D9                      	exx			; 4
-(1)   93/  82 : 00                      	nop			; 4
-(1)   94/  83 :                         	; --- 71 cycles in total ---
-(1)   95/  83 :                         
-(1)   96/  83 : FE 00                   	cp	0
-(1)   97/  85 : FE 00                   	cp	0
-(1)   98/  87 :                         
-(1)   99/  87 :                         Init_DacAndSn:
-(1)  100/  87 : 06 20                   	ld	b,32
-(1)  101/  89 : 11 00 15                	ld	de,CommandBuffer
-(1)  102/  8C : 21 11 7F                	ld	hl,PSG_PORT
-(1)  103/  8F :                         $$loop_DacAndSn:
-(1)  104/  8F : D9                      	exx
-(1)  105/  90 : 1A                      	ld	a,(de)
-(1)  106/  91 : 77                      	ld	(hl),a
-(1)  107/  92 : 13                      	inc	de
-(1)  108/  93 : 13                      	inc	de
-(1)  109/  94 : D9                      	exx
-(1)  110/  95 :                         	rept 17
-(1)  111/  95 :                         	nop
-(1)  112/  95 :                         	endm
-(1)  111/  95 : 00                      	nop
-(1)  111/  96 : 00                      	nop
-(1)  111/  97 : 00                      	nop
-(1)  111/  98 : 00                      	nop
-(1)  111/  99 : 00                      	nop
-(1)  111/  9A : 00                      	nop
-(1)  111/  9B : 00                      	nop
-(1)  111/  9C : 00                      	nop
-(1)  111/  9D : 00                      	nop
-(1)  111/  9E : 00                      	nop
-(1)  111/  9F : 00                      	nop
-(1)  111/  A0 : 00                      	nop
-(1)  111/  A1 : 00                      	nop
-(1)  111/  A2 : 00                      	nop
-(1)  111/  A3 : 00                      	nop
-(1)  111/  A4 : 00                      	nop
-(1)  111/  A5 : 00                      	nop
-(1)  113/  A6 : 10 E7                   	djnz $$loop_DacAndSn
-(1)  114/  A8 :                         
-(1)  115/  A8 : D9                      	exx						; 4
-(1)  116/  A9 : 1A                      	ld	a,(de)				; 7
-(1)  117/  AA : 77                      	ld	(hl),a				; 7
-(1)  118/  AB :                         
-(1)  119/  AB : 13                      	inc	de					; 6
-(1)  120/  AC : 13                      	inc	de					; 6
-(1)  121/  AD :                         	
-(1)  122/  AD : 62                      	ld	h,d					; 4
-(1)  123/  AE : 6B                      	ld	l,e					; 4
-(1)  124/  AF : CB A4                   	res	4,h					; 8
-(1)  125/  B1 : CB 3C                   	srl	h					; 8
-(1)  126/  B3 : CB 1D                   	rr	l					; 8
-(1)  127/  B5 : 22 01 05                	ld	(playedSamples),hl	; 16
-(1)  128/  B8 :                         ; --- 78 cycles ---
-(1)  129/  B8 :                         
-(1)  130/  B8 : 01 01 40                	ld	bc,YM2612_DATA0		; 10
-(1)  131/  BB :                         
-(1)  132/  BB : FE 00                   	cp	0
-(1)  133/  BD : FE 00                   	cp	0
-(1)  134/  BF : 00                      	nop
-(1)  135/  C0 :                         
-(1)  136/  C0 :                         Loop_DacOnly:
-(1)  137/  C0 : 1A                      	ld	a,(de)
-(1)  138/  C1 :                         DisableDacInjection:
-(1)  139/  C1 : 02                      	ld	(bc),a
-(1)  140/  C2 : 23                      	inc hl
-(1)  141/  C3 : 22 01 05                	ld 	(playedSamples),hl
-(1)  142/  C6 : 13                      	inc	de
-(1)  143/  C7 : 13                      	inc de
-(1)  144/  C8 :                         	rept 10
-(1)  145/  C8 :                         	nop
-(1)  146/  C8 :                         	endm
-(1)  145/  C8 : 00                      	nop
-(1)  145/  C9 : 00                      	nop
-(1)  145/  CA : 00                      	nop
-(1)  145/  CB : 00                      	nop
-(1)  145/  CC : 00                      	nop
-(1)  145/  CD : 00                      	nop
-(1)  145/  CE : 00                      	nop
-(1)  145/  CF : 00                      	nop
-(1)  145/  D0 : 00                      	nop
-(1)  145/  D1 : 00                      	nop
-(1)  147/  D2 : FE 00                   	cp	0
-(1)  148/  D4 : FE 00                   	cp	0
-(1)  149/  D6 :                         Z80EndRoutineAddress:
-(1)  150/  D6 : C3 D6 00                	jp	$	; Will be Loop_DacOnly later on
-(1)  151/  D9 :                         
-(1)  152/  D9 :                         Init_EndSound:
-(1)  153/  D9 : 01 00 00                	ld	bc,0000h
-(1)  154/  DC :                         $$loop_endSound1:
-(1)  155/  DC : 1A                      	ld	a,(de)
-(1)  156/  DD : 77                      	ld	(hl),a
-(1)  157/  DE :                         	rept 14
-(1)  158/  DE :                         	nop
-(1)  159/  DE :                         	endm
-(1)  158/  DE : 00                      	nop
-(1)  158/  DF : 00                      	nop
-(1)  158/  E0 : 00                      	nop
-(1)  158/  E1 : 00                      	nop
-(1)  158/  E2 : 00                      	nop
-(1)  158/  E3 : 00                      	nop
-(1)  158/  E4 : 00                      	nop
-(1)  158/  E5 : 00                      	nop
-(1)  158/  E6 : 00                      	nop
-(1)  158/  E7 : 00                      	nop
-(1)  158/  E8 : 00                      	nop
-(1)  158/  E9 : 00                      	nop
-(1)  158/  EA : 00                      	nop
-(1)  158/  EB : 00                      	nop
-(1)  160/  EC : 13                      	inc	de
-(1)  161/  ED : 13                      	inc de
-(1)  162/  EE : FE 00                   	cp	0
-(1)  163/  F0 : FE 00                   	cp	0
-(1)  164/  F2 : 0B                      	dec	bc
-(1)  165/  F3 : 78                      	ld	a,b
-(1)  166/  F4 : B1                      	or	c
-(1)  167/  F5 : C2 DC 00                	jp	nz,$$loop_endSound1
-(1)  168/  F8 :                         
-(1)  169/  F8 : F3                      	di
-(1)  170/  F9 : 76                      	halt
-(1)  171/  FA :                         
-(1)  172/ 85A :                             dephase	; The rest of the labels are mapped normally
-(1)  173/ 85A :                         
-(1)  174/     85A :                     	cpu 68000
-(1)  175/     85A :                     
-(1)  176/     85A :                     Z80RomEnd
-     371/     85A :                     
-     372/     85A :                     Music:
-     373/     85A :                     	;binclude "continuity_test.bin" ; Test with increasing bytes to make sure no samples get skipped
-     374/     85A :                     	;binclude "24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; Great music right here
-     375/     85A :                     	;binclude "Don't Stand So Close To Me.raw" ; Another banger
-     376/     85A :                     	binclude "Spirits In The Material World.raw" ; This is a good one
-     377/  3B7A13 :                     	;binclude "Every Little Thing She Does Is Magic.raw" ; Another nice one
-     378/  3B7A13 :                     	;binclude "Ki.raw" ; minceraft
-     379/  3B7A13 :                     	;binclude "Droopy likes your face.raw" ; Underrated
-     380/  3B7A13 :                     	;binclude "Chris.raw" ; Chris
-     381/  3B7A13 :                     	;binclude "Magnetic Circuit.raw" ; Notch what are you doing
-     382/  3B7A13 :                     	;binclude "music.pcm" ; Let's not talk about this
-     383/  3B7A13 :                     	;binclude "My Summary.raw"
-     384/  3B7A13 :                     
-     385/  3B7A13 :                     ROM_End
- AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 2 - 1/23/2026 19:42:2
+(1)    8/   6 :                         
+(1)   10/   6 : 3E 2C                   		ld	a,2Ch
+(1)   11/   8 : 02                      		ld	(bc),a
+(1)   12/   9 : 36 20                   		ld	(hl),20h
+(1)   14/   B : 3E 2B                   	ld	a,DAC_ENABLE	; DAC enable address
+(1)   15/   D : 02                      	ld	(bc),a			; Switch to DAC enable register
+(1)   16/   E : 36 80                   	ld	(hl),80h		; Enable DAC
+(1)   17/  10 : 3D                      	dec	a				; Now a is 2Ah (DAC_IN)
+(1)   18/  11 : 02                      	ld	(bc),a			; Switch to DAC data input
+(1)   19/  12 :                         
+(1)   20/  12 : F3                      	di
+(1)   21/  13 :                         
+(1)   22/  13 : C3 CE 00                	jp	Z80EndRoutineAddress
+(1)   23/  16 :                         
+(1)   24/  16 :                         Z80Init:
+(1)   25/  16 : 11 00 10                	ld	de,SampleBuffer	; Reset DE
+(1)   26/  19 : 21 01 40                	ld	hl,YM2612_DATA0	; Reset HL
+(1)   27/  1C :                         	;ld	sp,Z80_STACK	; Align stack pointer correctly
+(1)   28/  1C : D9                      	exx
+(1)   29/  1D :                         .routineAddress:
+(1)   30/  1D : C3 1D 00                	jp	$
+(1)   31/  20 :                         
+(1)   32/  20 :                         Init_DacAndEffects:
+(1)   33/  20 : 06 5C                   	ld	b,92
+(1)   34/  22 :                         $$loop_DacAndEffects:
+(1)   35/  22 : D9                      	exx
+(1)   36/  23 : 1A                      	ld	a,(de)
+(1)   37/  24 : 77                      	ld	(hl),a
+(1)   38/  25 : 13                      	inc	de
+(1)   39/  26 : 13                      	inc	de
+(1)   40/  27 : D9                      	exx
+(1)   41/  28 :                         	rept 17
+(1)   42/  28 :                         	nop
+(1)   43/  28 :                         	endm
+(1)   42/  28 : 00                      	nop
+(1)   42/  29 : 00                      	nop
+(1)   42/  2A : 00                      	nop
+(1)   42/  2B : 00                      	nop
+(1)   42/  2C : 00                      	nop
+(1)   42/  2D : 00                      	nop
+(1)   42/  2E : 00                      	nop
+(1)   42/  2F : 00                      	nop
+(1)   42/  30 : 00                      	nop
+(1)   42/  31 : 00                      	nop
+(1)   42/  32 : 00                      	nop
+(1)   42/  33 : 00                      	nop
+(1)   42/  34 : 00                      	nop
+(1)   42/  35 : 00                      	nop
+(1)   42/  36 : 00                      	nop
+(1)   42/  37 : 00                      	nop
+(1)   42/  38 : 00                      	nop
+(1)   44/  39 : 10 E7                   	djnz $$loop_DacAndEffects
+(1)   45/  3B :                         	; 112 cycles per loop
+(1)   46/  3B :                         
+(1)   47/  3B : D9                      	exx								; 4
+(1)   48/  3C : 1A                      	ld	a,(de)						; 7
+(1)   49/  3D : 77                      	ld	(hl),a						; 7
+(1)   50/  3E : 13                      	inc	de							; 6
+(1)   51/  3F : 13                      	inc	de							; 6
+(1)   52/  40 :                         
+(1)   53/  40 : 44                      	ld	b,h							; 4
+(1)   54/  41 : 4D                      	ld	c,l							; 4
+(1)   55/  42 :                         
+(1)   56/  42 : 21 B8 00                	ld	hl,Loop_DacOnly				; 10
+(1)   57/  45 : 22 CF 00                	ld	(Z80EndRoutineAddress+1),hl	; 16
+(1)   58/  48 :                         
+(1)   59/  48 : 2E B9                   	ld	l,DisableDacInjection&0FFh	; 7
+(1)   60/  4A : 36 02                   	ld	(hl),2						; 10
+(1)   61/  4C :                         
+(1)   62/  4C : 60                      	ld	h,b							; 4
+(1)   63/  4D : 69                      	ld	l,c							; 4
+(1)   64/  4E : D9                      	exx								; 4
+(1)   65/  4F :                         
+(1)   66/  4F :                         Init_DacAndFm:
+(1)   67/  4F : 06 80                   	ld	b,128
+(1)   68/  51 : 11 00 15                	ld	de,CommandBuffer
+(1)   69/  54 : 21 00 40                	ld	hl,YM2612_CTRL0
+(1)   70/  57 :                         $$loop_DacAndFm:
+(1)   71/  57 : D9                      	exx
+(1)   72/  58 : 1A                      	ld	a,(de)
+(1)   73/  59 : 77                      	ld	(hl),a
+(1)   74/  5A : 13                      	inc	de
+(1)   75/  5B : 13                      	inc	de
+(1)   76/  5C : D9                      	exx
+(1)   77/  5D :                         	rept 17
+(1)   78/  5D :                         	nop
+(1)   79/  5D :                         	endm
+(1)   78/  5D : 00                      	nop
+(1)   78/  5E : 00                      	nop
+(1)   78/  5F : 00                      	nop
+(1)   78/  60 : 00                      	nop
+(1)   78/  61 : 00                      	nop
+(1)   78/  62 : 00                      	nop
+(1)   78/  63 : 00                      	nop
+(1)   78/  64 : 00                      	nop
+(1)   78/  65 : 00                      	nop
+(1)   78/  66 : 00                      	nop
+(1)   78/  67 : 00                      	nop
+(1)   78/  68 : 00                      	nop
+(1)   78/  69 : 00                      	nop
+(1)   78/  6A : 00                      	nop
+(1)   78/  6B : 00                      	nop
+(1)   78/  6C : 00                      	nop
+(1)   78/  6D : 00                      	nop
+(1)   80/  6E : 10 E7                   	djnz $$loop_DacAndFm
+(1)   81/  70 :                         
+(1)   82/  70 : D9                      	exx			; 4
+(1)   83/  71 : 1A                      	ld	a,(de)	; 7
+(1)   84/  72 : 77                      	ld	(hl),a	; 7
+(1)   85/  73 :                         
+(1)   86/  73 : 13                      	inc	de		; 6
+(1)   87/  74 : 13                      	inc	de		; 6
+(1)   88/  75 : 06 02                   	ld	b,2		; 7
+(1)   89/  77 : 10 FE                   	djnz $		; 26
+(1)   90/  79 : D9                      	exx			; 4
+(1)   91/  7A : 00                      	nop			; 4
+(1)   92/  7B :                         	; --- 71 cycles in total ---
+(1)   93/  7B :                         
+(1)   94/  7B : FE 00                   	cp	0
+(1)   95/  7D : FE 00                   	cp	0
+(1)   96/  7F :                         
+(1)   97/  7F :                         Init_DacAndSn:
+(1)   98/  7F : 06 20                   	ld	b,32
+(1)   99/  81 : 11 00 15                	ld	de,CommandBuffer
+(1)  100/  84 : 21 11 7F                	ld	hl,PSG_PORT
+(1)  101/  87 :                         $$loop_DacAndSn:
+(1)  102/  87 : D9                      	exx
+(1)  103/  88 : 1A                      	ld	a,(de)
+(1)  104/  89 : 77                      	ld	(hl),a
+(1)  105/  8A : 13                      	inc	de
+(1)  106/  8B : 13                      	inc	de
+(1)  107/  8C : D9                      	exx
+(1)  108/  8D :                         	rept 17
+(1)  109/  8D :                         	nop
+(1)  110/  8D :                         	endm
+(1)  109/  8D : 00                      	nop
+(1)  109/  8E : 00                      	nop
+(1)  109/  8F : 00                      	nop
+(1)  109/  90 : 00                      	nop
+(1)  109/  91 : 00                      	nop
+(1)  109/  92 : 00                      	nop
+(1)  109/  93 : 00                      	nop
+(1)  109/  94 : 00                      	nop
+(1)  109/  95 : 00                      	nop
+(1)  109/  96 : 00                      	nop
+(1)  109/  97 : 00                      	nop
+(1)  109/  98 : 00                      	nop
+(1)  109/  99 : 00                      	nop
+(1)  109/  9A : 00                      	nop
+(1)  109/  9B : 00                      	nop
+(1)  109/  9C : 00                      	nop
+(1)  109/  9D : 00                      	nop
+(1)  111/  9E : 10 E7                   	djnz $$loop_DacAndSn
+(1)  112/  A0 :                         
+(1)  113/  A0 : D9                      	exx						; 4
+(1)  114/  A1 : 1A                      	ld	a,(de)				; 7
+(1)  115/  A2 : 77                      	ld	(hl),a				; 7
+(1)  116/  A3 :                         
+(1)  117/  A3 : 13                      	inc	de					; 6
+(1)  118/  A4 : 13                      	inc	de					; 6
+(1)  119/  A5 :                         	
+(1)  120/  A5 : 62                      	ld	h,d					; 4
+(1)  121/  A6 : 6B                      	ld	l,e					; 4
+(1)  122/  A7 : CB A4                   	res	4,h					; 8
+(1)  123/  A9 : CB 3C                   	srl	h					; 8
+(1)  124/  AB : CB 1D                   	rr	l					; 8
+(1)  125/  AD : 22 01 05                	ld	(playedSamples),hl	; 16
+(1)  126/  B0 :                         ; --- 78 cycles ---
+(1)  127/  B0 :                         
+(1)  128/  B0 : 01 01 40                	ld	bc,YM2612_DATA0		; 10
+(1)  129/  B3 :                         
+(1)  130/  B3 : FE 00                   	cp	0
+(1)  131/  B5 : FE 00                   	cp	0
+(1)  132/  B7 : 00                      	nop
+(1)  133/  B8 :                         
+(1)  134/  B8 :                         Loop_DacOnly:
+(1)  135/  B8 : 1A                      	ld	a,(de)
+(1)  136/  B9 :                         DisableDacInjection:
+(1)  137/  B9 : 02                      	ld	(bc),a
+(1)  138/  BA : 23                      	inc hl
+(1)  139/  BB : 22 01 05                	ld 	(playedSamples),hl
+(1)  140/  BE : 13                      	inc	de
+(1)  141/  BF : 13                      	inc de
+(1)  142/  C0 :                         	rept 10
+(1)  143/  C0 :                         	nop
+(1)  144/  C0 :                         	endm
+(1)  143/  C0 : 00                      	nop
+(1)  143/  C1 : 00                      	nop
+(1)  143/  C2 : 00                      	nop
+(1)  143/  C3 : 00                      	nop
+(1)  143/  C4 : 00                      	nop
+(1)  143/  C5 : 00                      	nop
+(1)  143/  C6 : 00                      	nop
+(1)  143/  C7 : 00                      	nop
+(1)  143/  C8 : 00                      	nop
+(1)  143/  C9 : 00                      	nop
+(1)  145/  CA : FE 00                   	cp	0
+(1)  146/  CC : FE 00                   	cp	0
+(1)  147/  CE :                         Z80EndRoutineAddress:
+(1)  148/  CE : C3 CE 00                	jp	$	; Will be Loop_DacOnly later on
+(1)  149/  D1 :                         
+(1)  150/  D1 :                         Init_EndSound:
+(1)  151/  D1 : 01 00 00                	ld	bc,0000h
+(1)  152/  D4 :                         $$loop_endSound1:
+(1)  153/  D4 : 1A                      	ld	a,(de)
+(1)  154/  D5 : 77                      	ld	(hl),a
+(1)  155/  D6 :                         	rept 14
+(1)  156/  D6 :                         	nop
+(1)  157/  D6 :                         	endm
+(1)  156/  D6 : 00                      	nop
+(1)  156/  D7 : 00                      	nop
+(1)  156/  D8 : 00                      	nop
+(1)  156/  D9 : 00                      	nop
+(1)  156/  DA : 00                      	nop
+(1)  156/  DB : 00                      	nop
+(1)  156/  DC : 00                      	nop
+(1)  156/  DD : 00                      	nop
+(1)  156/  DE : 00                      	nop
+(1)  156/  DF : 00                      	nop
+(1)  156/  E0 : 00                      	nop
+(1)  156/  E1 : 00                      	nop
+(1)  156/  E2 : 00                      	nop
+(1)  156/  E3 : 00                      	nop
+(1)  158/  E4 : 13                      	inc	de
+(1)  159/  E5 : 13                      	inc de
+(1)  160/  E6 : FE 00                   	cp	0
+(1)  161/  E8 : FE 00                   	cp	0
+(1)  162/  EA : 0B                      	dec	bc
+(1)  163/  EB : 78                      	ld	a,b
+(1)  164/  EC : B1                      	or	c
+(1)  165/  ED : C2 D4 00                	jp	nz,$$loop_endSound1
+(1)  166/  F0 :                         
+(1)  167/  F0 : F3                      	di
+(1)  168/  F1 : 76                      	halt
+(1)  169/  F2 :                         
+(1)  170/ 852 :                             dephase	; The rest of the labels are mapped normally
+(1)  171/ 852 :                         
+(1)  172/     852 :                     	cpu 68000
+(1)  173/     852 :                     
+(1)  174/     852 :                     Z80RomEnd
+     370/     852 :                     
+     371/     852 :                     Music:
+     372/     852 :                     	;binclude "continuity_test.bin" ; Test with increasing bytes to make sure no samples get skipped
+     373/     852 :                     	;binclude "24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; Great music right here
+     374/     852 :                     	;binclude "Don't Stand So Close To Me.raw" ; Another banger
+     375/     852 :                     	;binclude "Spirits In The Material World.raw" ; This is a good one
+     376/     852 :                     	;binclude "Every Little Thing She Does Is Magic.raw" ; Another nice one
+     377/     852 :                     	;binclude "Ki.raw" ; minceraft
+     378/     852 :                     	;binclude "Droopy likes your face.raw" ; Underrated
+     379/     852 :                     	binclude "Chris.raw" ; Chris
+     380/  2AE112 :                     	;binclude "Magnetic Circuit.raw" ; Notch what are you doing
+     381/  2AE112 :                     	;binclude "music.pcm" ; Let's not talk about this
+     382/  2AE112 :                     	;binclude "My Summary.raw"
+     383/  2AE112 :                     
+     384/  2AE112 :                     	binclude "Minecraft Earrape.raw"
+     385/  5788BA :                     
+     386/  5788BA :                     ROM_End
+ AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 2 - 1/29/2026 22:3:7
 
 
   Symbol Table (* = unused):
@@ -1294,7 +1291,7 @@
 *CH3_TIMERCTRL :                 27 - |  CHKException :                 228 C |
 *CONSTPI :        3.141592653589793 - |  CommandBuffer :               1500 C |
  DAC_ENABLE :                    2B - | *DAC_OUT :                       2A - |
-*DATE :                 "1/23/2026" - |  DisableDacInjection :           C1 C |
+*DATE :                 "1/29/2026" - |  DisableDacInjection :           B9 C |
  DivisionByZero :               21E C | *EXP_CTRL :                  A1000D - |
 *EXP_DATA :                  A10006 - | *EXP_SER_CTRL :              A1001E - |
 *EXP_SER_REC :               A1001C - | *EXP_SER_TRAN :              A1001A - |
@@ -1305,8 +1302,8 @@
 *HIPRI :                       8000 - | *HVFLIP :                      1800 - |
  HaltCPU :                      742 C | *INSUPMODE :                      1 - |
 *INTWIDTH :                      40 - |  IllegalInstruction :           214 C |
- Init_DacAndEffects :            28 C | *Init_DacAndFm :                 57 C |
-*Init_DacAndSn :                 87 C |  Init_EndSound :                 D9 C |
+ Init_DacAndEffects :            20 C | *Init_DacAndFm :                 4F C |
+*Init_DacAndSn :                 7F C |  Init_EndSound :                 D1 C |
  InterruptRequest :             26E C |  JOY1_CTRL :                 A10009 - |
  JOY1_DATA :                 A10003 - | *JOY1_SER_CTRL :             A10012 - |
 *JOY1_SER_REC :              A10010 - | *JOY1_SER_TRAN :             A1000E - |
@@ -1318,10 +1315,10 @@
 *JOY_U :                          0 - | *KEY_ON_OFF :                    28 - |
 *LFO_ENABLE :                    22 - | *LISTON :                         3 - |
 *LOPRI :                          0 - |  LineAEmulator :                250 C |
- LineFEmulator :                25A C |  Loop_DacOnly :                  C0 C |
+ LineFEmulator :                25A C |  Loop_DacOnly :                  B8 C |
  M68K_STACK :                FF0000 - |  M68K_WRAM :                 FF0000 - |
 *MACEXP :                         7 - | *MOMCPU :                     68000 - |
- MOMCPUNAME :               "68000" - |  Music :                        85A C |
+ MOMCPUNAME :               "68000" - |  Music :                        852 C |
 *NESTMAX :                      100 - | *NOFLIP :                         0 - |
 *PADDING :                        1 - | *PAL0 :                           0 - |
 *PAL1 :                        2000 - | *PAL2 :                        4000 - |
@@ -1331,12 +1328,12 @@
 *REG_MEMORYMODE :            A11000 - | *REG_SRAM :                  A130F1 - |
 *REG_TIME :                  A13000 - | *REG_TMSS :                  A14000 - |
 *REG_TMSS_CART :             A14101 - | *REG_VERSION :               A10001 - |
-*RELAXED :                        0 - |  ROM_End :                   3B7A13 C |
+*RELAXED :                        0 - |  ROM_End :                   5788BA C |
  ROM_Start :                   1500 C |  ReadJoypad :                   726 C |
 *SIZE_CRAM :                     80 - | *SIZE_VRAM :                   FFFF - |
 *SIZE_VSRAM :                    50 - | *SIZE_WRAM :                   FFFF - |
 *SIZE_Z80WRAM :                2000 - |  SampleBuffer :                1000 C |
- SpuriousException :            264 C | *TIME :                   "19:42:2" - |
+ SpuriousException :            264 C | *TIME :                    "22:3:7" - |
 *TIMER_A_H :                     24 - | *TIMER_A_L :                     25 - |
 *TIMER_B :                       26 - |  TRACEException :               246 C |
  TRAPException :                278 C |  TRAPVException :               232 C |
@@ -1366,24 +1363,25 @@
  YM2612_CTRL0 :                4000 - | *YM2612_CTRL1 :                4002 - |
  YM2612_DATA0 :                4001 - | *YM2612_DATA1 :                4003 - |
 *Z80BANK_CTRL :                6000 - | *Z80BANK_WINDOW :              8000 - |
- Z80EndRoutineAddress :          D6 C |  Z80Init :                       1E C |
- Z80Init.routineAddress :        25 C |  Z80RomEnd :                    85A C |
+ Z80EndRoutineAddress :          CE C |  Z80Init :                       16 C |
+ Z80Init.routineAddress :        1D C |  Z80RomEnd :                    852 C |
  Z80RomStart :                  760 C |  Z80_BUSREQ :                A11100 - |
  Z80_RESET :                 A11200 - | *Z80_STACK :                   2000 - |
  Z80_WRAM :                  A00000 - |  accurateSpeed :                  1 - |
- continue238 :                  310 C |  copy_program249 :              702 C |
- disable_cpu251 :               750 C |  i :                            438 - |
- loop_DacAndEffects259 :         2A C |  loop_DacAndFm260 :              5F C |
- loop_DacAndSn261 :              8F C |  loop_endSound1265 :             DC C |
- playedSamples :                501 C |  pureAudio :                      0 - |
- sampleIndex :               FF0000 C |  shouldStop :                FF0004 C |
- skip_alignment238 :            2D4 C |  skip_tracking238 :             302 C |
- smoothPlayback :                 1 - |  wait249 :                      71E C |
+ continue239 :                  310 C |  copy_program250 :              702 C |
+ disable_cpu252 :               750 C |  hardwareEarrape :                1 - |
+ i :                            438 - |  loop_DacAndEffects260 :         22 C |
+ loop_DacAndFm261 :              57 C |  loop_DacAndSn262 :              87 C |
+ loop_endSound1266 :             D4 C |  playedSamples :                501 C |
+ pureAudio :                      0 - |  sampleIndex :               FF0000 C |
+ shouldStop :                FF0004 C |  skip_alignment239 :            2D4 C |
+ skip_tracking239 :             302 C |  smoothPlayback :                 1 - |
+ wait250 :                      71E C |
 
-    285 symbols
+    286 symbols
     196 unused symbols
 
- AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 3 - 1/23/2026 19:42:2
+ AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 3 - 1/29/2026 22:3:7
 
 
   Defined Macros:
@@ -1397,7 +1395,7 @@ subaq                                 | waitZ80
 
      10 macros
 
- AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 4 - 1/23/2026 19:42:2
+ AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 4 - 1/29/2026 22:3:7
 
 
   Defined Functions:
@@ -1405,7 +1403,7 @@ subaq                                 | waitZ80
 
 notaddressregister                    | notdataregister                      
 
- AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 5 - 1/23/2026 19:42:2
+ AS V1.42 Beta [Bld 298] - Source File Sonic.68k - Page 5 - 1/29/2026 22:3:7
 
 
   Code Pages:
@@ -1415,10 +1413,10 @@ STANDARD (0 changed characters)
 
 1 code page
 
-0.05 seconds assembly time
+0.06 seconds assembly time
 
-   1672 lines source file
-   2618 lines incl. macro expansions
+   1671 lines source file
+   2617 lines incl. macro expansions
       2 passes
       0 errors
       0 warnings

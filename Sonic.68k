@@ -17,6 +17,7 @@ smoothPlayback:	equ TRUE	; Put it to FALSE to prevent 68k output during buffer l
 accurateSpeed:	equ TRUE	; Put it to FALSE to ignore 68k sample increment calculation
 ; I often use this switch to test how an ideal and perfect playback would sound, and it's pretty close compared to both 68k and Z80
 pureAudio:		equ FALSE	; Put it to TRUE to make only the 68k output DAC samples by defying the whole puropose of this audio driver
+hardwareEarrape:	equ TRUE	; Put this to TRUE to test the true power of the YM2612's DAC output (SW: EXTREMELY LOUD AUDIO)
 
 ROM_Start
 
@@ -179,8 +180,6 @@ UnknownError:
 
 VDP_VBlank:
 	; DPLC loading queues
-	;move.w	#12500,d0
-	;dbf	d0,*
 ; --- Variable cycles ---
 	stopZ80		; Initiate Z80 stop. 20
 	lea	YM2612_68K_DATA0,a3			; 8
@@ -373,13 +372,15 @@ Music:
 	;binclude "continuity_test.bin" ; Test with increasing bytes to make sure no samples get skipped
 	;binclude "24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; Great music right here
 	;binclude "Don't Stand So Close To Me.raw" ; Another banger
-	binclude "Spirits In The Material World.raw" ; This is a good one
+	;binclude "Spirits In The Material World.raw" ; This is a good one
 	;binclude "Every Little Thing She Does Is Magic.raw" ; Another nice one
 	;binclude "Ki.raw" ; minceraft
 	;binclude "Droopy likes your face.raw" ; Underrated
-	;binclude "Chris.raw" ; Chris
+	binclude "Chris.raw" ; Chris
 	;binclude "Magnetic Circuit.raw" ; Notch what are you doing
 	;binclude "music.pcm" ; Let's not talk about this
 	;binclude "My Summary.raw"
+
+	binclude "Minecraft Earrape.raw"
 
 ROM_End

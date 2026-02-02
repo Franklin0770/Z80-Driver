@@ -5,14 +5,12 @@ Z80RomStart
 
 	ld	bc,YM2612_CTRL0	; YM2612 bank 1 port
 	ld	hl,YM2612_DATA0	; YM2612 data port
-	ld	bc,YM2612_CTRL0	; YM2612 bank 1 port
-	ld	hl,YM2612_DATA0	; YM2612 data port
 
-	ld	a,DAC_ENABLE	; DAC enable address
-	ld	(bc),a			; Switch to DAC enable register
-	ld	(hl),80h		; Enable DAC
-	dec	a				; Now a is 2Ah (DAC_IN)
-	ld	(bc),a			; Switch to DAC data input
+	if hardwareEarrape
+		ld	a,2Ch
+		ld	(bc),a
+		ld	(hl),20h
+	endif
 	ld	a,DAC_ENABLE	; DAC enable address
 	ld	(bc),a			; Switch to DAC enable register
 	ld	(hl),80h		; Enable DAC
