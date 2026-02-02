@@ -1,8 +1,27 @@
-	listing off ; We don't need macro listing
-	page 0 ; We don't want form feeds
+	listing off	; We don't need macro listing
+	page 0	; We don't want form feeds
 
 notdataregister function r,((charfromstr(r,0) <> 'd') && (charfromstr(r,0) <> 'D')) || ((charfromstr(r,1) < '0') && (charfromstr(r,1) > '7'))
 notaddressregister function r,((charfromstr(r,0) <> 'a') && (charfromstr(r,0) <> 'A')) || ((charfromstr(r,1) < '0') && (charfromstr(r,1) > '6'))
+
+YM2612ctrl_ALandFB function ch,($B0|ch)
+YM2612ctrl_ARandRS function ch,op,($50|ch|op)
+YM2612ctrl_DRandAM function ch,op,($60|ch|op)
+YM2612ctrl_RRandSL function ch,op,($80|ch|op)
+YM2612ctrl_SR function ch,op,($70|ch|op)
+YM2612ctrl_MULandDT function ch,op,($30|ch|op)
+YM2612ctrl_TL function ch,op,($40|ch|op)
+YM2612ctrl_FRhigh function ch,($A0|ch|$04)
+YM2612ctrl_FRlow function ch,($A0|ch|$00)
+
+YM2612data_ALGandFB function alg,feed,((feed&$07)<<3)|(alg&$07)
+YM2612data_ARandRS function ar,rs,((rs&$03)<<6)|(ar&$1F)
+YM2612data_DRandAM function dr,am,((am&$01)<<7)|(dr&$1F)
+YM2612data_RRandSL function rr,sl,((sl&$0F)<<4)|(rr&$0F)
+YM2612data_SR function sr,(sr&$1F)
+YM2612data_MULandDT function mul,dt,((dt&$07)<<4)|(mul&$0F)
+YM2612data_TL function tl,(tl&$1F)
+YM2612data_FR function fr,bl,(((bl&$07)<<3|(fr>>8)&$07)<<8)|(fr&$FF)
 
 ; ---------------------------------------------------------------------------
 ; Z80 control from 68k macros
@@ -14,7 +33,7 @@ stopZ80: macro r1,r2
 	endif
 
 	if "r1" = ""	; Macro without registers
-		move.w	#$100,(Z80_BUSREQ).l
+		move.w	#$100,(Z80_CTRL.BUSREQ).l
 	else	; Macro with registers (for faster execution)
 		if "r2" = ""
 			if notaddressregister("r1")
@@ -39,7 +58,7 @@ waitZ80: macro r1,r2
 
 	if "r1" = ""	; Macro without breaking registers
 $$wait: 
-	btst	#0,(Z80_BUSREQ).l
+	btst	#0,(Z80_CTRL.BUSREQ).l
 	bne.s	$$wait
 
 	else	; Macro breaking registers (for faster execution)
@@ -62,7 +81,7 @@ startZ80: macro r1,r2
 	endif
 
 	if "r1" = ""	; Macro without registers
-		move.w	#0,(Z80_BUSREQ).l
+		move.w	#0,(Z80_CTRL.BUSREQ).l
 	else	; Macro with registers (for faster execution)
 		if "r2" = ""
 			if notaddressregister("r1")
@@ -86,7 +105,7 @@ assertZ80Reset:	macro r1,r2
 	endif
 
 	if "r1" = ""	; Macro without registers
-		move.w	#0,(Z80_RESET).l
+		move.w	#0,(Z80_CTRL.RESET).l
 	else	; Macro with registers (for faster execution)
 		if "r2" = ""
 			if notaddressregister("r1")
@@ -110,7 +129,7 @@ deassertZ80Reset: macro r1,r2
 	endif
 
 	if "r1" = ""	; Macro without registers
-		move.w	#$100,(Z80_RESET).l
+		move.w	#$100,(Z80_CTRL.RESET).l
 	else	; Macro with registers (for faster execution)
 		if "r2" = ""
 			if notaddressregister("r1")
@@ -270,8 +289,8 @@ i set i + 152
 	endm
 
 loopTest: macro pitch
-	lea	(YM2612_CTRL0|Z80_WRAM),a2
-	lea	(YM2612_DATA0|Z80_WRAM),a1
+	lea	(YM2612_CTRL0|Z80_CTRL.WRAM),a2
+	lea	(YM2612_DATA0|Z80_CTRL.WRAM),a1
 	move.b	#DAC_ENABLE,(a2)
 	move.b	#$80,(a1)
 	move.b	#DAC_OUT,(a2)

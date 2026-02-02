@@ -27,7 +27,7 @@ ROM_Start
 ; 68000 vectors (with its error code in square brackets, AAAAAAxx)
 ; ================================================================
 
-		dc.l M68K_STACK			; Initial stack pointer value (SP value)
+		dc.l M68K.STACK			; Initial stack pointer value (SP value)
 		dc.l EntryPoint			; Start of program (PC value)
 		dc.l BusError			; Bus error							[1]
 		dc.l AddressError		; Address error						[2]
@@ -181,10 +181,10 @@ UnknownError:
 VDP_VBlank:
 	; DPLC loading queues
 ; --- Variable cycles ---
-	stopZ80		; Initiate Z80 stop. 20
-	lea	YM2612_68K_DATA0,a3			; 8
-	lea	playedSamples+1|Z80_WRAM,a4	; 8
-	lea Z80_BUSREQ,a5				; 8
+	stopZ80								; Initiate Z80 stop. 20
+	lea	YM2612_68K.DATA0,a3				; 8
+	lea	playedSamples+1|Z80_CTRL.WRAM,a4	; 8
+	lea Z80_CTRL.BUSREQ,a5			; 8
 	move.l	(sampleIndex),a2		; 16
 	moveq	#0,d0					; 4
 	waitZ80	d0,a5					; 12 (at best)
@@ -210,7 +210,7 @@ VDP_VBlank:
 
 	move.l	a0,d2	; D2 is now the updated sample index. 4
 
-	lea	SampleBuffer|Z80_WRAM,a1	; 8
+	lea	SampleBuffer|Z80_CTRL.WRAM,a1	; 8
 ; --- 24 cycles in total ---
 	btst	#0,d2					; Is the sample index even? 6
 	beq.s	$$skip_alignment		; If yes, skip the alignment. 10
@@ -226,8 +226,8 @@ $$skip_alignment:
 ; --- 84 cycles in total ---
 	bpl.s	$$skip_tracking		; 10 cycles on branch, 8 cycles no branch
 	; Z80 playback with sample tracking routine
-	move.b	#Init_EndSound,(Z80Init.routineAddress+2)|Z80_WRAM	; Little endian, 16 cycles
-	lea	(Init_EndSound+2)|Z80_WRAM,a4		; 8
+	move.b	#Init_EndSound,(Z80Init.routineAddress+2)|Z80_CTRL.WRAM	; Little endian, 16 cycles
+	lea	(Init_EndSound+2)|Z80_CTRL.WRAM,a4		; 8
 	move.b	d0,(a4)							; 8
 	lsr.w	#8,d0							; 22
 	move.b	d0,-(a4)						; 8
@@ -236,13 +236,13 @@ $$skip_alignment:
 ; --- 82 cycles in total ---
 $$skip_tracking:
 	; Normal Z80 playback routine
-	lea	(Z80Init.routineAddress+1)|Z80_WRAM,a4	; 8
+	lea	(Z80Init.routineAddress+1)|Z80_CTRL.WRAM,a4	; 8
 	move.b	#Init_DacAndEffects&$FF,(a4)+		; 12
 	move.b	#Init_DacAndEffects>>8,(a4)			; 12
 
 $$continue:
 ; --- 126 cycles in total ---
-	clr.b	(DisableDacInjection|Z80_WRAM)		; 16
+	clr.b	(DisableDacInjection|Z80_CTRL.WRAM)		; 16
 
 	loadSamples	; D0 and D1 break here
 
@@ -254,11 +254,31 @@ $$continue:
 	endif
 
 ; --- Cycle count restarts ---
-	lea	(Z80EndRoutineAddress+1)|Z80_WRAM,a0	; 8
+	lea	(Z80EndRoutineAddress+1)|Z80_CTRL.WRAM,a0	; 8
 	move.b	#Z80Init&$FF,(a0)+					; 12
 	move.b	#Z80Init>>8,(a0)					; 12
 	
 	move.l	d2,(sampleIndex)					; 20
+
+	moveq	#0,d0
+	lea	FmControl,a0
+	lea	CommandBuffer|Z80_CTRL.WRAM,a1
+	move.b	(a0)+,d1
+	move.b	d1,(Init_DacAndFm+1)
+	lsr.b	#2,d1
+	move.l	d1,d2
+
+$$load_fm_ctrl:
+	move.l	(a0)+,d0
+	movep.l	d0,(a1)+
+	dbf d1,$$load_fm_ctrl
+
+	lea	(CommandBuffer+1)|Z80_CTRL.WRAM,a1
+
+$$load_fm_data:
+	move.l	(a0)+,d0
+	movep.l	d0,(a1)+
+	dbf d2,$$load_fm_data
 
 	startZ80 a5	; Restart Z80
 
@@ -281,33 +301,33 @@ EntryPoint:
 
 ; VDP setup reference: https://plutiedev.com/vdp-setup
 
-	lea VDP_CTRL,a0
+	lea VDP.CTRL,a0
 
 	tst.w 	(a0) ; Testing the VDP control port safely resets it
 	
 ; Register reference: https://plutiedev.com/vdp-registers
 
-	move.l  #(VDPREG_MODE1|%00000100)<<16|(VDPREG_MODE2|%01110100),(a0)	; Mode register #1 and Mode register #2
-	move.l  #(VDPREG_MODE3|%00000000)<<16|(VDPREG_MODE4|%10000001),(a0)	; Mode register #3 and Mode Register #4
+	move.l  #(VDP_REG.MODE1|%00000100)<<16|(VDP_REG.MODE2|%01110100),(a0)	; Mode register #1 and Mode register #2
+	move.l  #(VDP_REG.MODE3|%00000000)<<16|(VDP_REG.MODE4|%10000001),(a0)	; Mode register #3 and Mode Register #4
     
 ; Planes reference: https://segaretro.org/Sega_Mega_Drive/Planes
 
- 	move.l  #VDPREG_PLANEA|(VRAM_PLANEA>>10)<<16|(VDPREG_PLANEB|(VRAM_PLANEB>>13)),(a0)	; Plane A and Plane B address
-	move.l  #VDPREG_SPRITE|(VRAM_SPRITE>>9)<<16|(VDPREG_WINDOW|(VRAM_WINDOW>>10)),(a0)	; Sprite and Window address
-	move.w  #VDPREG_HSCROLL|(VRAM_HSCROLL>>10),(a0)										; Horizontal scroll address
+ 	move.l  #VDP_REG.PLANEA|(VDP_VRAM.PLANEA>>10)<<16|(VDP_REG.PLANEB|(VDP_VRAM.PLANEB>>13)),(a0)	; Plane A and Plane B address
+	move.l  #VDP_REG.SPRITE|(VDP_VRAM.SPRITE>>9)<<16|(VDP_REG.WINDOW|(VDP_VRAM.WINDOW>>10)),(a0)	; Sprite and Window address
+	move.w  #VDP_REG.HSCROLL|(VDP_VRAM.HSCROLL>>10),(a0)										; Horizontal scroll address
     
-	move.l  #(VDPREG_WINX|$00)<<16|(VDPREG_WINY|$00),(a0)			; Window X split and Window Y split
-	move.l  #(VDPREG_SIZE|%00000001)<<16|(VDPREG_BGCOL|$00),(a0)	; Tilemap size and Background color
-	move.l  #(VDPREG_INCR|$02)<<16|(VDPREG_HRATE|$FF),(a0)			; Autoincrement and HBlank IRQ rate
+	move.l  #(VDP_REG.WINX|$00)<<16|(VDP_REG.WINY|$00),(a0)			; Window X split and Window Y split
+	move.l  #(VDP_REG.SIZE|%00000001)<<16|(VDP_REG.BGCOL|$00),(a0)	; Tilemap size and Background color
+	move.l  #(VDP_REG.INCR|$02)<<16|(VDP_REG.HRATE|$FF),(a0)			; Autoincrement and HBlank IRQ rate
 
 	moveq 	#$40,d0
-	move.b	d0,(JOY1_CTRL)
-	move.b	d0,(JOY1_DATA)
+	move.b	d0,(JOY1.CTRL)
+	move.b	d0,(JOY1.DATA)
 
 ; Start of ROM code
 
-	lea Z80_BUSREQ,a3
-	lea Z80_RESET,a2
+	lea Z80_CTRL.BUSREQ,a3
+	lea Z80_CTRL.RESET,a2
 
 	move.w	#$100,d2	; Assert, stop
 	moveq	#0,d1		; Deassert, start
@@ -317,24 +337,24 @@ EntryPoint:
 	deassertZ80Reset d2,a2	; Release reset
 
 ; We can do more stuff while the Z80 is theoretically stopping
-	lea Z80RomStart,a0
-	lea Z80_WRAM,a1
+	lea Z80ROM_Start,a0
+	lea Z80_CTRL.WRAM,a1
 	move.l 	#Music,(sampleIndex)
-	move.w	#(Z80RomEnd-Z80RomStart)-1,d0	; Mustn't go over $7F
+	move.w	#(Z80ROM_End-Z80ROM_Start)-1,d0	; Mustn't go over $7F
 
 $$copy_program:
 	move.b	(a0)+,(a1)+
 	dbf d0,$$copy_program
 
-	clr.b	(playedSamples|Z80_WRAM)
-	clr.b	(playedSamples+1|Z80_WRAM)
+	lea playedSamples|Z80_CTRL.WRAM,a0
+	clr.b	(a0)+
+	clr.b	(a0)
 	clr.b	(shouldStop)
 
 	assertZ80Reset d2,a2	; Assert reset
 
 	moveq	#20,d0
-$$wait:	; Wait for the YM2612
-    dbf	d0,$$wait
+    dbf	d0,*	; Wait for the YM2612
 
 	deassertZ80Reset d2,a2	; Release reset
 
@@ -344,31 +364,31 @@ $$wait:	; Wait for the YM2612
 
 	startZ80 d1,a3			; Release bus
 
-ReadJoypad:
-	lea	JOY1_DATA,a0
+$$read_joypad
+	lea	JOY1.DATA,a0
 	move.b 	#$40,(a0)	; write $40 to request controller state
 	nop	; wait for the bus to get the controller state
 	nop
 	nop
 	nop
 	move.b	(a0),d0	; put control state somewhere
-	btst 	#JOY_C,d0
-	beq.w	PlaySample
+	btst 	#JOY.C,d0
+	beq.w	$$play_sample
 
-HaltCPU:
+$$halt_cpu:
 	tst.b	(shouldStop)
 	bne.s	$$disable_cpu
 	stop	#$2500
-	bra.s	ReadJoypad
+	bra.s	$$read_joypad
 $$disable_cpu:
 	stop	#$2700
-PlaySample:
+$$play_sample:
 	move.l	#Music,(sampleIndex)
-	bra.s	HaltCPU
+	bra.s	$$halt_cpu
 
 	include "Driver.z80"
 
-Music:
+Music
 	;binclude "continuity_test.bin" ; Test with increasing bytes to make sure no samples get skipped
 	;binclude "24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; Great music right here
 	;binclude "Don't Stand So Close To Me.raw" ; Another banger
@@ -382,5 +402,26 @@ Music:
 	;binclude "My Summary.raw"
 
 	binclude "Minecraft Earrape.raw"
+
+FmControl
+	dc.b	8
+	dc.b	YM2612ctrl_ALandFB(CH1_4)
+	dc.b	YM2612ctrl_ARandRS(CH1_4,OP1)
+	dc.b	YM2612ctrl_DRandAM(CH1_4,OP1)
+	dc.b	YM2612ctrl_RRandSL(CH1_4,OP1)
+	dc.b	YM2612ctrl_SR(CH1_4,OP1)
+	dc.b	YM2612ctrl_MULandDT(CH1_4,OP1)
+	dc.b	YM2612ctrl_TL(CH1_4,OP1)
+	dc.b	YM2612ctrl_FR(CH1_4)
+
+FmData
+	dc.b	YM2612data_ALGandFB(0,4)
+	dc.b	YM2612data_ARandRS(31,0)
+	dc.b	YM2612data_DRandAM(8,0)
+	dc.b	YM2612data_RRandSL(3,15)
+	dc.b	YM2612data_SR(0)
+	dc.b	YM2612data_MULandDT(5,2)
+	dc.b	YM2612data_TL(42)
+	dc.w	YM2612data_FR(4,644)
 
 ROM_End

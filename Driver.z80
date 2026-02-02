@@ -1,10 +1,10 @@
 	cpu Z80
-Z80RomStart
+Z80ROM_Start
 
     phase 0	; Set label addresses to the start of the Z80 RAM
 
-	ld	bc,YM2612_CTRL0	; YM2612 bank 1 port
-	ld	hl,YM2612_DATA0	; YM2612 data port
+	ld	bc,YM2612.CTRL0	; YM2612 bank 1 port
+	ld	hl,YM2612.DATA0	; YM2612 data port
 
 	if hardwareEarrape
 		ld	a,2Ch
@@ -23,8 +23,8 @@ Z80RomStart
 
 Z80Init:
 	ld	de,SampleBuffer	; Reset DE
-	ld	hl,YM2612_DATA0	; Reset HL
-	;ld	sp,Z80_STACK	; Align stack pointer correctly
+	ld	hl,YM2612.DATA0	; Reset HL
+	;ld	sp,Z80.STACK	; Align stack pointer correctly
 	exx
 .routineAddress:
 	jp	$
@@ -43,7 +43,6 @@ $$loop_DacAndEffects:
 	endm
 	djnz $$loop_DacAndEffects
 	; 112 cycles per loop
-
 	exx								; 4
 	ld	a,(de)						; 7
 	ld	(hl),a						; 7
@@ -61,22 +60,28 @@ $$loop_DacAndEffects:
 
 	ld	h,b							; 4
 	ld	l,c							; 4
-	exx								; 4
+	;exx								; 4
 
 Init_DacAndFm:
-	ld	b,128
+	ld	bc,0000h
 	ld	de,CommandBuffer
-	ld	hl,YM2612_CTRL0
+	ld	hl,YM2612.CTRL0
 $$loop_DacAndFm:
+	ld	a,(hl)
+	inc	hl
+	add a,(hl)
+	rra
+	ld	(de),a
+	inc	de
 	exx
+	ldi
 	ld	a,(de)
 	ld	(hl),a
 	inc	de
-	inc	de
+	dec	l
 	exx
-	rept 17
-	nop
-	endm
+	ld	a,DAC_IN
+	ld	(de),a
 	djnz $$loop_DacAndFm
 
 	exx			; 4
@@ -97,7 +102,7 @@ $$loop_DacAndFm:
 Init_DacAndSn:
 	ld	b,32
 	ld	de,CommandBuffer
-	ld	hl,PSG_PORT
+	ld	hl,Z80.PSG
 $$loop_DacAndSn:
 	exx
 	ld	a,(de)
@@ -125,7 +130,7 @@ $$loop_DacAndSn:
 	ld	(playedSamples),hl	; 16
 ; --- 78 cycles ---
 
-	ld	bc,YM2612_DATA0		; 10
+	ld	bc,YM2612.DATA0		; 10
 
 	cp	0
 	cp	0
@@ -171,4 +176,4 @@ $$loop_endSound1:
 
 	cpu 68000
 
-Z80RomEnd
+Z80ROM_End

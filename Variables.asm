@@ -6,7 +6,7 @@
 ;		Motorola 68000
 ; --------------------------
 
-	org M68K_WRAM
+	org M68K.WRAM
 
 sampleIndex:	ds.l 1	; Samples after Z80 routine execution
 shouldStop:		ds.b 1	; It's zero when the execution continues
@@ -16,8 +16,8 @@ shouldStop:		ds.b 1	; It's zero when the execution continues
 ; ----------------------
 
 	padding	off
+	
 	org $501
-
 playedSamples:	ds.w 1	; Little-endian
 
 	org $1000
