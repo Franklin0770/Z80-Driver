@@ -10,6 +10,7 @@
 
 sampleIndex:	ds.l 1	; Samples after Z80 routine execution
 shouldStop:		ds.b 1	; It's zero when the execution continues
+noMoreFm:		ds.b 1
 
 ; ----------------------
 ;		Zilog Z80

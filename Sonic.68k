@@ -17,7 +17,7 @@ smoothPlayback:	equ TRUE	; Put it to FALSE to prevent 68k output during buffer l
 accurateSpeed:	equ TRUE	; Put it to FALSE to ignore 68k sample increment calculation
 ; I often use this switch to test how an ideal and perfect playback would sound, and it's pretty close compared to both 68k and Z80
 pureAudio:		equ FALSE	; Put it to TRUE to make only the 68k output DAC samples by defying the whole puropose of this audio driver
-hardwareEarrape:	equ TRUE	; Put this to TRUE to test the true power of the YM2612's DAC output (SW: EXTREMELY LOUD AUDIO)
+hardwareEarrape:	equ FALSE	; Put this to TRUE to test the true power of the YM2612's DAC output (SW: EXTREMELY LOUD AUDIO)
 
 ROM_Start
 
@@ -208,41 +208,19 @@ VDP_VBlank:
 		addaq	(BUFFER_ITERATIONS*3)+2,a0	; Sample index after 68k routine execution (A2 at the end, basically). 8
 	endif
 
-	move.l	a0,d2	; D2 is now the updated sample index. 4
+	move.l	a0,d4	; D4 is now the updated sample index. 4
 
 	lea	SampleBuffer|Z80_CTRL.WRAM,a1	; 8
 ; --- 24 cycles in total ---
-	btst	#0,d2					; Is the sample index even? 6
+	btst	#0,d4					; Is the sample index even? 6
 	beq.s	$$skip_alignment		; If yes, skip the alignment. 10
 	move.b	(a0)+,(a1)				; If not, the 68k will crash, so we avoid it. 12
 	addq.l	#2,a1					; 8
-	move.l	a0,d2	; D2 is now the updated sample index. 4
+	move.l	a0,d4	; D4 is now the updated sample index. 4
 $$skip_alignment:
 	nop				; 4
 	nop				; 4
 	nop				; 4
-	move.l	#ROM_End,d0			; 12
-	sub.l	d2,d0				; Is the audio about to end (ends on Z80 buffer)? 8
-; --- 84 cycles in total ---
-	bpl.s	$$skip_tracking		; 10 cycles on branch, 8 cycles no branch
-	; Z80 playback with sample tracking routine
-	move.b	#Init_EndSound,(Z80Init.routineAddress+2)|Z80_CTRL.WRAM	; Little endian, 16 cycles
-	lea	(Init_EndSound+2)|Z80_CTRL.WRAM,a4		; 8
-	move.b	d0,(a4)							; 8
-	lsr.w	#8,d0							; 22
-	move.b	d0,-(a4)						; 8
-	move.b	#1,shouldStop					; 16
-	bra.s	$$continue						; 10
-; --- 82 cycles in total ---
-$$skip_tracking:
-	; Normal Z80 playback routine
-	lea	(Z80Init.routineAddress+1)|Z80_CTRL.WRAM,a4	; 8
-	move.b	#Init_DacAndEffects&$FF,(a4)+		; 12
-	move.b	#Init_DacAndEffects>>8,(a4)			; 12
-
-$$continue:
-; --- 126 cycles in total ---
-	clr.b	(DisableDacInjection|Z80_CTRL.WRAM)		; 16
 
 	loadSamples	; D0 and D1 break here
 
@@ -252,33 +230,77 @@ $$continue:
 		addq.l	#1,a2
 		nop
 	endif
-
-; --- Cycle count restarts ---
-	lea	(Z80EndRoutineAddress+1)|Z80_CTRL.WRAM,a0	; 8
-	move.b	#Z80Init&$FF,(a0)+					; 12
-	move.b	#Z80Init>>8,(a0)					; 12
 	
-	move.l	d2,(sampleIndex)					; 20
+	move.l	d4,(sampleIndex)	; 20
 
-	moveq	#0,d0
+	tst.b	(noMoreFm)
+	bne.w	$$skip_sound
+
+	moveq	#0,d1
 	lea	FmControl,a0
-	lea	CommandBuffer|Z80_CTRL.WRAM,a1
+	lea	CommandBuffer|Z80_CTRL.WRAM,a2
 	move.b	(a0)+,d1
-	move.b	d1,(Init_DacAndFm+1)
+	move.b	d1,((FmIterations+1)|Z80_CTRL.WRAM)
+	move.l	d1,d3
 	lsr.b	#2,d1
+	subq.b	#1,d1
 	move.l	d1,d2
+	andi.l	#$8-1,d3
 
 $$load_fm_ctrl:
 	move.l	(a0)+,d0
-	movep.l	d0,(a1)+
+	movep.l	d0,(a2)
+	addq.l	#8,a2
 	dbf d1,$$load_fm_ctrl
 
-	lea	(CommandBuffer+1)|Z80_CTRL.WRAM,a1
+	lea	FmData,a1
+	lea	(CommandBuffer+1)|Z80_CTRL.WRAM,a3
 
 $$load_fm_data:
-	move.l	(a0)+,d0
-	movep.l	d0,(a1)+
+	move.l	(a1)+,d0
+	movep.l	d0,(a3)
+	addq.l	#8,a3
 	dbf d2,$$load_fm_data
+
+	subq.b	#1,d3
+	bls.s	$$skip_remainder
+
+$$load_remainder:
+	move.b	(a0)+,(a2)+
+	move.b	(a1)+,(a2)+
+	dbf d3,$$load_remainder
+
+$$skip_remainder:
+	st	(noMoreFm)
+
+	move.l	#ROM_End,d0			; 12
+	sub.l	d4,d0				; Is the audio about to end (ends on Z80 buffer)? 8
+	bpl.s	$$skip_tracking		; 10 cycles on branch, 8 cycles no branch
+	; Z80 playback with sample tracking routine
+	move.b	#Init_EndSound,(Z80Init.routineAddress+2)|Z80_CTRL.WRAM	; Little endian, 16 cycles
+	lea	(Init_EndSound+2)|Z80_CTRL.WRAM,a0	; 8
+	move.b	d0,(a0)							; 8
+	lsr.w	#8,d0							; 22
+	move.b	d0,-(a0)						; 8
+	st	(shouldStop)						; 16
+	bra.s	$$continue						; 10
+$$skip_tracking:
+	; Normal Z80 playback routine
+	lea	(Z80Init.routineAddress+1)|Z80_CTRL.WRAM,a0	; 8
+	move.b	#Init_DacAndFm&$FF,(a0)+				; 12
+	move.b	#Init_DacAndFm>>8,(a0)					; 12
+	bra.s	$$continue
+
+$$skip_sound:
+	lea	(Z80Init.routineAddress+1)|Z80_CTRL.WRAM,a0	; 8
+	move.b	#Init_DacOnly&$FF,(a0)+					; 12
+	move.b	#Init_DacOnly>>8,(a0)					; 12
+
+$$continue:
+	lea	(Z80EndRoutineAddress+1)|Z80_CTRL.WRAM,a0	; 8
+	move.b	#Z80Init&$FF,(a0)+						; 12
+	move.b	#Z80Init>>8,(a0)						; 12
+	clr.b	(DisableDacInjection|Z80_CTRL.WRAM)		; 16
 
 	startZ80 a5	; Restart Z80
 
@@ -307,18 +329,18 @@ EntryPoint:
 	
 ; Register reference: https://plutiedev.com/vdp-registers
 
-	move.l  #(VDP_REG.MODE1|%00000100)<<16|(VDP_REG.MODE2|%01110100),(a0)	; Mode register #1 and Mode register #2
+	move.l  #(VDP_REG.MODE1|%00000100)<<16|(VDP_REG.MODE2|%00101100),(a0)	; Mode register #1 and Mode register #2 (Display and DMA are OFF)
 	move.l  #(VDP_REG.MODE3|%00000000)<<16|(VDP_REG.MODE4|%10000001),(a0)	; Mode register #3 and Mode Register #4
     
 ; Planes reference: https://segaretro.org/Sega_Mega_Drive/Planes
 
  	move.l  #VDP_REG.PLANEA|(VDP_VRAM.PLANEA>>10)<<16|(VDP_REG.PLANEB|(VDP_VRAM.PLANEB>>13)),(a0)	; Plane A and Plane B address
 	move.l  #VDP_REG.SPRITE|(VDP_VRAM.SPRITE>>9)<<16|(VDP_REG.WINDOW|(VDP_VRAM.WINDOW>>10)),(a0)	; Sprite and Window address
-	move.w  #VDP_REG.HSCROLL|(VDP_VRAM.HSCROLL>>10),(a0)										; Horizontal scroll address
+	move.w  #VDP_REG.HSCROLL|(VDP_VRAM.HSCROLL>>10),(a0)											; Horizontal scroll address
     
 	move.l  #(VDP_REG.WINX|$00)<<16|(VDP_REG.WINY|$00),(a0)			; Window X split and Window Y split
 	move.l  #(VDP_REG.SIZE|%00000001)<<16|(VDP_REG.BGCOL|$00),(a0)	; Tilemap size and Background color
-	move.l  #(VDP_REG.INCR|$02)<<16|(VDP_REG.HRATE|$FF),(a0)			; Autoincrement and HBlank IRQ rate
+	move.l  #(VDP_REG.INCR|$02)<<16|(VDP_REG.HRATE|$FF),(a0)		; Autoincrement and HBlank IRQ rate
 
 	moveq 	#$40,d0
 	move.b	d0,(JOY1.CTRL)
@@ -337,19 +359,20 @@ EntryPoint:
 	deassertZ80Reset d2,a2	; Release reset
 
 ; We can do more stuff while the Z80 is theoretically stopping
-	lea Z80ROM_Start,a0
-	lea Z80_CTRL.WRAM,a1
 	move.l 	#Music,(sampleIndex)
 	move.w	#(Z80ROM_End-Z80ROM_Start)-1,d0	; Mustn't go over $7F
+	lea playedSamples|Z80_CTRL.WRAM,a0
+	clr.b	(a0)+
+	clr.b	(a0)
+	sf	(shouldStop)
+	sf	(noMoreFm)
+
+	lea Z80ROM_Start,a0
+	lea Z80_CTRL.WRAM,a1
 
 $$copy_program:
 	move.b	(a0)+,(a1)+
 	dbf d0,$$copy_program
-
-	lea playedSamples|Z80_CTRL.WRAM,a0
-	clr.b	(a0)+
-	clr.b	(a0)
-	clr.b	(shouldStop)
 
 	assertZ80Reset d2,a2	; Assert reset
 
@@ -388,40 +411,97 @@ $$play_sample:
 
 	include "Driver.z80"
 
+	align 2
+
 Music
 	;binclude "continuity_test.bin" ; Test with increasing bytes to make sure no samples get skipped
+
 	;binclude "24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; Great music right here
 	;binclude "Don't Stand So Close To Me.raw" ; Another banger
 	;binclude "Spirits In The Material World.raw" ; This is a good one
 	;binclude "Every Little Thing She Does Is Magic.raw" ; Another nice one
 	;binclude "Ki.raw" ; minceraft
 	;binclude "Droopy likes your face.raw" ; Underrated
-	binclude "Chris.raw" ; Chris
+	;binclude "Chris.raw" ; Chris
 	;binclude "Magnetic Circuit.raw" ; Notch what are you doing
+	binclude "Lava Chicken.raw" ; Minecraft?
 	;binclude "music.pcm" ; Let's not talk about this
 	;binclude "My Summary.raw"
 
-	binclude "Minecraft Earrape.raw"
+	;binclude "Minecraft Earrape.raw"
 
+	padding off
+	rorg	(~*)&1
 FmControl
-	dc.b	8
-	dc.b	YM2612ctrl_ALandFB(CH1_4)
+	dc.b	29
+
 	dc.b	YM2612ctrl_ARandRS(CH1_4,OP1)
 	dc.b	YM2612ctrl_DRandAM(CH1_4,OP1)
 	dc.b	YM2612ctrl_RRandSL(CH1_4,OP1)
 	dc.b	YM2612ctrl_SR(CH1_4,OP1)
 	dc.b	YM2612ctrl_MULandDT(CH1_4,OP1)
 	dc.b	YM2612ctrl_TL(CH1_4,OP1)
-	dc.b	YM2612ctrl_FR(CH1_4)
+	
+	dc.b	YM2612ctrl_ARandRS(CH1_4,OP2)
+	dc.b	YM2612ctrl_DRandAM(CH1_4,OP2)
+	dc.b	YM2612ctrl_RRandSL(CH1_4,OP2)
+	dc.b	YM2612ctrl_SR(CH1_4,OP2)
+	dc.b	YM2612ctrl_MULandDT(CH1_4,OP2)
+	dc.b	YM2612ctrl_TL(CH1_4,OP2)
+
+	dc.b	YM2612ctrl_ARandRS(CH1_4,OP3)
+	dc.b	YM2612ctrl_DRandAM(CH1_4,OP3)
+	dc.b	YM2612ctrl_RRandSL(CH1_4,OP3)
+	dc.b	YM2612ctrl_SR(CH1_4,OP3)
+	dc.b	YM2612ctrl_MULandDT(CH1_4,OP3)
+	dc.b	YM2612ctrl_TL(CH1_4,OP3)
+
+	dc.b	YM2612ctrl_ARandRS(CH1_4,OP4)
+	dc.b	YM2612ctrl_DRandAM(CH1_4,OP4)
+	dc.b	YM2612ctrl_RRandSL(CH1_4,OP4)
+	dc.b	YM2612ctrl_SR(CH1_4,OP4)
+	dc.b	YM2612ctrl_MULandDT(CH1_4,OP4)
+	dc.b	YM2612ctrl_TL(CH1_4,OP4)
+
+	dc.b	YM2612ctrl_ALandFB(CH1_4)
+	dc.b 	$28	; Key-On and Key-Off
+	dc.w	YM2612ctrl_FRandBL(CH1_4)
+	dc.b 	$28
+
+	align 2
 
 FmData
-	dc.b	YM2612data_ALGandFB(0,4)
 	dc.b	YM2612data_ARandRS(31,0)
 	dc.b	YM2612data_DRandAM(8,0)
 	dc.b	YM2612data_RRandSL(3,15)
 	dc.b	YM2612data_SR(0)
 	dc.b	YM2612data_MULandDT(5,2)
 	dc.b	YM2612data_TL(42)
-	dc.w	YM2612data_FR(4,644)
+
+	dc.b	YM2612data_ARandRS(31,0)
+	dc.b	YM2612data_DRandAM(10,0)
+	dc.b	YM2612data_RRandSL(4,15)
+	dc.b	YM2612data_SR(0)
+	dc.b	YM2612data_MULandDT(1,7)
+	dc.b	YM2612data_TL(18)
+
+	dc.b	YM2612data_ARandRS(31,0)
+	dc.b	YM2612data_DRandAM(4,0)
+	dc.b	YM2612data_RRandSL(1,11)
+	dc.b	YM2612data_SR(0)
+	dc.b	YM2612data_MULandDT(1,2)
+	dc.b	YM2612data_TL(48)
+
+	dc.b	YM2612data_ARandRS(31,0)
+	dc.b	YM2612data_DRandAM(9,0)
+	dc.b	YM2612data_RRandSL(9,15)
+	dc.b	YM2612data_SR(0)
+	dc.b	YM2612data_MULandDT(1,7)
+	dc.b	YM2612data_TL(0)
+
+	dc.b	YM2612data_ALGandFB(0,4)
+	dc.b	0
+	dc.w	YM2612data_FRandBL(644,4)
+	dc.b	%11110000
 
 ROM_End

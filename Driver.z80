@@ -1,7 +1,9 @@
 	cpu Z80
 Z80ROM_Start
 
-    phase 0	; Set label addresses to the start of the Z80 RAM
+    phase 0	; Set label addresses to the start of Z80 RAM
+
+	di
 
 	ld	bc,YM2612.CTRL0	; YM2612 bank 1 port
 	ld	hl,YM2612.DATA0	; YM2612 data port
@@ -16,95 +18,58 @@ Z80ROM_Start
 	ld	(hl),80h		; Enable DAC
 	dec	a				; Now a is 2Ah (DAC_IN)
 	ld	(bc),a			; Switch to DAC data input
-
-	di
+	;ld	sp,Z80.STACK	; Align stack pointer correctly
 
 	jp	Z80EndRoutineAddress
 
 Z80Init:
+	ld	bc,YM2612.CTRL0
+	ld	a,DAC_OUT
+	ld	(bc),a
 	ld	de,SampleBuffer	; Reset DE
 	ld	hl,YM2612.DATA0	; Reset HL
-	;ld	sp,Z80.STACK	; Align stack pointer correctly
-	exx
 .routineAddress:
 	jp	$
 
-Init_DacAndEffects:
-	ld	b,92
-$$loop_DacAndEffects:
+Init_DacAndFm:
 	exx
+FmIterations:
+	ld	bc,0
+	ld	de,YM2612.CTRL0
+	ld	hl,CommandBuffer
+	exx
+$$loop_DacAndFm:
 	ld	a,(de)
 	ld	(hl),a
 	inc	de
-	inc	de
-	exx
-	rept 17
-	nop
-	endm
-	djnz $$loop_DacAndEffects
-	; 112 cycles per loop
-	exx								; 4
-	ld	a,(de)						; 7
-	ld	(hl),a						; 7
-	inc	de							; 6
-	inc	de							; 6
-
-	ld	b,h							; 4
-	ld	c,l							; 4
-
-	ld	hl,Loop_DacOnly				; 10
-	ld	(Z80EndRoutineAddress+1),hl	; 16
-
-	ld	l,DisableDacInjection&0FFh	; 7
-	ld	(hl),2						; 10
-
-	ld	h,b							; 4
-	ld	l,c							; 4
-	;exx								; 4
-
-Init_DacAndFm:
-	ld	bc,0000h
-	ld	de,CommandBuffer
-	ld	hl,YM2612.CTRL0
-$$loop_DacAndFm:
-	ld	a,(hl)
-	inc	hl
-	add a,(hl)
-	rra
-	ld	(de),a
 	inc	de
 	exx
 	ldi
-	ld	a,(de)
-	ld	(hl),a
-	inc	de
-	dec	l
-	exx
-	ld	a,DAC_IN
+	ld	a,(hl)
 	ld	(de),a
-	djnz $$loop_DacAndFm
+	dec	de
+	inc	hl
+	exx
+	nop
+	nop
+	nop
+	ld	a,DAC_OUT
+	ld	(bc),a
+	jp	pe,$$loop_DacAndFm
 
-	exx			; 4
 	ld	a,(de)	; 7
 	ld	(hl),a	; 7
 
 	inc	de		; 6
 	inc	de		; 6
-	ld	b,2		; 7
-	djnz $		; 26
-	exx			; 4
-	nop			; 4
-	; --- 71 cycles in total ---
-
-	cp	0
-	cp	0
 
 Init_DacAndSn:
 	ld	b,32
-	ld	de,CommandBuffer
-	ld	hl,Z80.PSG
-$$loop_DacAndSn:
 	exx
+	ld	de,Z80.PSG
+	ld	hl,CommandBuffer
+	exx
+$$loop_DacAndSn:
 	ld	a,(de)
 	ld	(hl),a
 	inc	de
@@ -113,15 +78,22 @@ $$loop_DacAndSn:
 	rept 17
 	nop
 	endm
+	exx
 	djnz $$loop_DacAndSn
 
-	exx						; 4
+	nop
+Init_DacOnly:
 	ld	a,(de)				; 7
 	ld	(hl),a				; 7
 
 	inc	de					; 6
 	inc	de					; 6
 	
+	ld	hl,Loop_DacOnly				; 10
+	ld	(Z80EndRoutineAddress+1),hl	; 16
+	ld	hl,DisableDacInjection&0FFh	; 10
+	ld	(hl),2						; 10
+
 	ld	h,d					; 4
 	ld	l,e					; 4
 	res	4,h					; 8
@@ -131,10 +103,6 @@ $$loop_DacAndSn:
 ; --- 78 cycles ---
 
 	ld	bc,YM2612.DATA0		; 10
-
-	cp	0
-	cp	0
-	nop
 
 Loop_DacOnly:
 	ld	a,(de)
@@ -169,8 +137,41 @@ $$loop_endSound1:
 	or	c
 	jp	nz,$$loop_endSound1
 
-	di
 	halt
+
+
+;Init_DacAndEffects:
+;	ld	b,92
+;$$loop_DacAndEffects:
+;	exx
+;	ld	a,(de)
+;	ld	(hl),a
+;	inc	de
+;	inc	de
+;	exx
+;	rept 17
+;	nop
+;	endm
+;	djnz $$loop_DacAndEffects
+	; 112 cycles per loop
+
+$$loop_DacAndFm:
+	ld	(bc),a
+	ld	a,(hl)
+	inc	hl
+	add a,(hl)
+	rra
+	ld	(de),a
+	exx
+	ldi
+	ld	a,(hl)
+	ld	(de),a
+	inc	de
+	dec	hl
+	exx
+	ld	a,0
+	ld	a,DAC_OUT
+	jp	pe,$$loop_DacAndFm
 
     dephase	; The rest of the labels are mapped normally
 

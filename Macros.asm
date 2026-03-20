@@ -11,8 +11,7 @@ YM2612ctrl_RRandSL function ch,op,($80|ch|op)
 YM2612ctrl_SR function ch,op,($70|ch|op)
 YM2612ctrl_MULandDT function ch,op,($30|ch|op)
 YM2612ctrl_TL function ch,op,($40|ch|op)
-YM2612ctrl_FRhigh function ch,($A0|ch|$04)
-YM2612ctrl_FRlow function ch,($A0|ch|$00)
+YM2612ctrl_FRandBL function ch,(($A0|ch|$04)<<8|($A0|ch))
 
 YM2612data_ALGandFB function alg,feed,((feed&$07)<<3)|(alg&$07)
 YM2612data_ARandRS function ar,rs,((rs&$03)<<6)|(ar&$1F)
@@ -20,8 +19,8 @@ YM2612data_DRandAM function dr,am,((am&$01)<<7)|(dr&$1F)
 YM2612data_RRandSL function rr,sl,((sl&$0F)<<4)|(rr&$0F)
 YM2612data_SR function sr,(sr&$1F)
 YM2612data_MULandDT function mul,dt,((dt&$07)<<4)|(mul&$0F)
-YM2612data_TL function tl,(tl&$1F)
-YM2612data_FR function fr,bl,(((bl&$07)<<3|(fr>>8)&$07)<<8)|(fr&$FF)
+YM2612data_TL function tl,(tl&$7F)
+YM2612data_FRandBL function fr,bl,(((bl&$07)<<3|(fr>>8)&$07)<<8)|(fr&$FF)
 
 ; ---------------------------------------------------------------------------
 ; Z80 control from 68k macros
