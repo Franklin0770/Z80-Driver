@@ -15,5 +15,7 @@
 		"Assets"
 	],
 	"workbench.colorTheme": "MegaEnvironment Dark",
-	"megaenvironment.buildControl.enablePreviousBuilds": false
+	"megaenvironment.buildControl.enablePreviousBuilds": false,
+	"megaenvironment.sourceCodeControl.variablesFileName": "",
+	"megaenvironment.sourceCodeControl.constantsFileName": ""
 }

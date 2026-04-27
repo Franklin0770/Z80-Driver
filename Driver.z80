@@ -155,7 +155,7 @@ $$loop_endSound1:
 ;	djnz $$loop_DacAndEffects
 	; 112 cycles per loop
 
-$$loop_DacAndFm:
+$$loop_DacAndFm1:
 	ld	(bc),a
 	ld	a,(hl)
 	inc	hl
@@ -171,7 +171,27 @@ $$loop_DacAndFm:
 	exx
 	ld	a,0
 	ld	a,DAC_OUT
-	jp	pe,$$loop_DacAndFm
+	jp	pe,$$loop_DacAndFm1
+
+$$loop_DacAndFm2:
+	ld	a,(de)
+	ld	(hl),a
+	inc	de
+	inc	de
+	exx
+	ld	a,(hl)
+	ld	(de),a
+	inc	e
+	inc	hl
+	ld	a,(hl)
+	ld	(de),a
+	dec	de
+	inc	hl
+	exx
+	ex	af,af'
+	ld	(bc),a
+	ex	af,af'
+	djnz $$loop_DacAndFm2
 
     dephase	; The rest of the labels are mapped normally
 

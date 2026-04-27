@@ -18,6 +18,7 @@ accurateSpeed:	equ TRUE	; Put it to FALSE to ignore 68k sample increment calcula
 ; I often use this switch to test how an ideal and perfect playback would sound, and it's pretty close compared to both 68k and Z80
 pureAudio:		equ FALSE	; Put it to TRUE to make only the 68k output DAC samples by defying the whole puropose of this audio driver
 hardwareEarrape:	equ FALSE	; Put this to TRUE to test the true power of the YM2612's DAC output (SW: EXTREMELY LOUD AUDIO)
+debugSoundRAM:	equ FALSE
 
 ROM_Start
 
@@ -192,6 +193,7 @@ VDP_VBlank:
 	move.w	(a4),d0		; Get high byte of playedSamples. 8
 	move.b	-(a4),d0	; Get lower byte of playedSamples. 8
 	adda.l	d0,a2		; 8
+	move.w	d0,(z80Samples)
 
 	if smoothPlayback
 		move.b	(a2)+,(a3)	; Output sample. 12
@@ -223,6 +225,8 @@ $$skip_alignment:
 	nop				; 4
 
 	loadSamples	; D0 and D1 break here
+
+	move.b	d0,(lastSample)
 
 	if smoothPlayback
 		move.b	(a2)+,(a3)	; Output sample, 12 cycles
@@ -273,17 +277,17 @@ $$load_remainder:
 $$skip_remainder:
 	st	(noMoreFm)
 
-	move.l	#ROM_End,d0			; 12
-	sub.l	d4,d0				; Is the audio about to end (ends on Z80 buffer)? 8
-	bpl.s	$$skip_tracking		; 10 cycles on branch, 8 cycles no branch
+	;move.l	#ROM_End,d0			; 12
+	;sub.l	d4,d0				; Is the audio about to end (ends on Z80 buffer)? 8
+	;bpl.s	$$skip_tracking		; 10 cycles on branch, 8 cycles no branch
 	; Z80 playback with sample tracking routine
-	move.b	#Init_EndSound,(Z80Init.routineAddress+2)|Z80_CTRL.WRAM	; Little endian, 16 cycles
-	lea	(Init_EndSound+2)|Z80_CTRL.WRAM,a0	; 8
-	move.b	d0,(a0)							; 8
-	lsr.w	#8,d0							; 22
-	move.b	d0,-(a0)						; 8
-	st	(shouldStop)						; 16
-	bra.s	$$continue						; 10
+	;move.b	#Init_EndSound,(Z80Init.routineAddress+2)|Z80_CTRL.WRAM	; Little endian, 16 cycles
+	;lea	(Init_EndSound+2)|Z80_CTRL.WRAM,a0	; 8
+	;move.b	d0,(a0)							; 8
+	;lsr.w	#8,d0							; 22
+	;move.b	d0,-(a0)						; 8
+	;st	(shouldStop)						; 16
+	;bra.s	$$continue						; 10
 $$skip_tracking:
 	; Normal Z80 playback routine
 	lea	(Z80Init.routineAddress+1)|Z80_CTRL.WRAM,a0	; 8
@@ -324,18 +328,19 @@ EntryPoint:
 ; VDP setup reference: https://plutiedev.com/vdp-setup
 
 	lea VDP.CTRL,a0
+	lea	VDP.DATA,a1
 
 	tst.w 	(a0) ; Testing the VDP control port safely resets it
 	
 ; Register reference: https://plutiedev.com/vdp-registers
 
-	move.l  #(VDP_REG.MODE1|%00000100)<<16|(VDP_REG.MODE2|%00101100),(a0)	; Mode register #1 and Mode register #2 (Display and DMA are OFF)
+	move.l  #(VDP_REG.MODE1|%00000100)<<16|(VDP_REG.MODE2|%01110100),(a0)	; Mode register #1 and Mode register #2 (Display and DMA are OFF)
 	move.l  #(VDP_REG.MODE3|%00000000)<<16|(VDP_REG.MODE4|%10000001),(a0)	; Mode register #3 and Mode Register #4
     
 ; Planes reference: https://segaretro.org/Sega_Mega_Drive/Planes
 
- 	move.l  #VDP_REG.PLANEA|(VDP_VRAM.PLANEA>>10)<<16|(VDP_REG.PLANEB|(VDP_VRAM.PLANEB>>13)),(a0)	; Plane A and Plane B address
-	move.l  #VDP_REG.SPRITE|(VDP_VRAM.SPRITE>>9)<<16|(VDP_REG.WINDOW|(VDP_VRAM.WINDOW>>10)),(a0)	; Sprite and Window address
+ 	move.l  #(VDP_REG.PLANEA|(VDP_VRAM.PLANEA>>10))<<16|(VDP_REG.PLANEB|(VDP_VRAM.PLANEB>>13)),(a0)	; Plane A and Plane B address
+	move.l  #(VDP_REG.SPRITE|(VDP_VRAM.SPRITE>>9))<<16|(VDP_REG.WINDOW|(VDP_VRAM.WINDOW>>10)),(a0)	; Sprite and Window address
 	move.w  #VDP_REG.HSCROLL|(VDP_VRAM.HSCROLL>>10),(a0)											; Horizontal scroll address
     
 	move.l  #(VDP_REG.WINX|$00)<<16|(VDP_REG.WINY|$00),(a0)			; Window X split and Window Y split
@@ -347,6 +352,80 @@ EntryPoint:
 	move.b	d0,(JOY1.DATA)
 
 ; Start of ROM code
+
+	dma68kToVDP PAT_BodyFont, $0000, PAT_BodyFont.SIZE, VDP_CMD.VRAM, FALSE, (a0), (a1)
+	dma68kToVDP PAT_BodyFont+$200, $0C00, $140, VDP_CMD.VRAM, FALSE, (a0), (a1)
+	dma68kToVDP PAT_BodyFont+$420, $0C00+$140, $C0, VDP_CMD.VRAM, FALSE, (a0), (a1)
+
+	vdpSetColorSpace 0,(a0)
+	move.l	#$0000EEEE,(a1)	; Black and white
+
+	dmaFillVRAM $00, VDP_VRAM.PLANEA, $1000, (a0), (a1) ; Clears characters at every soft reset
+
+	lea	SampleIndexText,a2
+	move.l	(a2)+,(a0)
+	move.b	(a2)+,d0
+	moveq	#0,d1
+
+$$print_text1:
+	move.b	(a2)+,d1
+	move.w	d1,(a1)
+	dbf d0,$$print_text1
+
+	moveq	#0,d0
+	move.l	(a2)+,(a0)
+	move.b	(a2)+,d0
+	moveq	#0,d1
+
+$$print_text2:
+	move.b	(a2)+,d1
+	move.w	d1,(a1)
+	dbf d0,$$print_text2
+
+	lea	LastSampleText,a2
+	moveq	#0,d0
+	move.l	(a2)+,(a0)
+	move.b	(a2)+,d0
+	moveq	#0,d1
+
+$$print_text3:
+	move.b	(a2)+,d1
+	move.w	d1,(a1)
+	dbf d0,$$print_text3
+
+	lea	FrameCounterText,a2
+	moveq	#0,d0
+	move.l	(a2)+,(a0)
+	move.b	(a2)+,d0
+	moveq	#0,d1
+
+$$print_text4:
+	move.b	(a2)+,d1
+	move.w	d1,(a1)
+	dbf d0,$$print_text4
+
+	lea	ButtonMessage1,a2
+	moveq	#0,d0
+	move.l	(a2)+,(a0)
+	move.b	(a2)+,d0
+	moveq	#0,d1
+
+$$print_text5:
+	move.b	(a2)+,d1
+	move.w	d1,(a1)
+	dbf d0,$$print_text5
+
+	lea	ButtonMessage2,a2
+	moveq	#0,d0
+	move.l	(a2)+,(a0)
+	move.b	(a2)+,d0
+	moveq	#0,d1
+
+$$print_text6:
+	move.b	(a2)+,d1
+	move.w	d1,(a1)
+	dbf d0,$$print_text6
+
 
 	lea Z80_CTRL.BUSREQ,a3
 	lea Z80_CTRL.RESET,a2
@@ -360,11 +439,12 @@ EntryPoint:
 
 ; We can do more stuff while the Z80 is theoretically stopping
 	move.l 	#Music,(sampleIndex)
+	clr.l 	(frameCount)
 	move.w	#(Z80ROM_End-Z80ROM_Start)-1,d0	; Mustn't go over $7F
 	lea playedSamples|Z80_CTRL.WRAM,a0
 	clr.b	(a0)+
 	clr.b	(a0)
-	sf	(shouldStop)
+	;sf	(shouldStop)
 	sf	(noMoreFm)
 
 	lea Z80ROM_Start,a0
@@ -373,6 +453,17 @@ EntryPoint:
 $$copy_program:
 	move.b	(a0)+,(a1)+
 	dbf d0,$$copy_program
+
+	if debugSoundRAM
+		lea	SampleBuffer|Z80_CTRL.WRAM,a0
+		move.w	#$C00,d0
+		moveq	#0,d1
+
+	$$copy_data:
+		move.b	d1,(a0)+
+		addq.b	#1,d1
+		dbf d0,$$copy_data
+	endif
 
 	assertZ80Reset d2,a2	; Assert reset
 
@@ -385,7 +476,7 @@ $$copy_program:
 		loopTest 53
 	endif
 
-	startZ80 d1,a3			; Release bus
+	startZ80 a3			; Release bus
 
 $$read_joypad
 	lea	JOY1.DATA,a0
@@ -395,19 +486,102 @@ $$read_joypad
 	nop
 	nop
 	move.b	(a0),d0	; put control state somewhere
+	btst	#JOY.B,d0
+	beq.w	$$play_note
 	btst 	#JOY.C,d0
-	beq.w	$$play_sample
+	beq.w	$$restart_sample
 
-$$halt_cpu:
-	tst.b	(shouldStop)
-	bne.s	$$disable_cpu
+$$wait_interrupt:
+	;tst.b	(shouldStop)
+	;bne.s	$$disable_cpu
+
+	lea	VDP.CTRL,a0
+	lea	VDP.DATA,a1
+	move.l	#vdpCoordinates(15,0),(a0)
+
+	moveq	#8-1,d0
+	move.l	(sampleIndex),d1
+	moveq	#0,d2
+
+$$print_numbers1:
+	rol.l	#4,d1
+	move.b	d1,d2
+	andi.b	#$0F,d2
+	addi.w	#$60,d2
+	move.w	d2,(a1)
+	dbf d0,$$print_numbers1
+
+	move.l	#vdpCoordinates(24,1),(a0)
+
+	moveq	#4-1,d0
+	move.w	(z80Samples),d1
+	moveq	#0,d2
+
+$$print_numbers2:
+	rol.w	#4,d1
+	move.b	d1,d2
+	andi.b	#$0F,d2
+	addi.w	#$60,d2
+	move.w	d2,(a1)
+	dbf d0,$$print_numbers2
+
+	move.l	#vdpCoordinates(18,2),(a0)
+
+	moveq	#2-1,d0
+	move.b	(lastSample),d1
+	moveq	#0,d2
+
+$$print_numbers3:
+	rol.b	#4,d1
+	move.b	d1,d2
+	andi.b	#$0F,d2
+	addi.w	#$60,d2
+	move.w	d2,(a1)
+	dbf d0,$$print_numbers3
+
+	move.l	#vdpCoordinates(15,3),(a0)
+
+	moveq	#8-1,d0
+	move.l	(frameCount),d1
+	moveq	#0,d2
+
+$$print_numbers4:
+	rol.l	#4,d1
+	move.b	d1,d2
+	andi.b	#$0F,d2
+	addi.w	#$60,d2
+	move.w	d2,(a1)
+	dbf d0,$$print_numbers4
+
 	stop	#$2500
-	bra.s	$$read_joypad
-$$disable_cpu:
-	stop	#$2700
-$$play_sample:
+	addq.l	#1,(frameCount)
+	bra.w	$$read_joypad
+;$$disable_cpu:
+	;stop	#$2700
+$$play_note:
+	sf	(noMoreFm)
+	bra.w	$$wait_interrupt
+
+$$restart_sample:
 	move.l	#Music,(sampleIndex)
-	bra.s	$$halt_cpu
+	bra.w	$$wait_interrupt
+
+;=================================================================================
+
+; Assets section
+
+	charset "Assets/character_mapping.bin"	; Reduced ASCII character set aligned with VRAM
+
+	include "Strings.asm"
+
+	charset
+
+	listing off
+
+	align 2
+
+PAT_BodyFont:	include "Body Font.asm"
+.SIZE:	equ 96*32
 
 	include "Driver.z80"
 
@@ -424,7 +598,9 @@ Music
 	;binclude "Droopy likes your face.raw" ; Underrated
 	;binclude "Chris.raw" ; Chris
 	;binclude "Magnetic Circuit.raw" ; Notch what are you doing
-	binclude "Lava Chicken.raw" ; Minecraft?
+	;binclude "Lava Chicken.raw" ; Minecraft?
+	;binclude "Bad (2012 Remaster).raw"
+	binclude "P.Y.T. (Pretty Young Thing).raw"
 	;binclude "music.pcm" ; Let's not talk about this
 	;binclude "My Summary.raw"
 
