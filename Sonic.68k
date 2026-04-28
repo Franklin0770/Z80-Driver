@@ -319,7 +319,7 @@ VDP_HBlank:
 ; ==========================
 
 EntryPoint:
-	;move.l	#"SEGA",(REG_TMSS)
+	move.l	#"SEGA",(REG.TMSS)
 
 ; ============================
 ; VDP initialization and setup
@@ -570,18 +570,16 @@ $$restart_sample:
 
 ; Assets section
 
+	save
 	charset "Assets/character_mapping.bin"	; Reduced ASCII character set aligned with VRAM
-
+	listing off
 	include "Strings.asm"
 
-	charset
-
-	listing off
-
 	align 2
-
 PAT_BodyFont:	include "Body Font.asm"
 .SIZE:	equ 96*32
+
+	restore
 
 	include "Driver.z80"
 

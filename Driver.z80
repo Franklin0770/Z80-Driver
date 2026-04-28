@@ -22,12 +22,12 @@ Z80ROM_Start
 
 	jp	Z80EndRoutineAddress
 
+	; Set registers for DAC register set
 Z80Init:
-	ld	bc,YM2612.CTRL0
-	ld	a,DAC_OUT
-	ld	(bc),a
-	ld	de,SampleBuffer	; Reset DE
-	ld	hl,YM2612.DATA0	; Reset HL
+	ld	hl,YM2612.CTRL0
+	ld	(hl),DAC_OUT
+	ld	bc,SampleBuffer
+	ld	de,YM2612.DATA0
 .routineAddress:
 	jp	$
 
@@ -39,10 +39,10 @@ FmIterations:
 	ld	hl,CommandBuffer
 	exx
 $$loop_DacAndFm:
-	ld	a,(de)
-	ld	(hl),a
-	inc	de
-	inc	de
+	ld	a,(bc)
+	ld	(de),a
+	inc	bc
+	inc	bc
 	exx
 	ldi
 	ld	a,(hl)
@@ -53,15 +53,15 @@ $$loop_DacAndFm:
 	nop
 	nop
 	nop
-	ld	a,DAC_OUT
-	ld	(bc),a
+	nop
+	ld	(hl),DAC_OUT
 	jp	pe,$$loop_DacAndFm
 
-	ld	a,(de)	; 7
-	ld	(hl),a	; 7
+	ld	a,(bc)	; 7
+	ld	(de),a	; 7
 
-	inc	de		; 6
-	inc	de		; 6
+	inc	bc		; 6
+	inc	bc		; 6
 
 Init_DacAndSn:
 	ld	b,32
@@ -70,10 +70,10 @@ Init_DacAndSn:
 	ld	hl,CommandBuffer
 	exx
 $$loop_DacAndSn:
-	ld	a,(de)
-	ld	(hl),a
-	inc	de
-	inc	de
+	ld	a,(bc)
+	ld	(de),a
+	inc	bc
+	inc	bc
 	exx
 	rept 17
 	nop
@@ -83,35 +83,33 @@ $$loop_DacAndSn:
 
 	nop
 Init_DacOnly:
-	ld	a,(de)				; 7
-	ld	(hl),a				; 7
+	ld	a,(bc)				; 7
+	ld	(de),a				; 7
 
-	inc	de					; 6
-	inc	de					; 6
+	inc	bc					; 6
+	inc	bc					; 6
 	
 	ld	hl,Loop_DacOnly				; 10
 	ld	(Z80EndRoutineAddress+1),hl	; 16
 	ld	hl,DisableDacInjection&0FFh	; 10
-	ld	(hl),2						; 10
+	ld	(hl),12						; 10
 
-	ld	h,d					; 4
-	ld	l,e					; 4
+	ld	h,b					; 4
+	ld	l,c					; 4
 	res	4,h					; 8
 	srl	h					; 8
 	rr	l					; 8
 	ld	(playedSamples),hl	; 16
 ; --- 78 cycles ---
 
-	ld	bc,YM2612.DATA0		; 10
-
 Loop_DacOnly:
-	ld	a,(de)
+	ld	a,(bc)
 DisableDacInjection:
-	ld	(bc),a
+	ld	(de),a
 	inc hl
 	ld 	(playedSamples),hl
-	inc	de
-	inc de
+	inc	bc
+	inc bc
 	rept 10
 	nop
 	endm
@@ -139,23 +137,28 @@ $$loop_endSound1:
 
 	halt
 
+Z80ROM_End
 
-;Init_DacAndEffects:
-;	ld	b,92
-;$$loop_DacAndEffects:
-;	exx
-;	ld	a,(de)
-;	ld	(hl),a
-;	inc	de
-;	inc	de
-;	exx
-;	rept 17
-;	nop
-;	endm
-;	djnz $$loop_DacAndEffects
+	dephase	; The rest of the labels are mapped normally
+
+	if FALSE	; Disable assembly of unused code
+
+Init_DacAndEffects:
+	ld	b,92
+$$loop_DacAndEffects:
+	exx
+	ld	a,(de)
+	ld	(hl),a
+	inc	de
+	inc	de
+	exx
+	rept 17
+	nop
+	endm
+	djnz $$loop_DacAndEffects
 	; 112 cycles per loop
 
-$$loop_DacAndFm1:
+$$unused_DacAndFm1:
 	ld	(bc),a
 	ld	a,(hl)
 	inc	hl
@@ -171,9 +174,9 @@ $$loop_DacAndFm1:
 	exx
 	ld	a,0
 	ld	a,DAC_OUT
-	jp	pe,$$loop_DacAndFm1
+	jp	pe,$$unused_DacAndFm1
 
-$$loop_DacAndFm2:
+$$unused_DacAndFm2:
 	ld	a,(de)
 	ld	(hl),a
 	inc	de
@@ -191,10 +194,27 @@ $$loop_DacAndFm2:
 	ex	af,af'
 	ld	(bc),a
 	ex	af,af'
-	djnz $$loop_DacAndFm2
+	djnz $$unused_DacAndFm2
 
-    dephase	; The rest of the labels are mapped normally
+$$unused_DacAndFm3:	; ADPCM attempt
+	push hl
+	ld	l,(hl)
+	ld	h,0
+	add	a,(hl)
+	pop	hl
+	ld	(de),a
+	exx
+	ldi
+	ld	a,(hl)
+	ld	(de),a
+	ex	af,af'
+	dec	e
+	inc	hl
+	exx
+	ld	(bc),a
+	ex	af,af'
+	jp	pe,$$unused_DacAndFm3
+
+	endif
 
 	cpu 68000
-
-Z80ROM_End
