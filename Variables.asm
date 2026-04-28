@@ -14,6 +14,7 @@ frameCount:		ds.l 1
 lastSample:		ds.b 1
 ;shouldStop:		ds.b 1	; It's zero when the execution continues
 noMoreFm:		ds.b 1
+randomByte:		ds.b 1
 
 ; ----------------------
 ;		Zilog Z80
@@ -22,7 +23,8 @@ noMoreFm:		ds.b 1
 	padding	off
 	
 	org $501
-playedSamples:	ds.w 1	; Little-endian
+playedSamples:		ds.w 1	; Little-endian
+refreshRegister:	ds.b 1	; Refresh register
 
 	org $1000
 SampleBuffer	; Where the 68k buffers samples

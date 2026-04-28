@@ -16,7 +16,7 @@
 smoothPlayback:	equ TRUE	; Put it to FALSE to prevent 68k output during buffer load
 accurateSpeed:	equ TRUE	; Put it to FALSE to ignore 68k sample increment calculation
 ; I often use this switch to test how an ideal and perfect playback would sound, and it's pretty close compared to both 68k and Z80
-pureAudio:		equ FALSE	; Put it to TRUE to make only the 68k output DAC samples by defying the whole puropose of this audio driver
+pureAudio:		equ FALSE	; Put it to TRUE to make only the 68k output DAC samples to defy the whole puropose of this audio driver
 hardwareEarrape:	equ FALSE	; Put this to TRUE to test the true power of the YM2612's DAC output (SW: EXTREMELY LOUD AUDIO)
 debugSoundRAM:	equ FALSE
 
@@ -194,6 +194,7 @@ VDP_VBlank:
 	move.b	-(a4),d0	; Get lower byte of playedSamples. 8
 	adda.l	d0,a2		; 8
 	move.w	d0,(z80Samples)
+	move.b	(refreshRegister),(randomByte)
 
 	if smoothPlayback
 		move.b	(a2)+,(a3)	; Output sample. 12
@@ -301,10 +302,15 @@ $$skip_sound:
 	move.b	#Init_DacOnly>>8,(a0)					; 12
 
 $$continue:
+	move.b	#Z80Init&$FF,d0
+	move.b	#Z80Init>>8,d1
 	lea	(Z80EndRoutineAddress+1)|Z80_CTRL.WRAM,a0	; 8
-	move.b	#Z80Init&$FF,(a0)+						; 12
-	move.b	#Z80Init>>8,(a0)						; 12
+	lea (Z80EarlyJump+1)|Z80_CTRL.WRAM,a1			; 8
+	move.b	d0,(a0)+								; 8
+	move.b	d1,(a0)									; 8
 	clr.b	(DisableDacInjection|Z80_CTRL.WRAM)		; 16
+	move.b	d0,(a1)+								; 8
+	move.b	d1,(a1)									; 8
 
 	startZ80 a5	; Restart Z80
 
@@ -319,7 +325,7 @@ VDP_HBlank:
 ; ==========================
 
 EntryPoint:
-	move.l	#"SEGA",(REG.TMSS)
+	;move.l	#"SEGA",(REG.TMSS)
 
 ; ============================
 ; VDP initialization and setup
@@ -440,7 +446,7 @@ $$print_text6:
 ; We can do more stuff while the Z80 is theoretically stopping
 	move.l 	#Music,(sampleIndex)
 	clr.l 	(frameCount)
-	move.w	#(Z80ROM_End-Z80ROM_Start)-1,d0	; Mustn't go over $7F
+	move.w	#(Z80ROM_End-Z80ROM_Start)-1,d0
 	lea playedSamples|Z80_CTRL.WRAM,a0
 	clr.b	(a0)+
 	clr.b	(a0)
@@ -473,7 +479,7 @@ $$copy_program:
 	deassertZ80Reset d2,a2	; Release reset
 
 	if pureAudio
-		loopTest 53
+		loopTest 52
 	endif
 
 	startZ80 a3			; Release bus
@@ -571,7 +577,7 @@ $$restart_sample:
 ; Assets section
 
 	save
-	charset "Assets/character_mapping.bin"	; Reduced ASCII character set aligned with VRAM
+	charset "Assets/character_mapping.bin"	; ASCII character set aligned with VRAM
 	listing off
 	include "Strings.asm"
 

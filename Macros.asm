@@ -416,8 +416,8 @@ i set i + 152
 	endm
 
 loopTest: macro pitch
-	lea	(YM2612_CTRL0|Z80_CTRL.WRAM),a2
-	lea	(YM2612_DATA0|Z80_CTRL.WRAM),a1
+	lea	(YM2612.CTRL0|Z80_CTRL.WRAM),a2
+	lea	(YM2612.DATA0|Z80_CTRL.WRAM),a1
 	move.b	#DAC_ENABLE,(a2)
 	move.b	#$80,(a1)
 	move.b	#DAC_OUT,(a2)

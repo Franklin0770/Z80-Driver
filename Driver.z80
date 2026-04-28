@@ -31,6 +31,9 @@ Z80Init:
 .routineAddress:
 	jp	$
 
+; This loop can be further optimized to counter-balance the instrument writes slowdowns,
+; but this leads to missed instrument writes, so we'd better wait a bit more with NOPs,
+; to make sure every register write gets processed in time before switching back to DAC.
 Init_DacAndFm:
 	exx
 FmIterations:
@@ -91,8 +94,10 @@ Init_DacOnly:
 	
 	ld	hl,Loop_DacOnly				; 10
 	ld	(Z80EndRoutineAddress+1),hl	; 16
-	ld	hl,DisableDacInjection&0FFh	; 10
-	ld	(hl),12						; 10
+	ld	hl,Z80EarlyJump+3			; 16
+	ld	(Z80EarlyJump+1),hl			; 16
+	ld	hl,DisableDacInjection		; 10
+	ld	(hl),12h					; 10
 
 	ld	h,b					; 4
 	ld	l,c					; 4
@@ -110,11 +115,15 @@ DisableDacInjection:
 	ld 	(playedSamples),hl
 	inc	bc
 	inc bc
-	rept 10
 	nop
-	endm
-	cp	0
-	cp	0
+Z80EarlyJump:
+	jp	$+3
+	ld	a,r
+	ld	(refreshRegister),a
+	exx
+	inc	hl
+	exx
+	nop
 Z80EndRoutineAddress:
 	jp	$	; Will be Loop_DacOnly later on
 
@@ -137,9 +146,9 @@ $$loop_endSound1:
 
 	halt
 
-Z80ROM_End
-
 	dephase	; The rest of the labels are mapped normally
+
+Z80ROM_End
 
 	if FALSE	; Disable assembly of unused code
 
