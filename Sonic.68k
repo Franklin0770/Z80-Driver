@@ -452,6 +452,7 @@ $$print_text6:
 	clr.b	(a0)
 	;sf	(shouldStop)
 	sf	(noMoreFm)
+	move.w	#$3FF,(controllerStatus)
 
 	lea Z80ROM_Start,a0
 	lea Z80_CTRL.WRAM,a1
@@ -486,12 +487,19 @@ $$copy_program:
 
 $$read_joypad
 	lea	JOY1.DATA,a0
-	move.b 	#$40,(a0)	; write $40 to request controller state
+	move.b 	#$40,(a0)
+	lea controllerStatus,a1
 	nop	; wait for the bus to get the controller state
 	nop
-	nop
-	nop
-	move.b	(a0),d0	; put control state somewhere
+	move.b	(a0),d0
+
+	move.b 	#$00,(a0)
+	lsl.w	#4,d0
+	move.b	(a0),d0
+
+	eor.w	(a1),d0
+	move.w	d0,(a1)
+
 	btst	#JOY.B,d0
 	beq.w	$$play_note
 	btst 	#JOY.C,d0
