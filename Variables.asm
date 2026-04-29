@@ -15,6 +15,7 @@ lastSample:		ds.b 1
 ;shouldStop:		ds.b 1	; It's zero when the execution continues
 noMoreFm:		ds.b 1
 randomByte:		ds.b 1
+controllerStatus:	ds.w 1
 
 ; ----------------------
 ;		Zilog Z80
