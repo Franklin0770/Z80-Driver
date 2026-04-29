@@ -431,6 +431,17 @@ $$loop:
 	bra.w	$$loop	; 10 cycles
 	endm
 
+dfntxt: macro text, x, y
+	dc.l vdpCoordinates(x,y)
+
+length set strlen(text)
+
+	dc.b length + length&1 - 1	; -1 because of DBF loop
+	dc.b text
+
+TEXT_NUMBER set TEXT_NUMBER + 1
+	endm
+
 loadSamplesAlt: macro
 	
 ; -------------------------

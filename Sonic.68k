@@ -368,70 +368,21 @@ EntryPoint:
 
 	dmaFillVRAM $00, VDP_VRAM.PLANEA, $1000, (a0), (a1) ; Clears characters at every soft reset
 
-	lea	SampleIndexText,a2
-	move.l	(a2)+,(a0)
-	move.b	(a2)+,d0
+	lea	DebugText,a2
+
+	moveq	#6-1,d0
+$$next_text:
 	moveq	#0,d1
-
-$$print_text1:
-	move.b	(a2)+,d1
-	move.w	d1,(a1)
-	dbf d0,$$print_text1
-
-	moveq	#0,d0
+	moveq	#0,d2
 	move.l	(a2)+,(a0)
-	move.b	(a2)+,d0
-	moveq	#0,d1
-
-$$print_text2:
 	move.b	(a2)+,d1
-	move.w	d1,(a1)
-	dbf d0,$$print_text2
 
-	lea	LastSampleText,a2
-	moveq	#0,d0
-	move.l	(a2)+,(a0)
-	move.b	(a2)+,d0
-	moveq	#0,d1
+$$print_text:
+	move.b	(a2)+,d2
+	move.w	d2,(a1)
+	dbf d1,$$print_text
 
-$$print_text3:
-	move.b	(a2)+,d1
-	move.w	d1,(a1)
-	dbf d0,$$print_text3
-
-	lea	FrameCounterText,a2
-	moveq	#0,d0
-	move.l	(a2)+,(a0)
-	move.b	(a2)+,d0
-	moveq	#0,d1
-
-$$print_text4:
-	move.b	(a2)+,d1
-	move.w	d1,(a1)
-	dbf d0,$$print_text4
-
-	lea	ButtonMessage1,a2
-	moveq	#0,d0
-	move.l	(a2)+,(a0)
-	move.b	(a2)+,d0
-	moveq	#0,d1
-
-$$print_text5:
-	move.b	(a2)+,d1
-	move.w	d1,(a1)
-	dbf d0,$$print_text5
-
-	lea	ButtonMessage2,a2
-	moveq	#0,d0
-	move.l	(a2)+,(a0)
-	move.b	(a2)+,d0
-	moveq	#0,d1
-
-$$print_text6:
-	move.b	(a2)+,d1
-	move.w	d1,(a1)
-	dbf d0,$$print_text6
-
+	dbf d0,$$next_text
 
 	lea Z80_CTRL.BUSREQ,a3
 	lea Z80_CTRL.RESET,a2
@@ -576,10 +527,10 @@ $$restart_sample:
 
 ; Assets section
 
-	save
-	charset "Assets/character_mapping.bin"	; ASCII character set aligned with VRAM
-	listing off
 	include "Strings.asm"
+	
+	save
+	listing off
 
 	align 2
 PAT_BodyFont:	include "Body Font.asm"

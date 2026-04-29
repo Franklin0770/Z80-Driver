@@ -33,3 +33,5 @@ SampleBuffer	; Where the 68k buffers samples
 CommandBuffer	; Where the 68k buffers commands (both control and data)
 
 	padding on
+
+TEXT_NUMBER set 0
