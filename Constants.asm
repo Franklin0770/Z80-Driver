@@ -168,12 +168,16 @@ HIPRI:  equ $8000  ; High priority
 
 ; Controller labels
 JOY:
-.C:	equ 5
-.B:	equ 4
-.R:	equ 3
-.L:	equ 2
-.D:	equ 1
-.U:	equ 0
+.C:			equ 9
+.B:			equ 8
+.R:			equ 7
+.L:			equ 6
+.START:		equ 5
+.A:			equ 4
+.PLUGGED2:	equ 3
+.PLUGGED1:	equ 2
+.D:			equ 1
+.U:			equ 0
 
 ; YM2612 labels
 LFO_ENABLE:		equ $22		; Enable Low Frequency Oscillator

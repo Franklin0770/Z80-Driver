@@ -372,10 +372,9 @@ EntryPoint:
 
 	moveq	#6-1,d0
 $$next_text:
-	moveq	#0,d1
 	moveq	#0,d2
 	move.l	(a2)+,(a0)
-	move.b	(a2)+,d1
+	move.w	(a2)+,d1
 
 $$print_text:
 	move.b	(a2)+,d2
@@ -403,7 +402,7 @@ $$print_text:
 	clr.b	(a0)
 	;sf	(shouldStop)
 	sf	(noMoreFm)
-	move.w	#$3FF,(controllerStatus)
+	move.w	#$FFFF,(controllerStatus)
 
 	lea Z80ROM_Start,a0
 	lea Z80_CTRL.WRAM,a1
@@ -448,13 +447,16 @@ $$read_joypad
 	lsl.w	#4,d0
 	move.b	(a0),d0
 
-	eor.w	(a1),d0
+	move.w	(a1),d1
 	move.w	d0,(a1)
 
-	btst	#JOY.B,d0
-	beq.w	$$play_note
-	btst 	#JOY.C,d0
-	beq.w	$$restart_sample
+	not.w	d0
+	and.w   d0,d1	; just pressed = ~now & before
+
+	btst	#JOY.B,d1
+	bne.w	$$play_note
+	btst 	#JOY.C,d1
+	bne.w	$$restart_sample
 
 $$wait_interrupt:
 	;tst.b	(shouldStop)
