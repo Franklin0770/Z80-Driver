@@ -436,7 +436,7 @@ dfntxt: macro text, x, y
 
 length set strlen(text)
 
-	dc.b length + length&1 - 1	; -1 because of DBF loop
+	dc.w length + length&1 - 1	; -1 because of DBF loop
 	dc.b text
 
 TEXT_NUMBER set TEXT_NUMBER + 1

@@ -372,10 +372,9 @@ EntryPoint:
 
 	moveq	#6-1,d0
 $$next_text:
-	moveq	#0,d1
 	moveq	#0,d2
 	move.l	(a2)+,(a0)
-	move.b	(a2)+,d1
+	move.w	(a2)+,d1
 
 $$print_text:
 	move.b	(a2)+,d2
@@ -439,17 +438,11 @@ $$copy_program:
 $$read_joypad
 	lea	JOY1.DATA,a0
 	move.b 	#$40,(a0)
-	lea controllerStatus,a1
+	nop
+	nop
 	nop	; wait for the bus to get the controller state
 	nop
 	move.b	(a0),d0
-
-	move.b 	#$00,(a0)
-	lsl.w	#4,d0
-	move.b	(a0),d0
-
-	eor.w	(a1),d0
-	move.w	d0,(a1)
 
 	btst	#JOY.B,d0
 	beq.w	$$play_note
