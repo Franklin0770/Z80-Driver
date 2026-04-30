@@ -23,9 +23,9 @@ controllerStatus:	ds.w 1
 
 	padding	off
 	
-	org $501
-playedSamples:		ds.w 1	; Little-endian
+	org $500
 refreshRegister:	ds.b 1	; Refresh register
+playedSamples:		ds.w 1	; Little-endian
 
 	org $1000
 SampleBuffer	; Where the 68k buffers samples

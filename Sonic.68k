@@ -186,7 +186,7 @@ VDP_VBlank:
 	lea	YM2612_68K.DATA0,a3				; 8
 	lea	playedSamples+1|Z80_CTRL.WRAM,a4	; 8
 	lea Z80_CTRL.BUSREQ,a5			; 8
-	move.l	(sampleIndex),a2		; 16
+	movea.l	(sampleIndex),a2		; 16
 	moveq	#0,d0					; 4
 	waitZ80	d0,a5					; 12 (at best)
 	; --- 76 cycles in total ---
@@ -194,7 +194,7 @@ VDP_VBlank:
 	move.b	-(a4),d0	; Get lower byte of playedSamples. 8
 	adda.l	d0,a2		; 8
 	move.w	d0,(z80Samples)
-	move.b	(refreshRegister),(randomByte)
+	move.b	(refreshRegister|Z80_CTRL.WRAM),(randomByte)
 
 	if smoothPlayback
 		move.b	(a2)+,(a3)	; Output sample. 12
@@ -370,7 +370,7 @@ EntryPoint:
 
 	lea	DebugText,a2
 
-	moveq	#6-1,d0
+	moveq	#8-1,d0
 $$next_text:
 	moveq	#0,d2
 	move.l	(a2)+,(a0)
@@ -438,8 +438,7 @@ $$copy_program:
 $$read_joypad
 	lea	JOY1.DATA,a0
 	move.b 	#$40,(a0)
-	nop
-	nop
+	lea	controllerStatus,a1
 	nop	; wait for the bus to get the controller state
 	nop
 	move.b	(a0),d0
@@ -454,7 +453,9 @@ $$read_joypad
 	not.w	d0
 	and.w   d0,d1	; just pressed = ~now & before
 
-	btst	#JOY.B,d1
+	btst	#JOY.A,d1
+	bne.w	$$play_note	
+	btst	#JOY.B,d0
 	bne.w	$$play_note
 	btst 	#JOY.C,d1
 	bne.w	$$restart_sample
@@ -507,19 +508,33 @@ $$print_numbers3:
 	move.w	d2,(a1)
 	dbf d0,$$print_numbers3
 
-	move.l	#vdpCoordinates(15,3),(a0)
+	move.l	#vdpCoordinates(23,3),(a0)
 
-	moveq	#8-1,d0
-	move.l	(frameCount),d1
+	moveq	#2-1,d0
+	move.b	(randomByte),d1
 	moveq	#0,d2
 
 $$print_numbers4:
-	rol.l	#4,d1
+	rol.b	#4,d1
 	move.b	d1,d2
 	andi.b	#$0F,d2
 	addi.w	#$60,d2
 	move.w	d2,(a1)
 	dbf d0,$$print_numbers4
+
+	move.l	#vdpCoordinates(15,4),(a0)
+
+	moveq	#8-1,d0
+	move.l	(frameCount),d1
+	moveq	#0,d2
+
+$$print_numbers5:
+	rol.l	#4,d1
+	move.b	d1,d2
+	andi.b	#$0F,d2
+	addi.w	#$60,d2
+	move.w	d2,(a1)
+	dbf d0,$$print_numbers5
 
 	stop	#$2500
 	addq.l	#1,(frameCount)
@@ -565,8 +580,9 @@ Music
 	;binclude "Chris.raw" ; Chris
 	;binclude "Magnetic Circuit.raw" ; Notch what are you doing
 	;binclude "Lava Chicken.raw" ; Minecraft?
-	;binclude "Bad (2012 Remaster).raw"
-	binclude "P.Y.T. (Pretty Young Thing).raw"
+	binclude "Bad (2012 Remaster).raw" ; Bad in a good way
+	;binclude "Smooth Criminal.raw" ; Annie are you okay?
+	;binclude "P.Y.T. (Pretty Young Thing).raw"
 	;binclude "music.pcm" ; Let's not talk about this
 	;binclude "My Summary.raw"
 

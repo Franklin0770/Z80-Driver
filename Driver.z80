@@ -62,25 +62,6 @@ $$loop_DacAndFm:
 
 	inc	bc	; 6
 	inc	bc	; 6
-
-Init_DacAndSn:
-	ld	b,32
-	exx
-	ld	de,Z80.PSG
-	ld	hl,CommandBuffer
-	exx
-$$loop_DacAndSn:
-	ld	a,(bc)
-	ld	(de),a
-	inc	bc
-	inc	bc
-	exx
-	rept 17
-	nop
-	endm
-	exx
-	djnz $$loop_DacAndSn
-
 	nop
 Init_DacOnly:
 	ld	a,(bc)				; 7
@@ -160,6 +141,24 @@ $$loop_DacAndEffects:
 	endm
 	djnz $$loop_DacAndEffects
 	; 112 cycles per loop
+
+Init_DacAndSn:
+	exx
+	ld	b,32
+	ld	de,Z80.PSG
+	ld	hl,CommandBuffer
+$$loop_DacAndSn:
+	exx
+	ld	a,(bc)
+	ld	(de),a
+	inc	bc
+	inc	bc
+	rept 17
+	nop
+	endm
+	exx
+	djnz $$loop_DacAndSn
+
 
 $$unused_DacAndFm1:
 	ld	(bc),a
