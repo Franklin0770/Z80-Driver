@@ -438,7 +438,8 @@ $$copy_program:
 $$read_joypad
 	lea	JOY1.DATA,a0
 	move.b 	#$40,(a0)
-	lea controllerStatus,a1
+	nop
+	nop
 	nop	; wait for the bus to get the controller state
 	nop
 	move.b	(a0),d0

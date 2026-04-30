@@ -25,15 +25,11 @@ Z80ROM_Start
 	; Set registers for DAC register set
 Z80Init:
 	ld	hl,YM2612.CTRL0
-	ld	(hl),DAC_OUT
 	ld	bc,SampleBuffer
 	ld	de,YM2612.DATA0
 .routineAddress:
 	jp	$
 
-; This loop can be further optimized to counter-balance the instrument writes slowdowns,
-; but this leads to missed instrument writes, so we'd better wait a bit more with NOPs,
-; to make sure every register write gets processed in time before switching back to DAC.
 Init_DacAndFm:
 	exx
 FmIterations:
@@ -43,9 +39,8 @@ FmIterations:
 	exx
 $$loop_DacAndFm:
 	ld	a,(bc)
+	ld	(hl),DAC_OUT
 	ld	(de),a
-	inc	bc
-	inc	bc
 	exx
 	ldi
 	ld	a,(hl)
@@ -57,14 +52,16 @@ $$loop_DacAndFm:
 	nop
 	nop
 	nop
-	ld	(hl),DAC_OUT
+	inc	bc
+	inc	bc
 	jp	pe,$$loop_DacAndFm
 
-	ld	a,(bc)	; 7
-	ld	(de),a	; 7
+	ld	a,(bc)			; 7
+	ld	(hl),DAC_OUT	; 10
+	ld	(de),a			; 7
 
-	inc	bc		; 6
-	inc	bc		; 6
+	inc	bc	; 6
+	inc	bc	; 6
 
 Init_DacAndSn:
 	ld	b,32
@@ -104,8 +101,6 @@ Init_DacOnly:
 	res	4,h					; 8
 	srl	h					; 8
 	rr	l					; 8
-	ld	(playedSamples),hl	; 16
-; --- 78 cycles ---
 
 Loop_DacOnly:
 	ld	a,(bc)
@@ -120,9 +115,8 @@ Z80EarlyJump:
 	jp	$+3
 	ld	a,r
 	ld	(refreshRegister),a
-	exx
-	inc	hl
-	exx
+	jp	$+3
+	nop
 	nop
 Z80EndRoutineAddress:
 	jp	$	; Will be Loop_DacOnly later on
