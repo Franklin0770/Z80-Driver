@@ -12,7 +12,7 @@
 
 	listing purecode ; We sure want the listing file, but only the final code in expanded macros
 
-; These switches enable the entire purpose of this driver and disabling them likely makes the playback similar to "traditional" DAC drivers
+; These switches enable the entire purpose of this driver and modifying them likely makes the playback similar to "traditional" DAC drivers
 smoothPlayback:	equ TRUE	; Put it to FALSE to prevent 68k output during buffer load
 accurateSpeed:	equ TRUE	; Put it to FALSE to ignore 68k sample increment calculation
 ; I often use this switch to test how an ideal and perfect playback would sound, and it's pretty close compared to both 68k and Z80
@@ -289,7 +289,7 @@ $$skip_remainder:
 	;move.b	d0,-(a0)						; 8
 	;st	(shouldStop)						; 16
 	;bra.s	$$continue						; 10
-$$skip_tracking:
+;$$skip_tracking:
 	; Normal Z80 playback routine
 	lea	(Z80Init.routineAddress+1)|Z80_CTRL.WRAM,a0	; 8
 	move.b	#Init_DacAndFm&$FF,(a0)+				; 12
@@ -325,7 +325,11 @@ VDP_HBlank:
 ; ==========================
 
 EntryPoint:
-	;move.l	#"SEGA",(REG.TMSS)
+	move.b	(REG.VERSION),d0
+	andi.b	#$F,d0
+	beq.s	$$skip_tmss
+	move.l	#"SEGA",(REG.TMSS)
+$$skip_tmss:
 
 ; ============================
 ; VDP initialization and setup
@@ -359,28 +363,26 @@ EntryPoint:
 
 ; Start of ROM code
 
-	dma68kToVDP PAT_BodyFont, $0000, PAT_BodyFont.SIZE, VDP_CMD.VRAM, FALSE, (a0), (a1)
-	dma68kToVDP PAT_BodyFont+$200, $0C00, $140, VDP_CMD.VRAM, FALSE, (a0), (a1)
-	dma68kToVDP PAT_BodyFont+$420, $0C00+$140, $C0, VDP_CMD.VRAM, FALSE, (a0), (a1)
+	dma68kToVDP PAT_BodyFont, $0000, PAT_BodyFont.SIZE, VDP_CMD.VRAM, FALSE, (a0), (a1)	; Load default font
+	dma68kToVDP PAT_BodyFont+$200, $0C00, $140, VDP_CMD.VRAM, FALSE, (a0), (a1)			; Load separate numbers used for value printing
+	dma68kToVDP PAT_BodyFont+$420, $0C00+$140, $C0, VDP_CMD.VRAM, FALSE, (a0), (a1)		; Load rest of the hexadecimal digits
 
 	vdpSetColorSpace 0,(a0)
 	move.l	#$0000EEEE,(a1)	; Black and white
 
 	dmaFillVRAM $00, VDP_VRAM.PLANEA, $1000, (a0), (a1) ; Clears characters at every soft reset
 
+; Prints static text on screen
 	lea	DebugText,a2
-
 	moveq	#8-1,d0
 $$next_text:
 	moveq	#0,d2
 	move.l	(a2)+,(a0)
 	move.w	(a2)+,d1
-
 $$print_text:
 	move.b	(a2)+,d2
 	move.w	d2,(a1)
 	dbf d1,$$print_text
-
 	dbf d0,$$next_text
 
 	lea Z80_CTRL.BUSREQ,a3
@@ -392,17 +394,16 @@ $$print_text:
 	assertZ80Reset d1,a2	; Assert reset
 	stopZ80 d2,a3			; Request bus
 	deassertZ80Reset d2,a2	; Release reset
-
 ; We can do more stuff while the Z80 is theoretically stopping
 	move.l 	#Music,(sampleIndex)
 	clr.l 	(frameCount)
 	move.w	#(Z80ROM_End-Z80ROM_Start)-1,d0
 	lea playedSamples|Z80_CTRL.WRAM,a0
-	clr.b	(a0)+
+	clr.b	(a0)+	; Only a byte at time when writing to Z80 WRAM
 	clr.b	(a0)
 	;sf	(shouldStop)
 	sf	(noMoreFm)
-	move.w	#$FFFF,(controllerStatus)
+	move.w	#$3FF,(controllerStatus)	; Set all buttons to 1 (since the port is pulled-up)
 
 	lea Z80ROM_Start,a0
 	lea Z80_CTRL.WRAM,a1
@@ -418,14 +419,14 @@ $$copy_program:
 
 	$$copy_data:
 		move.b	d1,(a0)+
-		addq.b	#1,d1
+		addq.b	#1,d1	; Fill sample buffer with increasing bytes
 		dbf d0,$$copy_data
 	endif
 
 	assertZ80Reset d2,a2	; Assert reset
 
 	moveq	#20,d0
-    dbf	d0,*	; Wait for the YM2612
+    dbf	d0,*	; Wait for the YM2612 to wake up
 
 	deassertZ80Reset d2,a2	; Release reset
 
@@ -433,121 +434,103 @@ $$copy_program:
 		loopTest 52
 	endif
 
-	startZ80 a3			; Release bus
+	startZ80 a3	; Release bus
 
-$$read_joypad
+ReadJoypad
 	lea	JOY1.DATA,a0
 	move.b 	#$40,(a0)
 	lea	controllerStatus,a1
-	nop	; wait for the bus to get the controller state
+	nop	; Wait for the bus to get the controller state
 	nop
 	move.b	(a0),d0
 
 	move.b 	#$00,(a0)
+	; While we wait, we can shift the unique bits (only mirrored values get overwritten)
 	lsl.w	#4,d0
 	move.b	(a0),d0
 
-	move.w	(a1),d1
-	move.w	d0,(a1)
+	move.w	(a1),d1	; Get previous joypad state
+	move.w	d0,(a1)	; Update joypad state
 
 	not.w	d0
-	and.w   d0,d1	; just pressed = ~now & before
-
+	and.w   d0,d1	; Just pressed = ~now & before
+; D0: held buttons, D1: pressed buttons
 	btst	#JOY.A,d1
-	bne.w	$$play_note	
+	bne.w	PlayNote
 	btst	#JOY.B,d0
-	bne.w	$$play_note
+	bne.w	PlayNote
 	btst 	#JOY.C,d1
-	bne.w	$$restart_sample
+	bne.w	RestartSample
 
-$$wait_interrupt:
 	;tst.b	(shouldStop)
 	;bne.s	$$disable_cpu
 
+; Prints dynamic RAM values that get updated each frame next to static text
+PrintValues
+.Init
+	moveq	#0,d2	; No flip, palette 0, low priority
+	moveq	#5-1,d3	; Number of values to print
 	lea	VDP.CTRL,a0
 	lea	VDP.DATA,a1
-	move.l	#vdpCoordinates(15,0),(a0)
+	lea	ValueInformation,a2
+.Loop:
+	movea.l	(a2)+,a3	; Variable address
+	move.l	(a2)+,(a0)	; VDP coordinates
+	move.w	(a2)+,d0	; Jump offset
+.Base:
+	jmp (pc,d0.w)	; Jump to corresponding routine based on value size
 
-	moveq	#8-1,d0
-	move.l	(sampleIndex),d1
-	moveq	#0,d2
+PrintByte:
+	moveq	#2-1,d0	; Number of digits to print (a byte has two digits)
+	move.b	(a3),d1	; Get the RAM value of interest
+$$print_byte:
+	rol.b	#4,d1			; Rotate each digit
+	move.b	d1,d2			; Back up a byte to D2
+	andi.b	#$0F,d2			; Get only 1 digit
+	addi.w	#$60,d2			; Apply the VRAM font offset
+	move.w	d2,(a1)			; Update tilemap with no flip, palette 0, low priority
+	dbf d0,$$print_byte		; Next value digit
+	dbf d3,PrintValues.Loop	; Next RAM value
+	bra.s	WaitInterrupt	; Continue (avoiding fallthrough)
 
-$$print_numbers1:
-	rol.l	#4,d1
-	move.b	d1,d2
-	andi.b	#$0F,d2
-	addi.w	#$60,d2
-	move.w	d2,(a1)
-	dbf d0,$$print_numbers1
-
-	move.l	#vdpCoordinates(24,1),(a0)
-
+PrintWord:
 	moveq	#4-1,d0
-	move.w	(z80Samples),d1
-	moveq	#0,d2
-
-$$print_numbers2:
+	move.w	(a3),d1
+$$print_word:
 	rol.w	#4,d1
 	move.b	d1,d2
 	andi.b	#$0F,d2
 	addi.w	#$60,d2
 	move.w	d2,(a1)
-	dbf d0,$$print_numbers2
+	dbf d0,$$print_word
+	dbf d3,PrintValues.Loop
+	bra.s	WaitInterrupt
 
-	move.l	#vdpCoordinates(18,2),(a0)
-
-	moveq	#2-1,d0
-	move.b	(lastSample),d1
-	moveq	#0,d2
-
-$$print_numbers3:
-	rol.b	#4,d1
-	move.b	d1,d2
-	andi.b	#$0F,d2
-	addi.w	#$60,d2
-	move.w	d2,(a1)
-	dbf d0,$$print_numbers3
-
-	move.l	#vdpCoordinates(23,3),(a0)
-
-	moveq	#2-1,d0
-	move.b	(randomByte),d1
-	moveq	#0,d2
-
-$$print_numbers4:
-	rol.b	#4,d1
-	move.b	d1,d2
-	andi.b	#$0F,d2
-	addi.w	#$60,d2
-	move.w	d2,(a1)
-	dbf d0,$$print_numbers4
-
-	move.l	#vdpCoordinates(15,4),(a0)
-
+PrintLong:
 	moveq	#8-1,d0
-	move.l	(frameCount),d1
-	moveq	#0,d2
-
-$$print_numbers5:
+	move.l	(a3),d1
+$$print_word:
 	rol.l	#4,d1
 	move.b	d1,d2
 	andi.b	#$0F,d2
 	addi.w	#$60,d2
 	move.w	d2,(a1)
-	dbf d0,$$print_numbers5
+	dbf d0,$$print_word
+	dbf d3,PrintValues.Loop
 
+WaitInterrupt:
 	stop	#$2500
-	addq.l	#1,(frameCount)
-	bra.w	$$read_joypad
+	addq.l	#1,(frameCount)	; Update frame counter
+	bra.w	ReadJoypad
 ;$$disable_cpu:
 	;stop	#$2700
-$$play_note:
+PlayNote:
 	sf	(noMoreFm)
-	bra.w	$$wait_interrupt
+	bra.w	PrintValues.Init
 
-$$restart_sample:
+RestartSample:
 	move.l	#Music,(sampleIndex)
-	bra.w	$$wait_interrupt
+	bra.w	PrintValues.Init
 
 ;=================================================================================
 
@@ -555,38 +538,10 @@ $$restart_sample:
 
 	include "Strings.asm"
 	
-	save
-	listing off
-
-	align 2
 PAT_BodyFont:	include "Body Font.asm"
 .SIZE:	equ 96*32
 
-	restore
-
 	include "Driver.z80"
-
-	align 2
-
-Music
-	;binclude "continuity_test.bin" ; Test with increasing bytes to make sure no samples get skipped
-
-	;binclude "24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; Great music right here
-	;binclude "Don't Stand So Close To Me.raw" ; Another banger
-	;binclude "Spirits In The Material World.raw" ; This is a good one
-	;binclude "Every Little Thing She Does Is Magic.raw" ; Another nice one
-	;binclude "Ki.raw" ; minceraft
-	;binclude "Droopy likes your face.raw" ; Underrated
-	;binclude "Chris.raw" ; Chris
-	;binclude "Magnetic Circuit.raw" ; Notch what are you doing
-	;binclude "Lava Chicken.raw" ; Minecraft?
-	binclude "Bad (2012 Remaster).raw" ; Bad in a good way
-	;binclude "Smooth Criminal.raw" ; Annie are you okay?
-	;binclude "P.Y.T. (Pretty Young Thing).raw"
-	;binclude "music.pcm" ; Let's not talk about this
-	;binclude "My Summary.raw"
-
-	;binclude "Minecraft Earrape.raw"
 
 	padding off
 	rorg	(~*)&1
@@ -661,5 +616,27 @@ FmData
 	dc.b	0
 	dc.w	YM2612data_FRandBL(644,4)
 	dc.b	%11110000
+
+	align 2
+
+Music
+	;binclude "continuity_test.bin" ; Test with increasing bytes to make sure no samples get skipped
+
+	;binclude "24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; Great music right here
+	;binclude "Don't Stand So Close To Me.raw" ; Another banger
+	;binclude "Spirits In The Material World.raw" ; This is a good one
+	;binclude "Every Little Thing She Does Is Magic.raw" ; Another nice one
+	;binclude "Ki.raw" ; minceraft
+	;binclude "Droopy likes your face.raw" ; Underrated
+	binclude "Chris.raw" ; Chris
+	;binclude "Magnetic Circuit.raw" ; Notch what are you doing
+	;binclude "Lava Chicken.raw" ; Minecraft?
+	;binclude "Bad (2012 Remaster).raw" ; Bad in a good way
+	;binclude "Smooth Criminal.raw" ; Annie are you okay?
+	;binclude "P.Y.T. (Pretty Young Thing).raw"
+	;binclude "music.pcm" ; Let's not talk about this
+	;binclude "My Summary.raw"
+
+	;binclude "Minecraft Earrape.raw"
 
 ROM_End
