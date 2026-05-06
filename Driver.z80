@@ -62,7 +62,10 @@ $$loop_DacAndFm:
 
 	inc	bc	; 6
 	inc	bc	; 6
-	nop
+
+	jp	$+3
+
+	;exx
 Init_DacOnly:
 	ld	a,(bc)				; 7
 	ld	(de),a				; 7
@@ -103,20 +106,26 @@ Z80EndRoutineAddress:
 	jp	$	; Will be Loop_DacOnly later on
 
 Init_EndSound:
+	ld	(hl),DAC_OUT
+	exx
+RemainingSamples:
 	ld	bc,0000h
+	exx
 $$loop_endSound1:
-	ld	a,(de)
-	ld	(hl),a
-	rept 14
+	ld	a,(bc)
+	ld	(de),a
+	rept 12
 	nop
 	endm
-	inc	de
-	inc de
+	inc	bc
+	inc bc
 	cp	0
 	cp	0
+	exx
 	dec	bc
 	ld	a,b
 	or	c
+	exx
 	jp	nz,$$loop_endSound1
 
 	halt
@@ -126,6 +135,28 @@ $$loop_endSound1:
 Z80ROM_End
 
 	if FALSE	; Disable assembly of unused code
+
+Init_DacAndSn:
+	exx
+SnIterations:
+	ld	bc,0
+	ld	de,Z80.PSG
+	inc	hl
+$$loop_DacAndSn:
+	exx
+	ld	a,(bc)
+	ld	(hl),DAC_OUT
+	ld	(de),a
+	exx
+	ld	a,(hl)
+	ld	(de),a
+	inc	de
+	exx
+	inc	bc
+	inc	bc
+	exx
+	djnz $$loop_DacAndSn
+
 
 Init_DacAndEffects:
 	ld	b,92
@@ -141,23 +172,6 @@ $$loop_DacAndEffects:
 	endm
 	djnz $$loop_DacAndEffects
 	; 112 cycles per loop
-
-Init_DacAndSn:
-	exx
-	ld	b,32
-	ld	de,Z80.PSG
-	ld	hl,CommandBuffer
-$$loop_DacAndSn:
-	exx
-	ld	a,(bc)
-	ld	(de),a
-	inc	bc
-	inc	bc
-	rept 17
-	nop
-	endm
-	exx
-	djnz $$loop_DacAndSn
 
 
 $$unused_DacAndFm1:

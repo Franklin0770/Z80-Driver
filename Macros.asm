@@ -132,23 +132,29 @@ dmaFillVRAM macro byte, address, length, VDPControlPort, VDPDataPort
 ; Macros to set YM2612 memory addresses and write data
 ; ---------------------------------------------------------------------------
 
-YM2612ctrl_ALandFB function ch,($B0|ch)
-YM2612ctrl_ARandRS function ch,op,($50|ch|op)
-YM2612ctrl_DRandAM function ch,op,($60|ch|op)
-YM2612ctrl_RRandSL function ch,op,($80|ch|op)
-YM2612ctrl_SR function ch,op,($70|ch|op)
-YM2612ctrl_MULandDT function ch,op,($30|ch|op)
-YM2612ctrl_TL function ch,op,($40|ch|op)
-YM2612ctrl_FRandBL function ch,(($A0|ch|$04)<<8|($A0|ch))
+YMctrl_ALandFB function ch,($B0|ch)
+YMctrl_ARandRS function ch,op,($50|ch|op)
+YMctrl_DRandAM function ch,op,($60|ch|op)
+YMctrl_RRandSL function ch,op,($80|ch|op)
+YMctrl_SR function ch,op,($70|ch|op)
+YMctrl_MULandDT function ch,op,($30|ch|op)
+YMctrl_TL function ch,op,($40|ch|op)
+YMctrl_FRandBL function ch,(($A0|ch|$04)<<8|($A0|ch))
 
-YM2612data_ALGandFB function alg,feed,((feed&$07)<<3)|(alg&$07)
-YM2612data_ARandRS function ar,rs,((rs&$03)<<6)|(ar&$1F)
-YM2612data_DRandAM function dr,am,((am&$01)<<7)|(dr&$1F)
-YM2612data_RRandSL function rr,sl,((sl&$0F)<<4)|(rr&$0F)
-YM2612data_SR function sr,(sr&$1F)
-YM2612data_MULandDT function mul,dt,((dt&$07)<<4)|(mul&$0F)
-YM2612data_TL function tl,(tl&$7F)
-YM2612data_FRandBL function fr,bl,(((bl&$07)<<3|(fr>>8)&$07)<<8)|(fr&$FF)
+YMdata_ALGandFB function alg,feed,((feed&$07)<<3)|(alg&$07)
+YMdata_ARandRS function ar,rs,((rs&$03)<<6)|(ar&$1F)
+YMdata_DRandAM function dr,am,((am&$01)<<7)|(dr&$1F)
+YMdata_RRandSL function rr,sl,((sl&$0F)<<4)|(rr&$0F)
+YMdata_SR function sr,(sr&$1F)
+YMdata_MULandDT function mul,dt,((dt&$07)<<4)|(mul&$0F)
+YMdata_TL function tl,(tl&$7F)
+YMdata_FRandBL function fr,bl,(((bl&$07)<<3|(fr>>8)&$07)<<8)|(fr&$FF)
+
+; ---------------------------------------------------------------------------
+; Macros to set write SN instruments
+; ---------------------------------------------------------------------------
+SNdata_volume: function vol,ch,($90|(ch&4)<<5|(~vol)&$F)
+SNdata_pitch: function fr,ch,((($80|ch&4)<<5|(fr)&$F)<<8|(fr>>4)&$F)
 
 ; ---------------------------------------------------------------------------
 ; Z80 control from 68k macros
@@ -324,10 +330,6 @@ i set 0
 	move.l	(a0)+,d0
 	movep.l	d0,(i+(8*1),a1)
 
-	; --- 214 cycles in total ---
-	rept 3
-	nop
-	endm
 i set 16
 
 	while i < 152 * BUFFER_ITERATIONS

@@ -235,11 +235,9 @@ $$skip_alignment:
 		addq.l	#1,a2
 		nop
 	endif
-	
-	move.l	d4,(sampleIndex)	; 20
 
 	tst.b	(noMoreFm)
-	bne.w	$$skip_sound
+	bne.w	$$skip_remainder
 
 	moveq	#0,d1
 	lea	FmControl,a0
@@ -276,21 +274,27 @@ $$load_remainder:
 	dbf d3,$$load_remainder
 
 $$skip_remainder:
-	st	(noMoreFm)
-
-	;move.l	#ROM_End,d0			; 12
-	;sub.l	d4,d0				; Is the audio about to end (ends on Z80 buffer)? 8
-	;bpl.s	$$skip_tracking		; 10 cycles on branch, 8 cycles no branch
+	move.l	#ROM_End,d0	; 12
+	sub.l	d4,d0
+	moveq	#0,d1
+	move.w	(z80Samples),d1
+	sub.l	d1,d0	; Is the audio about to end (ends on Z80 buffer)? 8
+	bpl.s	$$skip_tracking		; 10 cycles on branch, 8 cycles no branch
 	; Z80 playback with sample tracking routine
-	;move.b	#Init_EndSound,(Z80Init.routineAddress+2)|Z80_CTRL.WRAM	; Little endian, 16 cycles
-	;lea	(Init_EndSound+2)|Z80_CTRL.WRAM,a0	; 8
-	;move.b	d0,(a0)							; 8
-	;lsr.w	#8,d0							; 22
-	;move.b	d0,-(a0)						; 8
-	;st	(shouldStop)						; 16
-	;bra.s	$$continue						; 10
-;$$skip_tracking:
-	; Normal Z80 playback routine
+	lea	(Z80Init.routineAddress+1)|Z80_CTRL.WRAM,a0	; 8
+	move.b	#Init_EndSound&$FF,(a0)+	; 12
+	move.b	#Init_EndSound>>8,(a0)		; 12
+	neg.w	d0
+	lea	(RemainingSamples+1)|Z80_CTRL.WRAM,a0	; 8
+	move.b	d0,(a0)+							; 8
+	lsr.w	#8,d0								; 22
+	move.b	d0,(a0)								; 8
+	st	(shouldStop)							; 16
+	bra.s	$$continue							; 10
+
+$$skip_tracking:
+	tst.b	(noMoreFm)
+	bne.s	$$skip_sound
 	lea	(Z80Init.routineAddress+1)|Z80_CTRL.WRAM,a0	; 8
 	move.b	#Init_DacAndFm&$FF,(a0)+				; 12
 	move.b	#Init_DacAndFm>>8,(a0)					; 12
@@ -311,6 +315,10 @@ $$continue:
 	clr.b	(DisableDacInjection|Z80_CTRL.WRAM)		; 16
 	move.b	d0,(a1)+								; 8
 	move.b	d1,(a1)									; 8
+
+	st	(noMoreFm)
+
+	move.l	d4,(sampleIndex)	; 20
 
 	startZ80 a5	; Restart Z80
 
@@ -373,8 +381,8 @@ $$skip_tmss:
 	dmaFillVRAM $00, VDP_VRAM.PLANEA, $1000, (a0), (a1) ; Clears characters at every soft reset
 
 ; Prints static text on screen
-	lea	DebugText,a2
-	moveq	#8-1,d0
+	lea	StaticText,a2
+	moveq	#10-1,d0
 $$next_text:
 	moveq	#0,d2
 	move.l	(a2)+,(a0)
@@ -401,8 +409,8 @@ $$print_text:
 	lea playedSamples|Z80_CTRL.WRAM,a0
 	clr.b	(a0)+	; Only a byte at time when writing to Z80 WRAM
 	clr.b	(a0)
-	;sf	(shouldStop)
-	sf	(noMoreFm)
+	sf	(shouldStop)
+	st	(noMoreFm)
 	move.w	#$3FF,(controllerStatus)	; Set all buttons to 1 (since the port is pulled-up)
 
 	lea Z80ROM_Start,a0
@@ -440,14 +448,14 @@ ReadJoypad
 	lea	JOY1.DATA,a0
 	move.b 	#$40,(a0)
 	lea	controllerStatus,a1
-	nop	; Wait for the bus to get the controller state
-	nop
+	moveq	#0,d0
+	moveq	#$3C,d2 ; Wait for the bus to get the controller state
 	move.b	(a0),d0
 
 	move.b 	#$00,(a0)
-	; While we wait, we can shift the unique bits (only mirrored values get overwritten)
-	lsl.w	#4,d0
-	move.b	(a0),d0
+	and.b	d2,d0	; AND the redundant bits (L and R) with $3C
+	lsl.w	#4,d0	; Shift the unique bits
+	or.b	(a0),d0
 
 	move.w	(a1),d1	; Get previous joypad state
 	move.w	d0,(a1)	; Update joypad state
@@ -461,9 +469,13 @@ ReadJoypad
 	bne.w	PlayNote
 	btst 	#JOY.C,d1
 	bne.w	RestartSample
+	btst	#JOY.R,d1
+	bne.w	SkipForward
+	btst	#JOY.L,d1
+	bne.w	SkipBackward
 
-	;tst.b	(shouldStop)
-	;bne.s	$$disable_cpu
+	tst.b	(shouldStop)
+	bne.w	DisableCpu
 
 ; Prints dynamic RAM values that get updated each frame next to static text
 PrintValues
@@ -522,8 +534,6 @@ WaitInterrupt:
 	stop	#$2500
 	addq.l	#1,(frameCount)	; Update frame counter
 	bra.w	ReadJoypad
-;$$disable_cpu:
-	;stop	#$2700
 PlayNote:
 	sf	(noMoreFm)
 	bra.w	PrintValues.Init
@@ -531,6 +541,17 @@ PlayNote:
 RestartSample:
 	move.l	#Music,(sampleIndex)
 	bra.w	PrintValues.Init
+
+SkipForward:
+	add.l	#$10000,(sampleIndex)
+	bra.w	PrintValues.Init
+
+SkipBackward:
+	sub.l	#$10000,(sampleIndex)
+	bra.w	PrintValues.Init
+
+DisableCpu:
+	stop	#$2700
 
 ;=================================================================================
 
@@ -548,77 +569,76 @@ PAT_BodyFont:	include "Body Font.asm"
 FmControl
 	dc.b	29
 
-	dc.b	YM2612ctrl_ARandRS(CH1_4,OP1)
-	dc.b	YM2612ctrl_DRandAM(CH1_4,OP1)
-	dc.b	YM2612ctrl_RRandSL(CH1_4,OP1)
-	dc.b	YM2612ctrl_SR(CH1_4,OP1)
-	dc.b	YM2612ctrl_MULandDT(CH1_4,OP1)
-	dc.b	YM2612ctrl_TL(CH1_4,OP1)
+	dc.b	YMctrl_ARandRS(CH1_4,OP1)
+	dc.b	YMctrl_DRandAM(CH1_4,OP1)
+	dc.b	YMctrl_RRandSL(CH1_4,OP1)
+	dc.b	YMctrl_SR(CH1_4,OP1)
+	dc.b	YMctrl_MULandDT(CH1_4,OP1)
+	dc.b	YMctrl_TL(CH1_4,OP1)
 	
-	dc.b	YM2612ctrl_ARandRS(CH1_4,OP2)
-	dc.b	YM2612ctrl_DRandAM(CH1_4,OP2)
-	dc.b	YM2612ctrl_RRandSL(CH1_4,OP2)
-	dc.b	YM2612ctrl_SR(CH1_4,OP2)
-	dc.b	YM2612ctrl_MULandDT(CH1_4,OP2)
-	dc.b	YM2612ctrl_TL(CH1_4,OP2)
+	dc.b	YMctrl_ARandRS(CH1_4,OP2)
+	dc.b	YMctrl_DRandAM(CH1_4,OP2)
+	dc.b	YMctrl_RRandSL(CH1_4,OP2)
+	dc.b	YMctrl_SR(CH1_4,OP2)
+	dc.b	YMctrl_MULandDT(CH1_4,OP2)
+	dc.b	YMctrl_TL(CH1_4,OP2)
 
-	dc.b	YM2612ctrl_ARandRS(CH1_4,OP3)
-	dc.b	YM2612ctrl_DRandAM(CH1_4,OP3)
-	dc.b	YM2612ctrl_RRandSL(CH1_4,OP3)
-	dc.b	YM2612ctrl_SR(CH1_4,OP3)
-	dc.b	YM2612ctrl_MULandDT(CH1_4,OP3)
-	dc.b	YM2612ctrl_TL(CH1_4,OP3)
+	dc.b	YMctrl_ARandRS(CH1_4,OP3)
+	dc.b	YMctrl_DRandAM(CH1_4,OP3)
+	dc.b	YMctrl_RRandSL(CH1_4,OP3)
+	dc.b	YMctrl_SR(CH1_4,OP3)
+	dc.b	YMctrl_MULandDT(CH1_4,OP3)
+	dc.b	YMctrl_TL(CH1_4,OP3)
 
-	dc.b	YM2612ctrl_ARandRS(CH1_4,OP4)
-	dc.b	YM2612ctrl_DRandAM(CH1_4,OP4)
-	dc.b	YM2612ctrl_RRandSL(CH1_4,OP4)
-	dc.b	YM2612ctrl_SR(CH1_4,OP4)
-	dc.b	YM2612ctrl_MULandDT(CH1_4,OP4)
-	dc.b	YM2612ctrl_TL(CH1_4,OP4)
+	dc.b	YMctrl_ARandRS(CH1_4,OP4)
+	dc.b	YMctrl_DRandAM(CH1_4,OP4)
+	dc.b	YMctrl_RRandSL(CH1_4,OP4)
+	dc.b	YMctrl_SR(CH1_4,OP4)
+	dc.b	YMctrl_MULandDT(CH1_4,OP4)
+	dc.b	YMctrl_TL(CH1_4,OP4)
 
-	dc.b	YM2612ctrl_ALandFB(CH1_4)
+	dc.b	YMctrl_ALandFB(CH1_4)
 	dc.b 	$28	; Key-On and Key-Off
-	dc.w	YM2612ctrl_FRandBL(CH1_4)
+	dc.w	YMctrl_FRandBL(CH1_4)
 	dc.b 	$28
 
 	align 2
 
 FmData
-	dc.b	YM2612data_ARandRS(31,0)
-	dc.b	YM2612data_DRandAM(8,0)
-	dc.b	YM2612data_RRandSL(3,15)
-	dc.b	YM2612data_SR(0)
-	dc.b	YM2612data_MULandDT(5,2)
-	dc.b	YM2612data_TL(42)
+	dc.b	YMdata_ARandRS(31,0)
+	dc.b	YMdata_DRandAM(8,0)
+	dc.b	YMdata_RRandSL(3,15)
+	dc.b	YMdata_SR(0)
+	dc.b	YMdata_MULandDT(5,2)
+	dc.b	YMdata_TL(42)
 
-	dc.b	YM2612data_ARandRS(31,0)
-	dc.b	YM2612data_DRandAM(10,0)
-	dc.b	YM2612data_RRandSL(4,15)
-	dc.b	YM2612data_SR(0)
-	dc.b	YM2612data_MULandDT(1,7)
-	dc.b	YM2612data_TL(18)
+	dc.b	YMdata_ARandRS(31,0)
+	dc.b	YMdata_DRandAM(10,0)
+	dc.b	YMdata_RRandSL(4,15)
+	dc.b	YMdata_SR(0)
+	dc.b	YMdata_MULandDT(1,7)
+	dc.b	YMdata_TL(18)
 
-	dc.b	YM2612data_ARandRS(31,0)
-	dc.b	YM2612data_DRandAM(4,0)
-	dc.b	YM2612data_RRandSL(1,11)
-	dc.b	YM2612data_SR(0)
-	dc.b	YM2612data_MULandDT(1,2)
-	dc.b	YM2612data_TL(48)
+	dc.b	YMdata_ARandRS(31,0)
+	dc.b	YMdata_DRandAM(4,0)
+	dc.b	YMdata_RRandSL(1,11)
+	dc.b	YMdata_SR(0)
+	dc.b	YMdata_MULandDT(1,2)
+	dc.b	YMdata_TL(48)
 
-	dc.b	YM2612data_ARandRS(31,0)
-	dc.b	YM2612data_DRandAM(9,0)
-	dc.b	YM2612data_RRandSL(9,15)
-	dc.b	YM2612data_SR(0)
-	dc.b	YM2612data_MULandDT(1,7)
-	dc.b	YM2612data_TL(0)
+	dc.b	YMdata_ARandRS(31,0)
+	dc.b	YMdata_DRandAM(9,0)
+	dc.b	YMdata_RRandSL(9,15)
+	dc.b	YMdata_SR(0)
+	dc.b	YMdata_MULandDT(1,7)
+	dc.b	YMdata_TL(0)
 
-	dc.b	YM2612data_ALGandFB(0,4)
+	dc.b	YMdata_ALGandFB(0,4)
 	dc.b	0
-	dc.w	YM2612data_FRandBL(644,4)
+	dc.w	YMdata_FRandBL(644,4)
 	dc.b	%11110000
 
 	align 2
-
 Music
 	;binclude "continuity_test.bin" ; Test with increasing bytes to make sure no samples get skipped
 
@@ -628,12 +648,13 @@ Music
 	;binclude "Every Little Thing She Does Is Magic.raw" ; Another nice one
 	;binclude "Ki.raw" ; minceraft
 	;binclude "Droopy likes your face.raw" ; Underrated
-	binclude "Chris.raw" ; Chris
+	;binclude "Chris.raw" ; Chris
 	;binclude "Magnetic Circuit.raw" ; Notch what are you doing
 	;binclude "Lava Chicken.raw" ; Minecraft?
 	;binclude "Bad (2012 Remaster).raw" ; Bad in a good way
 	;binclude "Smooth Criminal.raw" ; Annie are you okay?
 	;binclude "P.Y.T. (Pretty Young Thing).raw"
+	binclude "Last Surprise.raw" ; A good discovery
 	;binclude "music.pcm" ; Let's not talk about this
 	;binclude "My Summary.raw"
 

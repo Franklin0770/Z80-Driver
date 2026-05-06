@@ -3,7 +3,7 @@
 	listing off
 	charset "Assets/character_mapping.bin"
 
-DebugText:
+StaticText:
 	dfntxt "Sample Index: $", 0, 0
 	dfntxt "Z80 Samples Per-frame: $", 0, 1
 	dfntxt "Last 68k Sample: $", 0, 2
@@ -13,6 +13,8 @@ DebugText:
 	dfntxt "Press A to play a note", 0, 7
 	dfntxt "Press B to play a note continuously", 0, 8
 	dfntxt "Press C to restart the music", 0, 9
+	dfntxt "Press Right to skip forward", 0, 10
+	dfntxt "Press Left to skip backward", 0, 11
 
 	restore
 

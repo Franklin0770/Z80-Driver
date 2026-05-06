@@ -12,7 +12,7 @@ sampleIndex:	ds.l 1	; Samples after Z80 routine execution
 z80Samples:		ds.w 1
 frameCount:		ds.l 1
 lastSample:		ds.b 1
-;shouldStop:		ds.b 1	; It's zero when the execution continues
+shouldStop:		ds.b 1	; It's zero when the execution continues
 noMoreFm:		ds.b 1
 randomByte:		ds.b 1
 controllerStatus:	ds.w 1
