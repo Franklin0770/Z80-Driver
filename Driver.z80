@@ -3,8 +3,6 @@ Z80ROM_Start
 
     phase 0	; Set label addresses to the start of Z80 RAM
 
-	di
-
 	ld	bc,YM2612.CTRL0	; YM2612 bank 1 port
 	ld	hl,YM2612.DATA0	; YM2612 data port
 
@@ -18,17 +16,22 @@ Z80ROM_Start
 	ld	(hl),80h		; Enable DAC
 	dec	a				; Now a is 2Ah (DAC_IN)
 	ld	(bc),a			; Switch to DAC data input
-	;ld	sp,Z80.STACK	; Align stack pointer correctly
+	ld	sp,Z80.STACK	; Align stack pointer correctly
 
-	jp	Z80EndRoutineAddress
+	ei
+	halt
 
-	; Set registers for DAC register set
+	rorg 38h - $
+; ----- Z80 interrupt, ready for handoff -----
 Z80Init:
-	ld	hl,YM2612.CTRL0
+	; Set registers for DAC register set
 	ld	bc,SampleBuffer
 	ld	de,YM2612.DATA0
+	ld	hl,YM2612.CTRL0
+	ld	sp,Z80.STACK	; Re-align stack pointer correctly
+	ei
 .routineAddress:
-	jp	$
+	jp	$	; Get ready for handoff
 
 Init_DacAndFm:
 	exx
@@ -63,47 +66,50 @@ $$loop_DacAndFm:
 	inc	bc	; 6
 	inc	bc	; 6
 
-	jp	$+3
+	ld	a,b
 
-	;exx
+	ld	b,7
+	djnz $
+
+	ld	b,a
+
+	nop
 Init_DacOnly:
 	ld	a,(bc)				; 7
 	ld	(de),a				; 7
 
 	inc	bc					; 6
 	inc	bc					; 6
-	
-	ld	hl,Loop_DacOnly				; 10
-	ld	(Z80EndRoutineAddress+1),hl	; 16
-	ld	hl,Z80EarlyJump+3			; 16
-	ld	(Z80EarlyJump+1),hl			; 16
-	ld	hl,DisableDacInjection		; 10
-	ld	(hl),12h					; 10
+	; Make loop (basically placing $ next to JP)
+	ld	hl,Z80Init.routineAddress		; 10
+	ld	(Z80Init.routineAddress+1),hl	; 16
 
 	ld	h,b					; 4
+
+	ld	b,1
+	djnz $
+
+	ld	b,h
 	ld	l,c					; 4
 	res	4,h					; 8
 	srl	h					; 8
 	rr	l					; 8
 
-Loop_DacOnly:
+$$loop_DacOnly:
 	ld	a,(bc)
-DisableDacInjection:
-	ld	(de),a
 	inc hl
+	ld	(de),a
 	ld 	(playedSamples),hl
 	inc	bc
 	inc bc
 	nop
-Z80EarlyJump:
 	jp	$+3
 	ld	a,r
 	ld	(refreshRegister),a
 	jp	$+3
 	nop
 	nop
-Z80EndRoutineAddress:
-	jp	$	; Will be Loop_DacOnly later on
+	jp	$$loop_DacOnly
 
 Init_EndSound:
 	ld	(hl),DAC_OUT
@@ -230,6 +236,32 @@ $$unused_DacAndFm3:	; ADPCM attempt
 	ld	(bc),a
 	ex	af,af'
 	jp	pe,$$unused_DacAndFm3
+
+	ld	bc,0
+	ld	de,YM2612.CTRL0
+	ld	hl,CommandBuffer
+Loop_Effects:
+	exx
+	ld	a,(bc)
+	inc	c
+	inc	c
+	ld	(hl),DAC_OUT
+	ld	(de),a
+	exx
+EffectsOffset:
+	jp	EffectsTable
+
+Effects
+.portamento:
+	ld	hl,FREQ
+	inc	l
+	ld	a,(de)
+	ld	(hl),a
+	inc	e
+	dec	l
+	ld	a,b
+	or	c
+	jp	nz,Loop_Effects
 
 	endif
 
