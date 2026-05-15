@@ -25,30 +25,30 @@ HaltMessage:
 	restore
 
 ValueInformation:
-	dc.l sampleIndex					; Variable address
-	dc.l vdpCoordinates(25,0)			; VDP coordinates
-	dc.w PrintLong-PrintValues.base-2	; Jump offset
+	dc.l sampleIndex						; variable address
+	dc.l vdpCoordinates(25,0)				; VDP coordinates
+	dc.w PrintLong-UpdateDebugger.base-2	; jump offset
 
 	dc.l z80Samples
 	dc.l vdpCoordinates(25,1)
-	dc.w PrintWord-PrintValues.base-2
+	dc.w PrintWord-UpdateDebugger.base-2
 
 	dc.l lastSample
 	dc.l vdpCoordinates(25,2)
-	dc.w PrintByte-PrintValues.base-2
+	dc.w PrintByte-UpdateDebugger.base-2
 
 	dc.l z80BufferIndex
 	dc.l vdpCoordinates(25,3)
-	dc.w PrintWord-PrintValues.base-2
+	dc.w PrintWord-UpdateDebugger.base-2
 
 	dc.l z80InterruptPc
 	dc.l vdpCoordinates(25,4)
-	dc.w PrintWord-PrintValues.base-2
+	dc.w PrintWord-UpdateDebugger.base-2
 
 	dc.l randomByte
 	dc.l vdpCoordinates(25,5)
-	dc.w PrintByte-PrintValues.base-2
+	dc.w PrintByte-UpdateDebugger.base-2
 
 	dc.l frameCount
 	dc.l vdpCoordinates(25,6)
-	dc.w PrintLong-PrintValues.base-2
+	dc.w PrintLong-UpdateDebugger.base-2

@@ -10,14 +10,14 @@
 	include "Macros.asm"
 	include "Variables.asm"
 
-	listing purecode ; We sure want the listing file, but only the final code in expanded macros
+	listing purecode ; we sure want the listing file, but only the final code in expanded macros
 
 ; These switches enable the entire purpose of this driver and modifying them likely makes the playback similar to "traditional" DAC drivers
-smoothPlayback:	equ TRUE	; Put it to FALSE to prevent 68k output during buffer load
-accurateSpeed:	equ TRUE	; Put it to FALSE to ignore 68k sample increment calculation
+smoothPlayback:	equ TRUE	; put it to FALSE to prevent 68k output during buffer load
+accurateSpeed:	equ TRUE	; put it to FALSE to ignore 68k sample increment calculation
 ; I often use this switch to test how an ideal and perfect playback would sound, and it's pretty close compared to both 68k and Z80
-pureAudio:		equ FALSE		; Put it to TRUE to make only the 68k output DAC samples to defy the whole puropose of this audio driver
-hardwareEarrape:	equ FALSE	; Put this to TRUE to test the true power of the YM2612's DAC output (SW: EXTREMELY LOUD AUDIO)
+pureAudio:		equ FALSE		; put it to TRUE to make only the 68k output DAC samples to defy the whole puropose of this audio driver
+hardwareEarrape:	equ FALSE	; put this to TRUE to test the true power of the YM2612's DAC output (SW: EXTREMELY LOUD AUDIO)
 debugSoundRAM:	equ FALSE
 
 ROM_Start
@@ -97,21 +97,21 @@ ROM_Start
 ; Mega Drive ROM header (reference: https://plutiedev.com/rom-header)
 ; ===================================================================
 
-		dc.b "SEGA MEGA DRIVE "								; System type - 16 bytes
-		dc.b "(C)BRO0 2024.OCT"								; Copyright, release year and month (e.g. "(C)SEGA 1991.APR") - 16 bytes
+		dc.b "SEGA MEGA DRIVE "								; system type - 16 bytes
+		dc.b "(C)BRO0 2024.OCT"								; copyright, release year and month (e.g. "(C)SEGA 1991.APR") - 16 bytes
 		dc.b "Codename FrankPCM: a high-tech audio driver"	; Domestic name - 48 bytes
-		dc.b "     "										; Padding
-		dc.b "Codename FrankPCM: a high-tech audio driver"	; Overseas name - 48 bytes
-		dc.b "     "										; Padding
-		dc.b "GM-12345678-00"								; Serial number ("xx-yyyyyyyy-zz") - 14 bytes
-		dc.w $0000											; Where this ROM gets patched with a 16-bit checksum - 2 bytes
-		dc.b "J               "								; Device support (e.g. "J" for 3-button controller) - 16 bytes
-		dc.l ROM_Start										; Start address of ROM - 4 bytes
-		dc.l ROM_End										; End address of ROM - 4 bytes
-		dc.l $FF0000										; Start address of WRAM - 4 bytes
-		dc.l $FFFFFF 										; End address of WRAM - 4 bytes
+		dc.b "     "										; padding
+		dc.b "Codename FrankPCM: a high-tech audio driver"	; overseas name - 48 bytes
+		dc.b "     "										; padding
+		dc.b "GM-12345678-00"								; serial number ("xx-yyyyyyyy-zz") - 14 bytes
+		dc.w $0000											; where this ROM gets patched with a 16-bit checksum - 2 bytes
+		dc.b "J               "								; device support (e.g. "J" for 3-button controller) - 16 bytes
+		dc.l ROM_Start										; start address of ROM - 4 bytes
+		dc.l ROM_End										; end address of ROM - 4 bytes
+		dc.l $FF0000										; start address of WRAM - 4 bytes
+		dc.l $FFFFFF 										; end address of WRAM - 4 bytes
 		dc.b "                                                                " ; padding for reserved space - 64 bytes
-		dc.b "JUE"											; Region support - 16 bytes
+		dc.b "JUE"											; region support - 16 bytes
 		dc.b "             "								; padding for reserved space (you can put a comment if you want!) - 13 bytes
 
 ; ========================
@@ -120,7 +120,7 @@ ROM_Start
 
 BusError:
 	move.l	#$AAAAAAA1,d7
-	stop #$2700 ; some emulators might not recognize this instruction
+	stop #$2700 ; Gens does not recognize this instruction
 
 AddressError:
 	move.l	#$AAAAAAA2,d7
@@ -340,7 +340,7 @@ VDP_HBlank:
 
 EntryPoint:
 	move.b	(REG.VERSION),d0
-	andi.b	#$F,d0
+	andi.b	#$F,d0	; check if the console has TMSS or not
 	beq.s	$$skip_tmss
 	move.l	#"SEGA",(REG.TMSS)
 $$skip_tmss:
@@ -358,7 +358,7 @@ $$skip_tmss:
 	
 ; Register reference: https://plutiedev.com/vdp-registers
 
-	move.l  #(VDP_REG.MODE1|%00000100)<<16|(VDP_REG.MODE2|%01110100),(a0)	; mode register #1 and Mode register #2 (Display and DMA are OFF)
+	move.l  #(VDP_REG.MODE1|%00000100)<<16|(VDP_REG.MODE2|%01110100),(a0)	; mode register #1 and Mode register #2
 	move.l  #(VDP_REG.MODE3|%00000000)<<16|(VDP_REG.MODE4|%10000001),(a0)	; mode register #3 and Mode Register #4
     
 ; Planes reference: https://segaretro.org/Sega_Mega_Drive/Planes
@@ -372,32 +372,32 @@ $$skip_tmss:
 	move.l  #(VDP_REG.INCR|$02)<<16|(VDP_REG.HRATE|$FF),(a0)		; autoincrement and HBlank IRQ rate
 
 	moveq 	#$40,d0
-	move.b	d0,(JOY1.CTRL)
+	move.b	d0,(JOY1.CTRL)	; initialize controller ports
 	move.b	d0,(JOY1.DATA)
 
-; Start of ROM code
+; Initialization code to set up screen, reset variables and processors
 
 	dma68kToVDP PAT_BodyFont, $0000, PAT_BodyFont.SIZE, VDP_CMD.VRAM, FALSE, (a0), (a1)	; load default font
 	dma68kToVDP PAT_BodyFont+$200, $0C00, $140, VDP_CMD.VRAM, FALSE, (a0), (a1)			; load separate numbers used for value printing
 	dma68kToVDP PAT_BodyFont+$420, $0C00+$140, $C0, VDP_CMD.VRAM, FALSE, (a0), (a1)		; load rest of the hexadecimal digits
 
-	vdpSetColorSpace 0,(a0)
+	vdpSetColorSpace 0,(a0)	; set write address to palette line 0, color 0
 	move.l	#$0000EEEE,(a1)	; black and white
 
 	dmaFillVRAM $00, VDP_VRAM.PLANEA, $1000, (a0), (a1) ; clears characters at every soft reset
 
 ; Prints static text on screen
 	lea	StaticText,a2
-	moveq	#12-1,d0
+	moveq	#12-1,d0	; number of strings to print
 $$next_text:
-	moveq	#0,d2
-	move.l	(a2)+,(a0)
-	move.w	(a2)+,d1
+	moveq	#0,d2		; no flip, palette 0, low priority for the next tilemap values
+	move.l	(a2)+,(a0)	; set coordinates
+	move.w	(a2)+,d1	; get string length
 $$print_text:
-	move.b	(a2)+,d2
-	move.w	d2,(a1)
-	dbf d1,$$print_text
-	dbf d0,$$next_text
+	move.b	(a2)+,d2	; get character
+	move.w	d2,(a1)		; put it to the tilemap
+	dbf d1,$$print_text	; next character
+	dbf d0,$$next_text	; next string
 
 	lea Z80_CTRL.BUSREQ,a3
 	lea Z80_CTRL.RESET,a2
@@ -450,6 +450,9 @@ $$copy_program:
 
 	startZ80 a3	; release bus
 
+;=================================================================================
+; Code that runs every frame
+
 ReadJoypad
 	lea	JOY1.DATA,a0
 	move.b 	#$40,(a0)
@@ -462,7 +465,8 @@ ReadJoypad
 	and.b	d2,d0	; AND the redundant bits (L and R) with $3C
 	lsl.w	#4,d0	; shift the unique bits
 	or.b	(a0),d0
-
+	; Remember that bits here are inverted for performance
+	; 0: pressed, 1: not pressed
 	move.w	(a1),d1	; get previous joypad state
 	move.w	d0,(a1)	; update joypad state
 
@@ -485,9 +489,9 @@ ReadJoypad
 	bne.w	JumpBackward
 
 ; Prints dynamic RAM values that get updated each frame next to static text
-PrintValues
+UpdateDebugger
 .init
-	moveq	#0,d2	; no flip, palette 0, low priority
+	moveq	#0,d2	; no flip, palette 0, low priority for the next tilemap values
 	moveq	#7-1,d3	; number of values to print
 	lea	VDP.CTRL,a0
 	lea	VDP.DATA,a1
@@ -504,14 +508,14 @@ PrintByte:
 	moveq	#2-1,d0	; number of digits to print (a byte has two digits)
 	move.b	(a3),d1	; get the RAM value of interest
 $$print_byte:
-	rol.b	#4,d1			; rotate each digit
-	move.b	d1,d2			; back up a byte to D2
-	andi.b	#$0F,d2			; get only 1 digit
-	addi.w	#$60,d2			; apply the VRAM font offset
-	move.w	d2,(a1)			; update tilemap with no flip, palette 0, low priority
-	dbf d0,$$print_byte		; next value digit
-	dbf d3,PrintValues.loop	; next RAM value
-	bra.s	WaitInterrupt	; continue (avoiding fallthrough)
+	rol.b	#4,d1				; rotate each digit
+	move.b	d1,d2				; back up a byte to D2
+	andi.b	#$0F,d2				; get only 1 digit
+	addi.w	#$60,d2				; apply the VRAM font offset
+	move.w	d2,(a1)				; update tilemap with no flip, palette 0, low priority
+	dbf d0,$$print_byte			; next value digit
+	dbf d3,UpdateDebugger.loop	; next RAM value
+	bra.s	WaitInterrupt		; continue (avoiding fallthrough)
 
 PrintWord:
 	moveq	#4-1,d0
@@ -523,7 +527,7 @@ $$print_word:
 	addi.w	#$60,d2
 	move.w	d2,(a1)
 	dbf d0,$$print_word
-	dbf d3,PrintValues.loop
+	dbf d3,UpdateDebugger.loop
 	bra.s	WaitInterrupt
 
 PrintLong:
@@ -536,21 +540,21 @@ $$print_word:
 	addi.w	#$60,d2
 	move.w	d2,(a1)
 	dbf d0,$$print_word
-	dbf d3,PrintValues.loop
+	dbf d3,UpdateDebugger.loop
 
 WaitInterrupt:
-	stop	#$2500
-	tst.b	(shouldStop)
-	bne.w	DisableCpu
+	stop	#$2500			; wait until next frame
+	tst.b	(shouldStop)	; is the audio ended?
+	bne.w	DisableCpu		; if yes, stop the CPU
 	addq.l	#1,(frameCount)	; update frame counter
-	bra.w	ReadJoypad
+	bra.w	ReadJoypad		; go back to check buttons
 PlayNote:
 	sf	(noMoreFm)
-	bra.w	PrintValues.init
+	bra.w	UpdateDebugger.init
 
 RestartSample:
-	move.l	#Music,(sampleIndex)
-	bra.w	PrintValues.init
+	move.l	#Music,(sampleIndex)	; reset sample index
+	bra.w	UpdateDebugger.init
 
 SkipForward:
 	move.l	(sampleIndex),d0
@@ -571,13 +575,18 @@ JumpBackward:
 	move.l	(sampleIndex),d0
 	sub.l	#$100000,d0
 
+; Checks if skipping forward or backward makes
+; the index go out of bound. If it does, the
+; button press will be ignored.
 IsOutOfBound:
 	cmp.l	#Music.end,d0
-	bhi.w	PrintValues.init
+; Ignore press if the sample index is too big (over ROM size limit)
+	bhi.w	UpdateDebugger.init	
 	cmp.l	#Music,d0
-	blo.w	PrintValues.init
-	move.l	d0,(sampleIndex)
-	bra.w	PrintValues.init
+; Ignore press if the sample index is too small (on code and assets)
+	blo.w	UpdateDebugger.init
+	move.l	d0,(sampleIndex)	; apply the result if no boundaries are hit
+	bra.w	UpdateDebugger.init
 
 DisableCpu:
 	lea VDP.CTRL,a0
@@ -594,7 +603,7 @@ $$print_text:
 	dbf d0,$$print_text
 	dbf d1,$$next_text
 
-	stop	#$2700
+	stop	#$2700	; halt indefinitely
 
 ;=================================================================================
 

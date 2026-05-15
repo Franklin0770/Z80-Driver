@@ -165,9 +165,9 @@ stopZ80: macro r1,r2
 		fatal "This macro must be called from the 68k. You used this in the \{MOMCPUNAME}"
 	endif
 
-	if "r1" = ""	; Macro without registers
+	if "r1" = ""	; macro without registers
 		move.w	#$100,(Z80_CTRL.BUSREQ).l
-	else	; Macro with registers (for faster execution)
+	else	; macro with registers (for faster execution)
 		if "r2" = ""
 			if notaddressregister("r1")
 				fatal "The first argument of stopZ80 when invoked with one argument must be an address register. The register used was r1"
@@ -189,12 +189,12 @@ waitZ80: macro r1,r2
 		fatal "This macro must be called from the 68k. You used this in the \{MOMCPUNAME}"
 	endif
 
-	if "r1" = ""	; Macro without breaking registers
+	if "r1" = ""	; macro without breaking registers
 $$wait: 
 	btst	#0,(Z80_CTRL.BUSREQ).l
 	bne.s	$$wait
 
-	else	; Macro breaking registers (for faster execution)
+	else	; macro breaking registers (for faster execution)
 
 	if notdataregister("r1")
 		fatal "The first argument of waitZ80 must be a data register. The register used was r1"
@@ -213,9 +213,9 @@ startZ80: macro r1,r2
 		fatal "This macro must be called from the 68k. You used this in the \{MOMCPUNAME}"
 	endif
 
-	if "r1" = ""	; Macro without registers
+	if "r1" = ""	; macro without registers
 		move.w	#0,(Z80_CTRL.BUSREQ).l
-	else	; Macro with registers (for faster execution)
+	else	; macro with registers (for faster execution)
 		if "r2" = ""
 			if notaddressregister("r1")
 				fatal "The first argument of startZ80 when invoked with one argument must be an address register. The register used was r1"
@@ -237,9 +237,9 @@ assertZ80Reset:	macro r1,r2
 		fatal "This macro must be called from the 68k. You used this in the \{MOMCPUNAME}"
 	endif
 
-	if "r1" = ""	; Macro without registers
+	if "r1" = ""	; macro without registers
 		move.w	#0,(Z80_CTRL.RESET).l
-	else	; Macro with registers (for faster execution)
+	else	; macro with registers (for faster execution)
 		if "r2" = ""
 			if notaddressregister("r1")
 				fatal "The first argument of assertZ80Reset when invoked with one argument must be an address register. The register used was r1"
@@ -261,9 +261,9 @@ deassertZ80Reset: macro r1,r2
 		fatal "This macro must be called from the 68k. You used this in the \{MOMCPUNAME}"
 	endif
 
-	if "r1" = ""	; Macro without registers
+	if "r1" = ""	; macro without registers
 		move.w	#$100,(Z80_CTRL.RESET).l
-	else	; Macro with registers (for faster execution)
+	else	; macro with registers (for faster execution)
 		if "r2" = ""
 			if notaddressregister("r1")
 				fatal "The first argument of deassertZ80Reset when invoked with one argument must be an address register. The register used was r1"
@@ -335,7 +335,7 @@ i set 16
 	while i < 152 * BUFFER_ITERATIONS
 
 	if smoothPlayback
-		move.b	(a5)+,(a6)	; Output sample. 12
+		move.b	(a5)+,(a6)	; output sample. 12
 	elseif accurateSpeed
 		addq.l	#1,a5
 		nop
@@ -362,7 +362,7 @@ i set 16
 	move.l	(a0)+,d0
 
 	if smoothPlayback
-		move.b	(a5)+,(a6)	; Output sample. 12
+		move.b	(a5)+,(a6)	; output sample. 12
 	elseif accurateSpeed
 		addq.l	#1,a5
 		nop
@@ -389,7 +389,7 @@ i set 16
 	move.l	(a0)+,d1
 
 	if smoothPlayback
-		move.b	(a5)+,(a6)	; Output sample. 12
+		move.b	(a5)+,(a6)	; output sample. 12
 	elseif accurateSpeed
 		addq.l	#1,a5
 		nop
@@ -437,13 +437,14 @@ dfntxt: macro text, x, y
 	dc.l vdpCoordinates(x,y)
 
 length set strlen(text)
-
+	; The AND operator is there to avoid making
+	; the length odd and thus crashing the CPU
 	dc.w length + length&1 - 1	; -1 because of DBF loop
 	dc.b text
 	endm
 
 odd: macro
-	rorg	(~*)&1
+	rorg	(~*)&1	; opposite of the "even" macro
 	endm
 
 loadSamplesAlt: macro
