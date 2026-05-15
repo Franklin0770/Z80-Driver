@@ -7,8 +7,8 @@
 	listing off
 
 	include "Constants.asm"
-	include "Variables.asm"
 	include "Macros.asm"
+	include "Variables.asm"
 
 	listing purecode ; We sure want the listing file, but only the final code in expanded macros
 
@@ -16,7 +16,7 @@
 smoothPlayback:	equ TRUE	; Put it to FALSE to prevent 68k output during buffer load
 accurateSpeed:	equ TRUE	; Put it to FALSE to ignore 68k sample increment calculation
 ; I often use this switch to test how an ideal and perfect playback would sound, and it's pretty close compared to both 68k and Z80
-pureAudio:		equ FALSE	; Put it to TRUE to make only the 68k output DAC samples to defy the whole puropose of this audio driver
+pureAudio:		equ FALSE		; Put it to TRUE to make only the 68k output DAC samples to defy the whole puropose of this audio driver
 hardwareEarrape:	equ FALSE	; Put this to TRUE to test the true power of the YM2612's DAC output (SW: EXTREMELY LOUD AUDIO)
 debugSoundRAM:	equ FALSE
 
@@ -176,13 +176,12 @@ UnknownError:
 
 ; ==========================
 
-; A2: live samples, A0: Z80 samples for later
 ; 240 68k cycles for every ~32 kHz sample
 
 VDP_VBlank:
 	; DPLC loading queues
 ; --- Variable cycles ---
-	stopZ80									; Initiate Z80 stop. 20
+	stopZ80									; initiate Z80 stop. 20
 	lea Z80_CTRL.BUSREQ,a0					; 8
 	lea	playedSamples+1|Z80_CTRL.WRAM,a1	; 8
 	movea.l	(sampleIndex),a5				; 16
@@ -190,14 +189,13 @@ VDP_VBlank:
 	moveq	#0,d0							; 4
 	waitZ80	d0,a0							; 12 (at best)
 	; --- 76 cycles in total ---
-	move.w	(a1),d0		; Get high byte of playedSamples. 8
-	move.b	-(a1),d0	; Get lower byte of playedSamples. 8
+	move.w	(a1),d0		; get high byte of playedSamples. 8
+	move.b	-(a1),d0	; get lower byte of playedSamples. 8
 	adda.l	d0,a5		; 8
 	move.w	d0,(z80Samples)
-	move.b	(refreshRegister|Z80_CTRL.WRAM),(randomByte)
 
 	if smoothPlayback
-		move.b	(a5)+,(a6)	; Output sample. 12
+		move.b	(a5)+,(a6)	; output sample. 12
 	elseif accurateSpeed
 		addq.l	#1,a5
 		nop
@@ -208,17 +206,17 @@ VDP_VBlank:
 	movea.l	a5,a0	; 4
 
 	if accurateSpeed
-		addaq	(BUFFER_ITERATIONS*3)+3,a0	; Sample index after 68k routine execution (A2 at the end, basically). 8
+		addaq	(BUFFER_ITERATIONS*3)+3,a0	; sample index after 68k routine execution (A2 at the end, basically). 8
 	endif
 
 	move.l	a0,d4	; D4 is now the updated sample index. 4
 
 	lea	SampleBuffer|Z80_CTRL.WRAM,a1	; 8
 ; --- 24 cycles in total ---
-	btst	#0,d4					; Is the sample index even? 6
-	beq.s	$$skip_alignment		; If yes, skip the alignment. 10
-	move.b	(a0)+,(a1)				; If not, the 68k will crash, so we avoid it. 12
-	addq.l	#2,a1					; 8
+	btst	#0,d4				; is the sample index even? 6
+	beq.s	$$skip_alignment	; if yes, skip the alignment. 10
+	move.b	(a0)+,(a1)			; if not, the 68k will crash, so we avoid it. 12
+	addq.l	#2,a1				; 8
 	move.l	a0,d4	; D4 is now the updated sample index. 4
 $$skip_alignment:
 	nop				; 4
@@ -230,7 +228,7 @@ $$skip_alignment:
 	move.b	d0,(lastSample)
 
 	if smoothPlayback
-		move.b	(a5)+,(a6)	; Output sample. 12
+		move.b	(a5)+,(a6)	; output sample. 12
 	elseif accurateSpeed
 		addq.l	#1,a5
 		nop
@@ -275,23 +273,24 @@ $$load_remainder:
 
 $$skip_remainder:
 	if smoothPlayback
-		move.b	(a5)+,(a6)	; Output sample. 12
+		move.b	(a5)+,(a6)	; output sample. 12
 	elseif accurateSpeed
 		addq.l	#1,a5
 		nop
 	endif
 
-	move.l	#ROM_End,d0	; 12
+	move.l	#Music.end,d0	; 12
 	sub.l	d4,d0
 	moveq	#0,d1
 	move.w	(z80Samples),d1
-	sub.l	d1,d0	; Is the audio about to end (ends on Z80 buffer)? 8
+	sub.l	d1,d0	; is the audio about to end (ends on Z80 buffer)? 8
 	bpl.s	$$skip_tracking		; 10 cycles on branch, 8 cycles no branch
-	; Z80 playback with sample tracking routine
+
+; Z80 playback with sample tracking routine to stop at the right time
 	lea	(Z80Init.routineAddress+1)|Z80_CTRL.WRAM,a0	; 8
 	move.b	#Init_EndSound&$FF,(a0)+	; 12
 	move.b	#Init_EndSound>>8,(a0)		; 12
-	neg.w	d0	; Get the absolute value of the remaining samples to play
+	neg.w	d0	; get the absolute value of the remaining samples to play
 	lea	(RemainingSamples+1)|Z80_CTRL.WRAM,a0	; 8
 	move.b	d0,(a0)+							; 8
 	lsr.w	#8,d0								; 22
@@ -313,10 +312,21 @@ $$skip_sound:
 	move.b	#Init_DacOnly>>8,(a0)					; 12
 
 $$continue:
+	lea	(bufferIndex+1|Z80_CTRL.WRAM),a0
+	lea z80BufferIndex,a1
+	move.b	(refreshRegister|Z80_CTRL.WRAM),(randomByte)
+	move.w	(a0),d0		; get high byte. 8
+	move.b	-(a0),d0	; get lower byte. 8
+	move.w	d0,(a1)+
+	lea	(interrputPc+1|Z80_CTRL.WRAM),a0
+	move.w	(a0),d0		; get high byte. 8
+	move.b	-(a0),d0	; get lower byte. 8
+	move.w	d0,(a1)
+
 	st	(noMoreFm)
 	move.l	d4,(sampleIndex)	; 20
 
-	startZ80	; Restart Z80
+	startZ80	; restart Z80
 
 	rte
 
@@ -344,22 +354,22 @@ $$skip_tmss:
 	lea VDP.CTRL,a0
 	lea	VDP.DATA,a1
 
-	tst.w 	(a0) ; Testing the VDP control port safely resets it
+	tst.w 	(a0) ; testing the VDP control port safely resets it
 	
 ; Register reference: https://plutiedev.com/vdp-registers
 
-	move.l  #(VDP_REG.MODE1|%00000100)<<16|(VDP_REG.MODE2|%01110100),(a0)	; Mode register #1 and Mode register #2 (Display and DMA are OFF)
-	move.l  #(VDP_REG.MODE3|%00000000)<<16|(VDP_REG.MODE4|%10000001),(a0)	; Mode register #3 and Mode Register #4
+	move.l  #(VDP_REG.MODE1|%00000100)<<16|(VDP_REG.MODE2|%01110100),(a0)	; mode register #1 and Mode register #2 (Display and DMA are OFF)
+	move.l  #(VDP_REG.MODE3|%00000000)<<16|(VDP_REG.MODE4|%10000001),(a0)	; mode register #3 and Mode Register #4
     
 ; Planes reference: https://segaretro.org/Sega_Mega_Drive/Planes
 
- 	move.l  #(VDP_REG.PLANEA|(VDP_VRAM.PLANEA>>10))<<16|(VDP_REG.PLANEB|(VDP_VRAM.PLANEB>>13)),(a0)	; Plane A and Plane B address
-	move.l  #(VDP_REG.SPRITE|(VDP_VRAM.SPRITE>>9))<<16|(VDP_REG.WINDOW|(VDP_VRAM.WINDOW>>10)),(a0)	; Sprite and Window address
-	move.w  #VDP_REG.HSCROLL|(VDP_VRAM.HSCROLL>>10),(a0)											; Horizontal scroll address
+ 	move.l  #(VDP_REG.PLANEA|(VDP_VRAM.PLANEA>>10))<<16|(VDP_REG.PLANEB|(VDP_VRAM.PLANEB>>13)),(a0)	; plane A and Plane B address
+	move.l  #(VDP_REG.SPRITE|(VDP_VRAM.SPRITE>>9))<<16|(VDP_REG.WINDOW|(VDP_VRAM.WINDOW>>10)),(a0)	; sprite and Window address
+	move.w  #VDP_REG.HSCROLL|(VDP_VRAM.HSCROLL>>10),(a0)											; horizontal scroll address
     
-	move.l  #(VDP_REG.WINX|$00)<<16|(VDP_REG.WINY|$00),(a0)			; Window X split and Window Y split
-	move.l  #(VDP_REG.SIZE|%00000001)<<16|(VDP_REG.BGCOL|$00),(a0)	; Tilemap size and Background color
-	move.l  #(VDP_REG.INCR|$02)<<16|(VDP_REG.HRATE|$FF),(a0)		; Autoincrement and HBlank IRQ rate
+	move.l  #(VDP_REG.WINX|$00)<<16|(VDP_REG.WINY|$00),(a0)			; window X split and Window Y split
+	move.l  #(VDP_REG.SIZE|%00000001)<<16|(VDP_REG.BGCOL|$00),(a0)	; tilemap size and Background color
+	move.l  #(VDP_REG.INCR|$02)<<16|(VDP_REG.HRATE|$FF),(a0)		; autoincrement and HBlank IRQ rate
 
 	moveq 	#$40,d0
 	move.b	d0,(JOY1.CTRL)
@@ -367,18 +377,18 @@ $$skip_tmss:
 
 ; Start of ROM code
 
-	dma68kToVDP PAT_BodyFont, $0000, PAT_BodyFont.SIZE, VDP_CMD.VRAM, FALSE, (a0), (a1)	; Load default font
-	dma68kToVDP PAT_BodyFont+$200, $0C00, $140, VDP_CMD.VRAM, FALSE, (a0), (a1)			; Load separate numbers used for value printing
-	dma68kToVDP PAT_BodyFont+$420, $0C00+$140, $C0, VDP_CMD.VRAM, FALSE, (a0), (a1)		; Load rest of the hexadecimal digits
+	dma68kToVDP PAT_BodyFont, $0000, PAT_BodyFont.SIZE, VDP_CMD.VRAM, FALSE, (a0), (a1)	; load default font
+	dma68kToVDP PAT_BodyFont+$200, $0C00, $140, VDP_CMD.VRAM, FALSE, (a0), (a1)			; load separate numbers used for value printing
+	dma68kToVDP PAT_BodyFont+$420, $0C00+$140, $C0, VDP_CMD.VRAM, FALSE, (a0), (a1)		; load rest of the hexadecimal digits
 
 	vdpSetColorSpace 0,(a0)
-	move.l	#$0000EEEE,(a1)	; Black and white
+	move.l	#$0000EEEE,(a1)	; black and white
 
-	dmaFillVRAM $00, VDP_VRAM.PLANEA, $1000, (a0), (a1) ; Clears characters at every soft reset
+	dmaFillVRAM $00, VDP_VRAM.PLANEA, $1000, (a0), (a1) ; clears characters at every soft reset
 
 ; Prints static text on screen
 	lea	StaticText,a2
-	moveq	#10-1,d0
+	moveq	#12-1,d0
 $$next_text:
 	moveq	#0,d2
 	move.l	(a2)+,(a0)
@@ -392,22 +402,22 @@ $$print_text:
 	lea Z80_CTRL.BUSREQ,a3
 	lea Z80_CTRL.RESET,a2
 
-	move.w	#$100,d2	; Assert, stop
-	moveq	#0,d1		; Deassert, start
+	move.w	#$100,d2	; assert, stop
+	moveq	#0,d1		; deassert, start
 
-	assertZ80Reset d1,a2	; Assert reset
-	stopZ80 d2,a3			; Request bus
-	deassertZ80Reset d2,a2	; Release reset
-; We can do more stuff while the Z80 is theoretically stopping
+	assertZ80Reset d1,a2	; assert reset
+	stopZ80 d2,a3			; request bus
+	deassertZ80Reset d2,a2	; release reset
+	; We can do more stuff while the Z80 is theoretically stopping
 	move.l 	#Music,(sampleIndex)
 	clr.l 	(frameCount)
 	move.w	#(Z80ROM_End-Z80ROM_Start)-1,d0
 	lea playedSamples|Z80_CTRL.WRAM,a0
-	clr.b	(a0)+	; Only a byte at time when writing to Z80 WRAM
+	clr.b	(a0)+	; only a byte at time when writing to Z80 WRAM
 	clr.b	(a0)
 	sf	(shouldStop)
 	st	(noMoreFm)
-	move.w	#$3FF,(controllerStatus)	; Set all buttons to 1 (since the port is pulled-up)
+	move.w	#$3FF,(controllerStatus)	; set all buttons to 1 (since the port is pulled-up)
 
 	lea Z80ROM_Start,a0
 	lea Z80_CTRL.WRAM,a1
@@ -423,41 +433,41 @@ $$copy_program:
 
 	$$copy_data:
 		move.b	d1,(a0)+
-		addq.b	#1,d1	; Fill sample buffer with increasing bytes
+		addq.b	#1,d1	; fill sample buffer with increasing bytes
 		dbf d0,$$copy_data
 	endif
 
-	assertZ80Reset d2,a2	; Assert reset
+	assertZ80Reset d2,a2	; assert reset
 
 	moveq	#20,d0
-    dbf	d0,*	; Wait for the YM2612 to wake up
+    dbf	d0,*	; wait for the YM2612 to wake up
 
-	deassertZ80Reset d2,a2	; Release reset
+	deassertZ80Reset d2,a2	; release reset
 
 	if pureAudio
 		loopTest 52
 	endif
 
-	startZ80 a3	; Release bus
+	startZ80 a3	; release bus
 
 ReadJoypad
 	lea	JOY1.DATA,a0
 	move.b 	#$40,(a0)
 	lea	controllerStatus,a1
 	moveq	#0,d0
-	moveq	#$3C,d2 ; Wait for the bus to get the controller state
+	moveq	#$3C,d2 ; wait for the bus to get the controller state
 	move.b	(a0),d0
 
 	move.b 	#$00,(a0)
 	and.b	d2,d0	; AND the redundant bits (L and R) with $3C
-	lsl.w	#4,d0	; Shift the unique bits
+	lsl.w	#4,d0	; shift the unique bits
 	or.b	(a0),d0
 
-	move.w	(a1),d1	; Get previous joypad state
-	move.w	d0,(a1)	; Update joypad state
+	move.w	(a1),d1	; get previous joypad state
+	move.w	d0,(a1)	; update joypad state
 
 	not.w	d0
-	and.w   d0,d1	; Just pressed = ~now & before
+	and.w   d0,d1	; just pressed = ~now & before
 ; D0: held buttons, D1: pressed buttons
 	btst	#JOY.A,d1
 	bne.w	PlayNote
@@ -469,37 +479,39 @@ ReadJoypad
 	bne.w	SkipForward
 	btst	#JOY.L,d1
 	bne.w	SkipBackward
-
-	tst.b	(shouldStop)
-	bne.w	DisableCpu
+	btst	#JOY.U,d1
+	bne.w	JumpForward
+	btst	#JOY.D,d1
+	bne.w	JumpBackward
 
 ; Prints dynamic RAM values that get updated each frame next to static text
 PrintValues
-.Init
-	moveq	#0,d2	; No flip, palette 0, low priority
-	moveq	#5-1,d3	; Number of values to print
+.init
+	moveq	#0,d2	; no flip, palette 0, low priority
+	moveq	#7-1,d3	; number of values to print
 	lea	VDP.CTRL,a0
 	lea	VDP.DATA,a1
 	lea	ValueInformation,a2
-.Loop:
-	movea.l	(a2)+,a3	; Variable address
+.loop:
+	movea.l	(a2)+,a3	; variable address
 	move.l	(a2)+,(a0)	; VDP coordinates
-	move.w	(a2)+,d0	; Jump offset
-.Base:
-	jmp (pc,d0.w)	; Jump to corresponding routine based on value size
+	move.w	#$0004,(a1)	; print "$"
+	move.w	(a2)+,d0	; jump offset
+.base:
+	jmp (pc,d0.w)	; jump to corresponding routine based on value size
 
 PrintByte:
-	moveq	#2-1,d0	; Number of digits to print (a byte has two digits)
-	move.b	(a3),d1	; Get the RAM value of interest
+	moveq	#2-1,d0	; number of digits to print (a byte has two digits)
+	move.b	(a3),d1	; get the RAM value of interest
 $$print_byte:
-	rol.b	#4,d1			; Rotate each digit
-	move.b	d1,d2			; Back up a byte to D2
-	andi.b	#$0F,d2			; Get only 1 digit
-	addi.w	#$60,d2			; Apply the VRAM font offset
-	move.w	d2,(a1)			; Update tilemap with no flip, palette 0, low priority
-	dbf d0,$$print_byte		; Next value digit
-	dbf d3,PrintValues.Loop	; Next RAM value
-	bra.s	WaitInterrupt	; Continue (avoiding fallthrough)
+	rol.b	#4,d1			; rotate each digit
+	move.b	d1,d2			; back up a byte to D2
+	andi.b	#$0F,d2			; get only 1 digit
+	addi.w	#$60,d2			; apply the VRAM font offset
+	move.w	d2,(a1)			; update tilemap with no flip, palette 0, low priority
+	dbf d0,$$print_byte		; next value digit
+	dbf d3,PrintValues.loop	; next RAM value
+	bra.s	WaitInterrupt	; continue (avoiding fallthrough)
 
 PrintWord:
 	moveq	#4-1,d0
@@ -511,7 +523,7 @@ $$print_word:
 	addi.w	#$60,d2
 	move.w	d2,(a1)
 	dbf d0,$$print_word
-	dbf d3,PrintValues.Loop
+	dbf d3,PrintValues.loop
 	bra.s	WaitInterrupt
 
 PrintLong:
@@ -524,29 +536,64 @@ $$print_word:
 	addi.w	#$60,d2
 	move.w	d2,(a1)
 	dbf d0,$$print_word
-	dbf d3,PrintValues.Loop
+	dbf d3,PrintValues.loop
 
 WaitInterrupt:
 	stop	#$2500
-	addq.l	#1,(frameCount)	; Update frame counter
+	tst.b	(shouldStop)
+	bne.w	DisableCpu
+	addq.l	#1,(frameCount)	; update frame counter
 	bra.w	ReadJoypad
 PlayNote:
 	sf	(noMoreFm)
-	bra.w	PrintValues.Init
+	bra.w	PrintValues.init
 
 RestartSample:
 	move.l	#Music,(sampleIndex)
-	bra.w	PrintValues.Init
+	bra.w	PrintValues.init
 
 SkipForward:
-	add.l	#$10000,(sampleIndex)
-	bra.w	PrintValues.Init
+	move.l	(sampleIndex),d0
+	add.l	#$10000,d0
+	bra.s	IsOutOfBound
 
 SkipBackward:
-	sub.l	#$10000,(sampleIndex)
-	bra.w	PrintValues.Init
+	move.l	(sampleIndex),d0
+	sub.l	#$10000,d0
+	bra.s	IsOutOfBound
+
+JumpForward:
+	move.l	(sampleIndex),d0
+	add.l	#$100000,d0
+	bra.s	IsOutOfBound
+
+JumpBackward:
+	move.l	(sampleIndex),d0
+	sub.l	#$100000,d0
+
+IsOutOfBound:
+	cmp.l	#Music.end,d0
+	bhi.w	PrintValues.init
+	cmp.l	#Music,d0
+	blo.w	PrintValues.init
+	move.l	d0,(sampleIndex)
+	bra.w	PrintValues.init
 
 DisableCpu:
+	lea VDP.CTRL,a0
+	lea VDP.DATA,a1
+	lea	HaltMessage,a2
+	moveq	#2-1,d1
+$$next_text:
+	moveq	#0,d2
+	move.l	(a2)+,(a0)
+	move.w	(a2)+,d0
+$$print_text:
+	move.b	(a2)+,d2
+	move.w	d2,(a1)
+	dbf d0,$$print_text
+	dbf d1,$$next_text
+
 	stop	#$2700
 
 ;=================================================================================
@@ -561,7 +608,7 @@ PAT_BodyFont:	include "Body Font.asm"
 	include "Driver.z80"
 
 	padding off
-	rorg	(~*)&1
+	odd
 FmControl
 	dc.b	29
 
@@ -636,24 +683,32 @@ FmData
 
 	align 2
 Music
-	;binclude "continuity_test.bin" ; Test with increasing bytes to make sure no samples get skipped
+	if ~~hardwareEarrape
+	;binclude "continuity_test.bin" ; test with increasing bytes to make sure no samples get skipped
 
-	;binclude "24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; Great music right here
-	;binclude "Don't Stand So Close To Me.raw" ; Another banger
-	;binclude "Spirits In The Material World.raw" ; This is a good one
-	;binclude "Every Little Thing She Does Is Magic.raw" ; Another nice one
+	;binclude "24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; great music right here
+	;binclude "Don't Stand So Close To Me.raw" ; another banger
+	;binclude "Spirits In The Material World.raw" ; this is a good one
+	;binclude "Every Little Thing She Does Is Magic.raw" ; another nice one
 	;binclude "Ki.raw" ; minceraft
-	;binclude "Droopy likes your face.raw" ; Underrated
+	binclude "Haunt Muskie.raw" ; Hype, my friends
+	;binclude "Droopy likes your face.raw" ; underrated
 	;binclude "Chris.raw" ; Chris
 	;binclude "Magnetic Circuit.raw" ; Notch what are you doing
 	;binclude "Lava Chicken.raw" ; Minecraft?
-	binclude "Bad (2012 Remaster).raw" ; Bad in a good way
-	;binclude "Smooth Criminal.raw" ; Annie are you okay?
+	;binclude "Bad (2012 Remaster).raw" ; bad in a good way
+	;binclude "Smooth Criminal.raw" ; annie are you okay?
 	;binclude "P.Y.T. (Pretty Young Thing).raw"
-	;binclude "Last Surprise.raw" ; A good discovery
-	;binclude "music.pcm" ; Let's not talk about this
+	;binclude "Last Surprise.raw" ; a good discovery
+	;binclude "music.pcm" ; let's not talk about this
 	;binclude "My Summary.raw"
-
-	;binclude "Minecraft Earrape.raw"
-
+	else
+	binclude "Minecraft Earrape.raw"
+	endif
+.end
+; Fill value in Mega Driven Environment is set to 80, 
+; so it'll fill the rest of the ROM with this byte,
+; which is silence, smoothing out stopping imprecision.
+	org	$3FFFFF
+	dc.b $80
 ROM_End

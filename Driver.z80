@@ -3,6 +3,8 @@ Z80ROM_Start
 
     phase 0	; Set label addresses to the start of Z80 RAM
 
+	di
+
 	ld	bc,YM2612.CTRL0	; YM2612 bank 1 port
 	ld	hl,YM2612.DATA0	; YM2612 data port
 
@@ -11,105 +13,19 @@ Z80ROM_Start
 		ld	(bc),a
 		ld	(hl),20h
 	endif
-	ld	a,DAC_ENABLE	; DAC enable address
-	ld	(bc),a			; Switch to DAC enable register
-	ld	(hl),80h		; Enable DAC
-	dec	a				; Now a is 2Ah (DAC_IN)
-	ld	(bc),a			; Switch to DAC data input
-	ld	sp,Z80.STACK	; Align stack pointer correctly
+	ld	a,DAC_ENABLE		; DAC enable address
+	ld	(bc),a				; switch to DAC enable register
+	ld	(hl),80h			; enable DAC
+	dec	a					; now a is 2Ah (DAC_IN)
+	ld	(bc),a				; switch to DAC data input
+	; To print the last value of the PC before the interrupt we can make
+	; the SP write the return address to a variable address. Of course,
+	; since the SP decreases by two before pushing the address, we have
+	; to counter this by adding 2.
+	ld	sp,interrputPc+2
 
 	ei
 	halt
-
-	rorg 38h - $
-; ----- Z80 interrupt, ready for handoff -----
-Z80Init:
-	; Set registers for DAC register set
-	ld	bc,SampleBuffer
-	ld	de,YM2612.DATA0
-	ld	hl,YM2612.CTRL0
-	ld	sp,Z80.STACK	; Re-align stack pointer correctly
-	ei
-.routineAddress:
-	jp	$	; Get ready for handoff
-
-Init_DacAndFm:
-	exx
-FmIterations:
-	ld	bc,0
-	ld	de,YM2612.CTRL0
-	ld	hl,CommandBuffer
-	exx
-$$loop_DacAndFm:
-	ld	a,(bc)
-	ld	(hl),DAC_OUT
-	ld	(de),a
-	exx
-	ldi
-	ld	a,(hl)
-	ld	(de),a
-	dec	de
-	inc	hl
-	exx
-	nop
-	nop
-	nop
-	nop
-	inc	bc
-	inc	bc
-	jp	pe,$$loop_DacAndFm
-
-	ld	a,(bc)			; 7
-	ld	(hl),DAC_OUT	; 10
-	ld	(de),a			; 7
-
-	inc	bc	; 6
-	inc	bc	; 6
-
-	ld	a,b
-
-	ld	b,7
-	djnz $
-
-	ld	b,a
-
-	nop
-Init_DacOnly:
-	ld	a,(bc)				; 7
-	ld	(de),a				; 7
-
-	inc	bc					; 6
-	inc	bc					; 6
-	; Make loop (basically placing $ next to JP)
-	ld	hl,Z80Init.routineAddress		; 10
-	ld	(Z80Init.routineAddress+1),hl	; 16
-
-	ld	h,b					; 4
-
-	ld	b,1
-	djnz $
-
-	ld	b,h
-	ld	l,c					; 4
-	res	4,h					; 8
-	srl	h					; 8
-	rr	l					; 8
-
-$$loop_DacOnly:
-	ld	a,(bc)
-	inc hl
-	ld	(de),a
-	ld 	(playedSamples),hl
-	inc	bc
-	inc bc
-	nop
-	jp	$+3
-	ld	a,r
-	ld	(refreshRegister),a
-	jp	$+3
-	nop
-	nop
-	jp	$$loop_DacOnly
 
 Init_EndSound:
 	ld	(hl),DAC_OUT
@@ -134,13 +50,120 @@ $$loop_endSound1:
 	exx
 	jp	nz,$$loop_endSound1
 
+	di
 	halt
 
-	dephase	; The rest of the labels are mapped normally
+	rorg 38h - $
+; ----- Z80 interrupt, ready for handoff -----
+Z80Init:
+	; Set registers for DAC register set
+	ld	bc,SampleBuffer
+	ld	de,YM2612.DATA0
+	ld	hl,YM2612.CTRL0
+	ld	sp,interrputPc+2	; re-align stack pointer correctly
+	ei
+.routineAddress:
+	jp	$	; get ready for handoff
+
+; At this point, we have a register pair that have different
+; purpose: the normal one is for DAC, the shadow one is
+; for FM commands.
+; BC: PCM buffer index, DE: YM2612 data, HL: YM2612 control
+; BC': loop counter, DE': YM2612 control, HL': YM buffer index
+
+Init_DacAndFm:
+	exx
+FmIterations:
+	ld	bc,0
+	ld	de,YM2612.CTRL0
+	ld	hl,CommandBuffer
+	exx
+$$loop_DacAndFm:
+	ld	a,(bc)
+; We have to change to DAC as late as possible, to make sure
+; FM commands get written in time
+	ld	(hl),DAC_OUT
+	ld	(de),a
+	exx	; switch register pair to "FM mode"
+; LDI effectively writes to the control port,
+; by also counting the loop iterations by using the
+; parity flag. If parity is even it means BC has reached 0.
+	ldi
+; Now both DE and HL are automatically incremented thanks 
+; to LDI. DE now points to the YM2612 data port, while HL 
+; advances to the next buffer byte.
+	ld	a,(hl)
+	ld	(de),a
+; Now we have to keep the P flag intact to loop properly, so
+; incrementing 16-bit registers instead of 8-bit ones will do.
+	dec	de
+	inc	hl
+	exx		; switch register pair to "DAC mode"
+	nop
+	nop
+	nop
+	nop
+	inc	bc	; advance DAC buffer pointer
+	inc	bc
+	jp	pe,$$loop_DacAndFm	; checks if the P flag is 0
+
+;Init_DacOnly:
+	ld	a,(bc)			; 7
+	ld	(hl),DAC_OUT	; 10
+	ld	(de),a			; 7
+
+	inc	bc				; 6
+	inc	bc				; 6
+	; Make loop (basically placing $ next to JP)
+	ld	hl,Z80Init.routineAddress		; 10
+	ld	(Z80Init.routineAddress+1),hl	; 16
+
+	ld	h,b				; 4
+
+	ld	b,1
+	djnz $
+
+	ld	b,h
+	ld	l,c				; 4
+	res	4,h				; 8
+	srl	h				; 8
+	rr	l				; 8
+
+$$loop_DacOnly:
+	ld	a,(bc)
+	inc hl
+	ld	(de),a
+	ld 	(playedSamples),hl
+	ld	(bufferIndex),bc
+	ld	a,r
+	ld	(refreshRegister),a
+	inc	bc
+	inc bc
+	nop
+	nop
+	nop
+	jp	$$loop_DacOnly
+
+	dephase	; the rest of the labels are mapped normally
 
 Z80ROM_End
 
-	if FALSE	; Disable assembly of unused code
+	if FALSE	; disable assembly of unused code
+
+	ld	a,(bc)			; 7
+	ld	(de),a			; 7
+
+	inc	bc	; 6
+	inc	bc	; 6
+
+	ld	a,b
+
+	ld	b,7
+	djnz $
+
+	ld	b,a
+
+	nop
 
 Init_DacAndSn:
 	exx
@@ -178,7 +201,6 @@ $$loop_DacAndEffects:
 	endm
 	djnz $$loop_DacAndEffects
 	; 112 cycles per loop
-
 
 $$unused_DacAndFm1:
 	ld	(bc),a

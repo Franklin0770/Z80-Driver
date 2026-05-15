@@ -4,37 +4,51 @@
 	charset "Assets/character_mapping.bin"
 
 StaticText:
-	dfntxt "Sample Index: $", 0, 0
-	dfntxt "Z80 Samples Per-frame: $", 0, 1
-	dfntxt "Last 68k Sample: $", 0, 2
-	dfntxt "Z80 Refresh Register: $", 0, 3
-	dfntxt "Frame Number: $", 0, 4
+	dfntxt "ROM Sample Index:", 0, 0
+	dfntxt "Z80 Samples Per-frame:", 0, 1
+	dfntxt "Last 68k Sample:", 0, 2
+	dfntxt "Z80 Buffer Index (BC):", 0, 3
+	dfntxt "Z80 PC Before Interrupt:", 0, 4
+	dfntxt "Z80 Refresh Register:", 0, 5
+	dfntxt "Frame Number:", 0, 6
 
-	dfntxt "Press A to play a note", 0, 7
-	dfntxt "Press B to play a note continuously", 0, 8
-	dfntxt "Press C to restart the music", 0, 9
-	dfntxt "Press Right to skip forward", 0, 10
-	dfntxt "Press Left to skip backward", 0, 11
+	dfntxt "Press A to play a note", 0, 9
+	dfntxt "Hold B to play a note every frame", 0, 10
+	dfntxt "Press C to restart the music", 0, 11
+	dfntxt "Press Right or Up to skip forward", 0, 12
+	dfntxt "Press Left or Down to skip backward", 0, 13
+
+HaltMessage:
+	dfntxt "All CPUs are halted now.", 0, 18
+	dfntxt "Please reset to re-listen.", 0, 19
 
 	restore
 
 ValueInformation:
 	dc.l sampleIndex					; Variable address
-	dc.l vdpCoordinates(15,0)			; VDP coordinates
-	dc.w PrintLong-PrintValues.Base-2	; Jump offset
+	dc.l vdpCoordinates(25,0)			; VDP coordinates
+	dc.w PrintLong-PrintValues.base-2	; Jump offset
 
 	dc.l z80Samples
-	dc.l vdpCoordinates(24,1)
-	dc.w PrintWord-PrintValues.Base-2
+	dc.l vdpCoordinates(25,1)
+	dc.w PrintWord-PrintValues.base-2
 
 	dc.l lastSample
-	dc.l vdpCoordinates(18,2)
-	dc.w PrintByte-PrintValues.Base-2
+	dc.l vdpCoordinates(25,2)
+	dc.w PrintByte-PrintValues.base-2
+
+	dc.l z80BufferIndex
+	dc.l vdpCoordinates(25,3)
+	dc.w PrintWord-PrintValues.base-2
+
+	dc.l z80InterruptPc
+	dc.l vdpCoordinates(25,4)
+	dc.w PrintWord-PrintValues.base-2
 
 	dc.l randomByte
-	dc.l vdpCoordinates(23,3)
-	dc.w PrintByte-PrintValues.Base-2
+	dc.l vdpCoordinates(25,5)
+	dc.w PrintByte-PrintValues.base-2
 
 	dc.l frameCount
-	dc.l vdpCoordinates(15,4)
-	dc.w PrintLong-PrintValues.Base-2
+	dc.l vdpCoordinates(25,6)
+	dc.w PrintLong-PrintValues.base-2

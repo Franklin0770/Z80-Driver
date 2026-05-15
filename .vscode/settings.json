@@ -14,8 +14,9 @@
 	"megaenvironment.sourceCodeControl.currentWorkingFolders": [
 		"Assets"
 	],
-	"workbench.colorTheme": "MegaEnvironment Dark",
+	"workbench.colorTheme": "Abyss",
 	"megaenvironment.buildControl.enablePreviousBuilds": false,
 	"megaenvironment.sourceCodeControl.variablesFileName": "",
-	"megaenvironment.sourceCodeControl.constantsFileName": ""
+	"megaenvironment.sourceCodeControl.constantsFileName": "",
+	"megaenvironment.miscellaneous.fillValue": "80"
 }

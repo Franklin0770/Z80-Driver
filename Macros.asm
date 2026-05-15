@@ -335,9 +335,9 @@ i set 16
 	while i < 152 * BUFFER_ITERATIONS
 
 	if smoothPlayback
-		move.b	(a2)+,(a3)
+		move.b	(a5)+,(a6)	; Output sample. 12
 	elseif accurateSpeed
-		addq.l	#1,a2
+		addq.l	#1,a5
 		nop
 	endif
 
@@ -362,9 +362,9 @@ i set 16
 	move.l	(a0)+,d0
 
 	if smoothPlayback
-		move.b	(a2)+,(a3)
+		move.b	(a5)+,(a6)	; Output sample. 12
 	elseif accurateSpeed
-		addq.l	#1,a2
+		addq.l	#1,a5
 		nop
 	endif
 
@@ -389,9 +389,9 @@ i set 16
 	move.l	(a0)+,d1
 
 	if smoothPlayback
-		move.b	(a2)+,(a3)
+		move.b	(a5)+,(a6)	; Output sample. 12
 	elseif accurateSpeed
-		addq.l	#1,a2
+		addq.l	#1,a5
 		nop
 	endif
 
@@ -440,8 +440,10 @@ length set strlen(text)
 
 	dc.w length + length&1 - 1	; -1 because of DBF loop
 	dc.b text
+	endm
 
-TEXT_NUMBER set TEXT_NUMBER + 1
+odd: macro
+	rorg	(~*)&1
 	endm
 
 loadSamplesAlt: macro
