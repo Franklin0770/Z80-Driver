@@ -1,4 +1,4 @@
-	page 0	; We don't want form feeds
+	page 0	; we don't want form feeds
 
 notdataregister function r,((charfromstr(r,0) <> 'd') && (charfromstr(r,0) <> 'D')) || ((charfromstr(r,1) < '0') && (charfromstr(r,1) > '7'))
 notaddressregister function r,((charfromstr(r,0) <> 'a') && (charfromstr(r,0) <> 'A')) || ((charfromstr(r,1) < '0') && (charfromstr(r,1) > '6'))

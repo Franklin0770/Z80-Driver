@@ -691,12 +691,12 @@ Music
 	;binclude "Spirits In The Material World.raw" ; this is a good one
 	;binclude "Every Little Thing She Does Is Magic.raw" ; another nice one
 	;binclude "Ki.raw" ; minceraft
-	binclude "Haunt Muskie.raw" ; Hype, my friends
+	;binclude "Haunt Muskie.raw" ; Hype, my friends
 	;binclude "Droopy likes your face.raw" ; underrated
 	;binclude "Chris.raw" ; Chris
 	;binclude "Magnetic Circuit.raw" ; Notch what are you doing
 	;binclude "Lava Chicken.raw" ; Minecraft?
-	;binclude "Bad (2012 Remaster).raw" ; bad in a good way
+	binclude "Bad (2012 Remaster).raw" ; bad in a good way
 	;binclude "Smooth Criminal.raw" ; annie are you okay?
 	;binclude "P.Y.T. (Pretty Young Thing).raw"
 	;binclude "Last Surprise.raw" ; a good discovery

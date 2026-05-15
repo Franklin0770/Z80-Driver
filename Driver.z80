@@ -31,9 +31,10 @@ Init_EndSound:
 	ld	(hl),DAC_OUT
 	exx
 RemainingSamples:
+	; The 68k writes the remaining samples here
 	ld	bc,0000h
 	exx
-$$loop_endSound1:
+$$loop_endSound:
 	ld	a,(bc)
 	ld	(de),a
 	rept 12
@@ -41,19 +42,19 @@ $$loop_endSound1:
 	endm
 	inc	bc
 	inc bc
-	cp	0
+	cp	0	; just for timing alignment
 	cp	0
 	exx
 	dec	bc
 	ld	a,b
-	or	c
+	or	c	; check if BC is 0
 	exx
-	jp	nz,$$loop_endSound1
+	jp	nz,$$loop_endSound
 
 	di
 	halt
 
-	rorg 38h - $
+	rorg 38h - $	; can't use ORG while dephasing
 ; ----- Z80 interrupt, ready for handoff -----
 Z80Init:
 	; Set registers for DAC register set
@@ -107,7 +108,7 @@ $$loop_DacAndFm:
 	inc	bc
 	jp	pe,$$loop_DacAndFm	; checks if the P flag is 0
 
-;Init_DacOnly:
+Init_DacOnly:
 	ld	a,(bc)			; 7
 	ld	(hl),DAC_OUT	; 10
 	ld	(de),a			; 7
