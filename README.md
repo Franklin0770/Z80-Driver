@@ -17,4 +17,4 @@ This source code also provides a useful text-based debugger that highlights the 
 ## How to compile the code
 This source code is meant to run on [Mega Driven Environment](https://marketplace.visualstudio.com/items?itemName=Brotherhood0.megaenvironment), a Visual Studio Code extension. Install Mega Driven Environment, open the repository as a folder and use the standard AS build to assemble (you don't need to tweak anything).
 ___
-Welcome to the bottom of this README. If you want to know more, check the [wiki](https://github.com/Franklin0770/Z80-Driver/wiki) out to delve deeper into the technical nature of this audio driver!
+Welcome to the bottom of this README. If you want to know more, check the [Wiki](https://github.com/Franklin0770/Z80-Driver/wiki) out to delve deeper into the technical nature of this audio driver!

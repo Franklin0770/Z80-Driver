@@ -1,3 +1,5 @@
+; For more additional details and explanations, check the Wiki: https://github.com/Franklin0770/Z80-Driver/wiki
+
 	cpu Z80
 Z80ROM_Start
 
@@ -18,10 +20,7 @@ Z80ROM_Start
 	ld	(hl),80h			; enable DAC
 	dec	a					; now a is 2Ah (DAC_IN)
 	ld	(bc),a				; switch to DAC data input
-	; To print the last value of the PC before the interrupt we can make
-	; the SP write the return address to a variable address. Of course,
-	; since the SP decreases by two before pushing the address, we have
-	; to counter this by adding 2.
+	; Make the SP push the interrupt address to a specific address
 	ld	sp,interrputPc+2
 
 	ei
@@ -81,22 +80,12 @@ FmIterations:
 	exx
 $$loop_DacAndFm:
 	ld	a,(bc)
-; We have to change to DAC as late as possible, to make sure
-; FM commands get written in time
 	ld	(hl),DAC_OUT
 	ld	(de),a
-	exx	; switch register pair to "FM mode"
-; LDI effectively writes to the control port,
-; by also counting the loop iterations by using the
-; parity flag. If parity is even it means BC has reached 0.
+	exx		; switch register pair to "FM mode"
 	ldi
-; Now both DE and HL are automatically incremented thanks 
-; to LDI. DE now points to the YM2612 data port, while HL 
-; advances to the next buffer byte.
 	ld	a,(hl)
 	ld	(de),a
-; Now we have to keep the P flag intact to loop properly, so
-; incrementing 16-bit registers instead of 8-bit ones will do.
 	dec	de
 	inc	hl
 	exx		; switch register pair to "DAC mode"
@@ -130,6 +119,9 @@ Init_DacOnly:
 	srl	h				; 8
 	rr	l				; 8
 
+; This is where most of the debugging values get written to
+; RAM, so then the 68k can move then into its own RAM
+
 $$loop_DacOnly:
 	ld	a,(bc)
 	inc hl
@@ -148,6 +140,8 @@ $$loop_DacOnly:
 	dephase	; the rest of the labels are mapped normally
 
 Z80ROM_End
+
+;=================================================================================
 
 	if FALSE	; disable assembly of unused code
 
