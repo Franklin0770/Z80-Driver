@@ -36,7 +36,7 @@ RemainingSamples:
 $$loop_endSound:
 	ld	a,(bc)
 	ld	(de),a
-	rept 12
+	rept 10
 	nop
 	endm
 	inc	bc
