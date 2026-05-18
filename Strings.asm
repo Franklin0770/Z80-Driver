@@ -17,10 +17,14 @@ StaticText:
 	dfntxt "Press C to restart the music", 0, 11
 	dfntxt "Press Right or Up to skip forward", 0, 12
 	dfntxt "Press Left or Down to skip backward", 0, 13
+	dfntxt "Press Start to pause or resume playback", 0, 14
+
+PauseMessage:
+	dfntxt "Playback paused.", 0, 19
 
 HaltMessage:
-	dfntxt "All CPUs are halted now.", 0, 18
-	dfntxt "Please reset to re-listen.", 0, 19
+	dfntxt "All CPUs are halted now.", 0, 19
+	dfntxt "Please reset to re-listen.", 0, 20
 
 	restore
 

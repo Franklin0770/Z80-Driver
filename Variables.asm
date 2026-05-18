@@ -14,6 +14,7 @@ frameCount:			ds.l 1
 lastSample:			ds.b 1
 shouldStop:			ds.b 1	; It's zero when the execution continues
 noMoreFm:			ds.b 1
+shouldPause:		ds.b 1
 randomByte:			ds.b 1
 z80BufferIndex:		ds.w 1
 z80InterruptPc:		ds.w 1

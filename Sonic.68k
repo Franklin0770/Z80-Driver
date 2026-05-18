@@ -182,17 +182,21 @@ VDP_VBlank:
 	; DPLC loading queues
 ; --- Variable cycles ---
 	stopZ80									; initiate Z80 stop. 20
+	tst.b	(shouldPause)
+	beq.s	$$skip_pause
+	clr.w	(z80Samples)
+	rte
+$$skip_pause:
 	lea Z80_CTRL.BUSREQ,a0					; 8
 	lea	playedSamples+1|Z80_CTRL.WRAM,a1	; 8
 	movea.l	(sampleIndex),a5				; 16
 	lea	YM2612_68K.DATA0,a6					; 8
 	moveq	#0,d0							; 4
 	waitZ80	d0,a0							; 12 (at best)
-	; --- 76 cycles in total ---
-	move.w	(a1),d0		; get high byte of playedSamples. 8
-	move.b	-(a1),d0	; get lower byte of playedSamples. 8
-	adda.l	d0,a5		; 8
-	move.w	d0,(z80Samples)
+	
+	move.w	(a1),d0			; get high byte of playedSamples. 8
+	move.b	-(a1),d0		; get lower byte of playedSamples. 8
+	adda.l	d0,a5			; 8
 
 	if smoothPlayback
 		move.b	(a5)+,(a6)	; output sample. 12
@@ -203,6 +207,7 @@ VDP_VBlank:
 
 ; --- Cycle count restarts ---
 
+	move.w	d0,(z80Samples)	; 12
 	movea.l	a5,a0	; 4
 
 	if accurateSpeed
@@ -235,7 +240,7 @@ $$skip_alignment:
 	endif
 
 	tst.b	(noMoreFm)
-	bne.w	$$skip_remainder
+	bne.s	$$skip_remainder
 
 	moveq	#0,d1
 	lea	FmControl,a0
@@ -284,7 +289,7 @@ $$skip_remainder:
 	moveq	#0,d1
 	move.w	(z80Samples),d1
 	sub.l	d1,d0	; is the audio about to end (ends on Z80 buffer)? 8
-	bpl.s	$$skip_tracking		; 10 cycles on branch, 8 cycles no branch
+	bpl.s	SkipTracking		; 10 cycles on branch, 8 cycles no branch
 
 ; Z80 playback with sample tracking routine to stop at the right time
 	lea	(Z80Init.routineAddress+1)|Z80_CTRL.WRAM,a0	; 8
@@ -296,22 +301,22 @@ $$skip_remainder:
 	lsr.w	#8,d0								; 22
 	move.b	d0,(a0)								; 8
 	st	(shouldStop)							; 16
-	bra.s	$$continue							; 10
+	bra.s	UpdateRoutine							; 10
 
-$$skip_tracking:
+SkipTracking:
 	tst.b	(noMoreFm)
 	bne.s	$$skip_sound
 	lea	(Z80Init.routineAddress+1)|Z80_CTRL.WRAM,a0	; 8
 	move.b	#Init_DacAndFm&$FF,(a0)+				; 12
 	move.b	#Init_DacAndFm>>8,(a0)					; 12
-	bra.s	$$continue
+	bra.s	UpdateRoutine
 
 $$skip_sound:
 	lea	(Z80Init.routineAddress+1)|Z80_CTRL.WRAM,a0	; 8
 	move.b	#Init_DacOnly&$FF,(a0)+					; 12
 	move.b	#Init_DacOnly>>8,(a0)					; 12
 
-$$continue:
+UpdateRoutine:
 	lea	(bufferIndex+1|Z80_CTRL.WRAM),a0
 	lea z80BufferIndex,a1
 	move.b	(refreshRegister|Z80_CTRL.WRAM),(randomByte)
@@ -323,8 +328,8 @@ $$continue:
 	move.b	-(a0),d0	; get lower byte. 8
 	move.w	d0,(a1)
 
-	st	(noMoreFm)
 	move.l	d4,(sampleIndex)	; 20
+	st	(noMoreFm)
 
 	startZ80	; restart Z80
 
@@ -388,7 +393,7 @@ $$skip_tmss:
 
 ; Prints static text on screen
 	lea	StaticText,a2
-	moveq	#12-1,d0	; number of strings to print
+	moveq	#13-1,d0	; number of strings to print
 $$next_text:
 	moveq	#0,d2		; no flip, palette 0, low priority for the next tilemap values
 	move.l	(a2)+,(a0)	; set coordinates
@@ -417,6 +422,7 @@ $$print_text:
 	clr.b	(a0)
 	sf	(shouldStop)
 	st	(noMoreFm)
+	sf	(shouldPause)
 	move.w	#$3FF,(controllerStatus)	; set all buttons to 1 (since the port is pulled-up)
 
 	lea Z80ROM_Start,a0
@@ -453,7 +459,7 @@ $$copy_program:
 ;=================================================================================
 ; Code that runs every frame
 
-ReadJoypad
+ReadJoypad:
 	lea	JOY1.DATA,a0
 	move.b 	#$40,(a0)
 	lea	controllerStatus,a1
@@ -487,10 +493,12 @@ ReadJoypad
 	bne.w	JumpForward
 	btst	#JOY.D,d1
 	bne.w	JumpBackward
+	btst	#JOY.START,d1
+	bne.w	PauseOrResume
 
 ; Prints dynamic RAM values that get updated each frame next to static text
 UpdateDebugger
-.init
+.init:
 	moveq	#0,d2	; no flip, palette 0, low priority for the next tilemap values
 	moveq	#7-1,d3	; number of values to print
 	lea	VDP.CTRL,a0
@@ -533,13 +541,13 @@ $$print_word:
 PrintLong:
 	moveq	#8-1,d0
 	move.l	(a3),d1
-$$print_word:
+$$print_long:
 	rol.l	#4,d1
 	move.b	d1,d2
 	andi.b	#$0F,d2
 	addi.w	#$60,d2
 	move.w	d2,(a1)
-	dbf d0,$$print_word
+	dbf d0,$$print_long
 	dbf d3,UpdateDebugger.loop
 
 WaitInterrupt:
@@ -586,6 +594,27 @@ IsOutOfBound:
 ; Ignore press if the sample index is too small (on code and assets)
 	blo.w	UpdateDebugger.init
 	move.l	d0,(sampleIndex)	; apply the result if no boundaries are hit
+	bra.w	UpdateDebugger.init
+
+PauseOrResume:
+	moveq	#0,d1
+	lea VDP.CTRL,a0
+	lea VDP.DATA,a1
+	lea	(PauseMessage),a2
+	move.l	(a2)+,(a0)
+	move.w	(a2)+,d0
+	not.b	(shouldPause)
+	bne.s	$$print_text
+; Clear pause text
+$$clear_text:
+	move.w	d1,(a1)
+	dbf d0,$$clear_text
+	bra.w	UpdateDebugger.init
+; Print pause text
+$$print_text:
+	move.b	(a2)+,d1
+	move.w	d1,(a1)
+	dbf d0,$$print_text
 	bra.w	UpdateDebugger.init
 
 DisableCpu:
@@ -705,8 +734,9 @@ Music
 	;binclude "Chris.raw" ; Chris
 	;binclude "Magnetic Circuit.raw" ; Notch what are you doing
 	;binclude "Lava Chicken.raw" ; Minecraft?
-	binclude "Bad (2012 Remaster).raw" ; bad in a good way
-	;binclude "Smooth Criminal.raw" ; annie are you okay?
+	;binclude "Bad (2012 Remaster).raw" ; bad in a good way
+	;binclude "Smooth Criminal.raw" ; Annie are you okay
+	binclude "Billie Jean.raw" ; Billie Jean
 	;binclude "P.Y.T. (Pretty Young Thing).raw"
 	;binclude "Last Surprise.raw" ; a good discovery
 	;binclude "music.pcm" ; let's not talk about this
