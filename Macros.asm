@@ -447,6 +447,10 @@ odd: macro
 	rorg	(~*)&1	; opposite of the "even" macro
 	endm
 
+chars function c1,c2,(c1)<<16|c2
+
+	if FALSE
+
 loadSamplesAlt: macro
 	
 ; -------------------------
@@ -938,3 +942,5 @@ loadSamplesAlt: macro
    movep.l d0,(1072,a1)
 
 	endm
+
+	endif

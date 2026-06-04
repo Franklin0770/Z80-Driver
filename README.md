@@ -1,5 +1,5 @@
 # Codename FrankPCM: a high-tech audio driver
-Hello there! I've finally found the time to write a README, where I explain the main objective of this software and its technicalities. Bare with me to know more, if you wish.
+Hello there! I've finally found the time to write a README, where I explain the main objective of this software and its technicalities. Keep on reading to know more, if you wish!
 
 > Please note that this driver is still in experimentation and development. Not all features are here, at least for now.
 

@@ -22,6 +22,8 @@ debugSoundRAM:		equ FALSE
 
 gensFix:	equ FALSE	; use this if you plan to use Gens, since it doesn't emulate the fast Z80 RAM read
 
+BsodCpuLag: equ FALSE
+
 ROM_Start
 
 	org 0
@@ -55,13 +57,13 @@ ROM_Start
 		dc.l UnknownError		; Unused (reserved)					[14]
 		dc.l UnknownError		; Unused (reserved)					[14]
 		dc.l SpuriousException	; Spurious exception				[11]
-		dc.l InterruptRequest	; IRQ level 1						[12]
-		dc.l InterruptRequest	; IRQ level 2						[12]
-		dc.l InterruptRequest	; IRQ level 3 						[12]
+		dc.l $0					; IRQ level 1						[12]
+		dc.l $0					; IRQ level 2						[12]
+		dc.l $0					; IRQ level 3 						[12]
 		dc.l VDP_HBlank			; IRQ level 4 (horizontal retrace)
-		dc.l InterruptRequest	; IRQ level 5						[12]
+		dc.l $0					; IRQ level 5						[12]
 		dc.l VDP_VBlank			; IRQ level 6 (vertical retrace)
-		dc.l InterruptRequest	; IRQ level 7						[12]
+		dc.l $0					; IRQ level 7						[12]
 		dc.l TRAPException		; TRAP #00 exception				[13]
 		dc.l TRAPException		; TRAP #01 exception				[13]
 		dc.l TRAPException		; TRAP #02 exception				[13]
@@ -122,59 +124,333 @@ ROM_Start
 
 BusError:
 	move.l	#$AAAAAAA1,d7
-	stop #$2700
+	stop #$2700 ; Gens does not recognize this instruction
 
 AddressError:
-	move.l	#$AAAAAAA2,d7
-	stop #$2700
+	movem.l	d0-a7,REG_DUMP
+	move sr,REG_DUMP+$40
+	moveq	#3+$10,d7
+	bra.w	VDP_BSOD
 
 IllegalInstruction:
-	move.l	#$AAAAAAA3,d7
-	stop #$2700
+	movem.l	d0-a7,REG_DUMP
+	move sr,REG_DUMP+$40
+	moveq	#4+$10,d7
+	bra.w 	VDP_BSOD
 
 DivisionByZero:
-	move.l	#$AAAAAAA4,d7
-	stop #$2700
-
+	movem.l	d0-a7,REG_DUMP
+	move sr,REG_DUMP+$40
+	moveq	#5+$10,d7
+	bra.w 	VDP_BSOD
+	
 CHKException:
-	move.l	#$AAAAAAA5,d7
-	stop #$2700
-
+	movem.l	d0-a7,REG_DUMP
+	move sr,REG_DUMP+$40
+	moveq	#6+$10,d7
+	bra.w	VDP_BSOD
+	
 TRAPVException:
-	move.l	#$AAAAAAA6,d7
-	stop #$2700
-
+	movem.l	d0-a7,REG_DUMP
+	move sr,REG_DUMP+$40
+	moveq	#7+$10,d7
+	bra.w	VDP_BSOD
+	
 PrivilegeViolation:
-	move.l	#$AAAAAAA7,d7
-	stop #$2700
-
+	movem.l	d0-a7,REG_DUMP
+	move sr,REG_DUMP+$40
+	moveq	#8+$10,d7
+	bra.s	VDP_BSOD
+	
 TRACEException:
-	move.l	#$AAAAAAA8,d7
-	stop #$2700
+	movem.l	d0-a7,REG_DUMP
+	move sr,REG_DUMP+$40
+	moveq	#9+$10,d7
+	bra.s	VDP_BSOD
 
 LineAEmulator:
-	move.l	#$AAAAAAA9,d7
-	stop #$2700
-
+	movem.l	d0-a7,REG_DUMP
+	move sr,REG_DUMP+$40
+	moveq	#$A+$10,d7
+	bra.s	VDP_BSOD
+	
 LineFEmulator:
-	move.l	#$AAAAAA10,d7
-	stop #$2700
-
+	movem.l	d0-a7,REG_DUMP
+	move sr,REG_DUMP+$40
+	moveq	#$B+$10,d7
+	bra.s	VDP_BSOD
+	
 SpuriousException:
-	move.l	#$AAAAAA11,d7
-	stop #$2700
-
-InterruptRequest:
-	move.l	#$AAAAAA12,d7
-	stop #$2700
-
+	movem.l	d0-a7,REG_DUMP
+	move sr,REG_DUMP+$40
+	moveq	#$C+$10,d7
+	bra.s	VDP_BSOD
+	
 TRAPException:
-	move.l	#$AAAAAA13,d7
-	stop #$2700
-
+	movem.l	d0-a7,REG_DUMP
+	move sr,REG_DUMP+$40
+	moveq	#$D+$10,d7
+	bra.s	VDP_BSOD
+	
 UnknownError:
-	move.l	#$AAAAAA14,d7
-	stop #$2700
+	movem.l	d0-a7,REG_DUMP
+	move sr,REG_DUMP+$40
+	moveq	#$E+$10,d7
+	bra.s	VDP_BSOD
+	
+ManualCrash:
+	movem.l	d0-a7,REG_DUMP
+	move sr,REG_DUMP+$40
+	moveq	#$F+$10,d7
+
+VDP_BSOD:
+	lea	M68K.STACK,sp	; realign the stack pointer
+	move #$2700,sr		; disable interrupts
+	addq.b	#6,REG_PREFIXES+$4B	; add the value back to sp dump value
+	lea VDP.CTRL,a0		; reset a0
+	lea VDP.DATA,a1		; reset a1
+	moveq	#0,d2		; clear slow down timer for CPU_ClearScreen
+	move.l	#$FF,d3		; update the slow down timer for CPU_ClearScreen
+
+; ---------------------------------------------------------------------------
+; Subroutine to	clear the screen using CPU and load the font
+; ---------------------------------------------------------------------------
+	
+	vdpSetVideoAddress VDP_VRAM.PLANEA,(a0)
+	move.w	#($1000/4)-1,d0	; clear the entire plane A ($1000 bytes)
+	moveq	#0,d1			; clear d1
+$$clear_screen:
+	move.l	d1,(a1)			; clear portion of screen by setting the background tiles
+	if BsodCpuLag
+		move.w	d3,d2		; update the slow down timer for CPU_Wait
+		bsr.w	CPU_Wait	; make the slow down effect
+	endif
+	dbf d0,$$clear_screen	; keep clearing until done
+	
+	if BsodCpuLag
+		move.w	#$2FFF,d2	; update the slow down timer
+		bsr.w	CPU_Wait	; a bit of lag
+	endif
+
+	vdpSetColorSpace 0,(a0)
+	move.l	#$0E000EEE,(a1)	; makes the background blue and the font white
+	
+	if BsodCpuLag
+		move.l	#$2FFFF,d2	; update the slow down timer
+		bsr.w	CPU_Wait	; a bit of lag
+	endif
+	
+; Load BSOD font
+	vdpSetVideoAddress $0000,(a0)
+	move.w	#(PAT_BodyFont.SIZE/4)-1,d0
+	lea	PAT_BodyFont,a2
+	
+$$load_font:
+	move.l	(a2)+,(a1)
+	dbf d0,$$load_font
+
+	vdpSetVideoAddress $0C00+$140,(a0)
+	lea PAT_BodyFont+$420,a2
+	moveq	#$C0-1,d0
+
+$$load_digits:
+	move.l	(a2)+,(a1)
+	dbf d0,$$load_digits
+
+; ---------------------------------------------------------------------------
+; Subroutine to	print on screen the first five strings (messages)
+; ---------------------------------------------------------------------------
+
+	lea Messages,a2		; points to the string address in the properties array
+	moveq	#5-1,d4		; 5 strings to print (Message0 ~ Code)
+$$setup_message:
+	move.l	(a2)+,(a0)	; set coordinates
+	move.w	(a2)+,d0	; get string length
+	if BsodCpuLag
+		move.w	#$7FF,d3	; update the slow down timer for VDP_PrintText
+	endif
+
+	bsr.w	VDP_PrintText
+	
+	if BsodCpuLag
+		move.w	#$1FFF,d2	; update the slow down timer
+		bsr.w	CPU_Wait	; a bit of lag
+	endif
+	dbf d4,$$setup_message
+	
+	if BsodCpuLag
+		move.w	#$2FFF,d2	; update the slow down timer
+		bsr.w	CPU_Wait	; a bit of lag
+	endif
+
+; ---------------------------------------------------------------------------
+; Subroutine to	print on screen the error code in hexadecimal
+; ---------------------------------------------------------------------------
+
+	move.l	#chars('A','A'),d0
+	move.l	d0,(a1)		; print "AA"
+	
+	move.b	d7,d0		; move error code to be "Ax"
+	
+	cmpi.b	#$A+$10,d7	; is the error code a letter?
+	blo.s	$$no_letter	; if not do not align VRAM for letters
+	addq.b	#7,d0		; align VRAM to print hexadecimal letters
+$$no_letter:
+	move.l	d0,(a1)		; print the rest of the error code
+	
+	if BsodCpuLag
+		move.w	#$FFFF,d2	; update the slow down timer
+		bsr.w	CPU_Wait	; a bit of lag
+	endif
+
+; ---------------------------------------------------------------------------
+; Subroutine to	print on screen the error code in text
+; ---------------------------------------------------------------------------
+
+	lea TextCodes,a2	; load text codes array
+	move.b	(a2),d0		; get length
+	subi.b	#$10+2,d7	; align d7 (VRAM alignment + how error codes count by design)
+	
+	move.l	#vdpCoordinates(2,7),(a0)	; set fixed text code position on screen
+	if BsodCpuLag
+		move.w	#$8FF,d3	; update the slow down timer for VDP_PrintText
+	endif
+
+	bsr.w	VDP_PrintText
+	
+	if BsodCpuLag
+		move.w	#$FFFF,d2	; update the slow down timer
+		bsr.w	CPU_Wait	; a bit of lag
+	endif
+	
+; ---------------------------------------------------------------------------
+; Subroutine to	print on screen the register names (or prefixes)
+; ---------------------------------------------------------------------------
+	
+	lea	Message5,a3		; points to the string address directly
+	moveq	#15-1,d0	; this string is 15 characters long
+	move.l	#vdpCoordinates(0,10),(a0)
+	if BsodCpuLag
+		move.w	#$AFF,d3	; update the slow down timer for VDP_PrintText
+	endif
+	
+	bsr.w	VDP_PrintText
+
+	if BsodCpuLag
+		move.w	#$5FFF,d2	; update the slow down timer
+		bsr.w	CPU_Wait	; a bit of lag
+	endif
+
+	moveq	#8-1,d0		; 8 registers to write
+	moveq	#8-1,d6		; 8 digits to print
+	moveq	#0,d5
+	lea	REG_PREFIXES+10,a2; start from this point to write down the prefixes
+	lea REG_DUMP,a3			; load register dump pointer
+	; write the prefixes in RAM in opposite order
+	move.l	#chars('0','x'),-(a2)
+	move.w	#':',-(a2)
+	move.l	#chars('d','0'),-(a2)
+	move.l	#vdpCoordinates(2,12),d1	; set on-screen register dump coordinates
+
+;============================================================================
+
+$$print_registers:
+	move.l	d1,(a0)		; update the plane coordinates
+
+	moveq	#5-1,d3		; 5 prefixes to print
+$$print_prefix:
+	move.w	(a2)+,(a1)	; print register number
+	if BsodCpuLag
+		move.w	#$FFF,d2	; update the slow down timer
+		bsr.w	CPU_Wait	; a bit of lag
+	endif
+	dbf d3,$$print_prefix
+	
+	subaq	10,a2		; reposition a2 to the prefixes' start
+	
+; ---------------------------------------------------------------------------
+; Subroutine to	print on screen the register values from dump
+; ---------------------------------------------------------------------------
+
+    move.l	d6,d3		; update the digit counter
+	move.l	(a3)+,d4	; get the register dumped value
+$$print_value:
+	rol.l	#4,d4		; rotate the digits on the left
+	move.b	d4,d5		; move the digits in ascending order to d5
+	andi.b	#$F,d5		; remove the other digit
+	
+	cmpi.b	#$A,d5		; is the digit a letter?
+	blo.s	$$no_letter2; if not do not align VRAM for letters
+	addq.b	#7,d5		; align VRAM to print letters
+$$no_letter2:
+	addi.b	#$10,d5		; align VRAM to print numbers or letters
+	move.w	d5,(a1)		; update the plane A
+	
+	dbf d3,$$print_value	; loop until printed all digits
+	
+	addq.b	#1,REG_PREFIXES+3	; increment register number character
+	addi.l	#$800000,d1			; new line by adding coordinates
+	
+	if BsodCpuLag
+		move.w	#$1FFF,d2			; update the slow down timer
+		bsr.w	CPU_Wait			; a bit of lag
+	endif
+	dbf d0,$$print_registers
+
+; Print address registers
+	cmpa.l	#REG_DUMP+$20,a3	; has the VDP already printed the address registers?
+	bhi.s	$$print_sp			; if yes, print stack pointer
+	moveq	#7-1,d0				; 7 registers to print
+	moveq	#8-1,d6				; 8 digits to print
+	subq.b	#3,REG_PREFIXES+1	; change prefix from 'd' to 'a'
+	subq.b	#8,REG_PREFIXES+3	; restart the count from 0
+	move.l	#vdpCoordinates(19,12),d1	; update coordinates
+	bra.w	$$print_registers	; print address register dump
+	
+$$print_sp:
+	cmpa.l	#REG_DUMP+$3C,a3	; has the VDP already printed the stack pointer?
+	bhi.s	$$print_sr			; if yes, print the status register
+	moveq	#1-1,d0				; 1 register to write
+	moveq	#8-1,d6				; 8 digits to print
+	move.l	#chars('s','p'),(a2); use "sp" prefix
+	bra.w	$$print_registers	; print sp
+	
+$$print_sr:
+	cmpa.l	#REG_DUMP+$40,a3	; has the VDP already printed the stack pointer?
+	bhi.s 	Halt_CPU			; if yes, stop the execution
+	moveq	#1-1,d0				; 1 register to write
+	moveq	#4-1,d6				; 4 digits to print
+	move.l	#chars('s','r'),(a2)		; use "sr" prefix
+	move.l	#vdpCoordinates(2,22),d1	; set fixed coordinates
+	bra.w	$$print_registers
+	
+; ---------------------------------------------------------------------------
+; Subroutine to	draw text on screen (a3: string pointer, d0: length)
+; ---------------------------------------------------------------------------
+
+VDP_PrintText:
+	moveq	#0,d1		; clear d1
+$$update_display:
+	move.b 	(a2)+,d1	; move character to d1
+	move.w 	d1,(a1)		; no flip, palette 0, no priority
+	if BsodCpuLag=1
+		move.l	d3,d2		; update the slow down timer for CPU_Wait
+		bsr.s	CPU_Wait	; make the slow down effect
+	endif
+	dbf	d0,$$update_display
+	rts
+
+; ---------------------------------------------------------------------------
+; Subroutine to	hang the CPU for a given time (d2: timer)
+; ---------------------------------------------------------------------------
+
+CPU_Wait:
+	subi.l	#1,d2		; purposefully using a slower instruction
+	bne.s	CPU_Wait	; wait until done (dbf subs only word-wise, which is not suitable)
+	rts
+	
+Halt_CPU:
+	stop #$2700		; halt the CPU indefinitely
 
 ; ==========================
 
@@ -503,6 +779,8 @@ ReadJoypad:
 	bne.w	JumpBackward
 	btst	#JOY.START,d1
 	bne.w	PauseOrResume
+	cmpi.w	#$01D3,(a1)
+	beq.l	ManualCrash
 
 ; Prints dynamic RAM values that get updated each frame next to static text
 UpdateDebugger
@@ -648,6 +926,7 @@ $$print_text:
 
 	include "Strings.asm"
 	
+	align 2
 PAT_BodyFont:	include "Body Font.asm"
 .SIZE:	equ 96*32
 
