@@ -65,7 +65,7 @@ Z80Init:
 .routineAddress:
 	jp	$	; get ready for handoff
 
-; At this point, we have a register pair that have different
+; At this point, we have register pairs that have different
 ; purpose: the normal one is for DAC, the shadow one is
 ; for FM commands.
 ; BC: PCM buffer index, DE: YM2612 data, HL: YM2612 control

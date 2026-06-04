@@ -56,3 +56,30 @@ ValueInformation:
 	dc.l frameCount
 	dc.l vdpCoordinates(25,6)
 	dc.w PrintLong-UpdateDebugger.base-2
+
+Messages:
+	dfntxt "Unfortunately, the Sega Mega Drive", 0, 0
+	dfntxt "has crashed! I'm sorry :(", 0, 1
+	dfntxt "If you want to know more,", 0, 2
+	dfntxt "there's some useful information:", 0, 3
+	dfntxt "STOP_CODE: 0x", 0, 4
+	
+TextCodes:
+	dc.b 11
+	dc.b "(BUS_ERROR)"
+	dc.b 15
+	dc.b "(ADDRESS_ERROR)"
+	dc.b "(ILLEGALINSTRUCTION_EXCEPTION)"
+	dc.b "(DIVISIONBYZERO_EXCEPTION)"
+	dc.b "(CHECK_EXCEPTION)"
+	dc.b "(TRAPV_EXCEPTION)"
+	dc.b "(PRIVILEGE_VIOLATION)"
+	dc.b "(TRACE_EXCEPTION)"
+	dc.b "(LINE1010_EMU)"
+	dc.b "(LINE1111_EMU)"
+	dc.b "(SPURIOUS_EXCEPTION)"
+	dc.b "(TRAPxx_EXCEPTION)"
+	dc.b "(UNKNOWN_ERROR)"
+	dc.b "(MANUALLY_INITIATED_CRASH)"
+	
+Message5:	dc.b "Registers dump:"
