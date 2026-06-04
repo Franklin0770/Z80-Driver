@@ -447,7 +447,7 @@ odd: macro
 	rorg	(~*)&1	; opposite of the "even" macro
 	endm
 
-chars function c1,c2,(c1)<<16|c2
+chars function c1,c2,((c1-$20)<<16)|(c2-$20)
 
 	if FALSE
 

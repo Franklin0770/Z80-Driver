@@ -18,13 +18,14 @@ StaticText:
 	dfntxt "Press Right or Up to skip forward", 0, 12
 	dfntxt "Press Left or Down to skip backward", 0, 13
 	dfntxt "Press Start to pause or resume playback", 0, 14
+	dfntxt "Press Start + C to crash the program", 0, 15
 
 PauseMessage:
-	dfntxt "Playback paused.", 0, 19
+	dfntxt "Playback paused.", 0, 20
 
 HaltMessage:
-	dfntxt "All CPUs are halted now.", 0, 19
-	dfntxt "Please reset to re-listen.", 0, 20
+	dfntxt "All CPUs are halted now.", 0, 20
+	dfntxt "Please reset to re-listen.", 0, 21
 
 	restore
 
@@ -62,24 +63,39 @@ Messages:
 	dfntxt "has crashed! I'm sorry :(", 0, 1
 	dfntxt "If you want to know more,", 0, 2
 	dfntxt "there's some useful information:", 0, 3
-	dfntxt "STOP_CODE: 0x", 0, 4
+	dfntxt "STOP_CODE: 0x", 0, 5
 	
+	align 2
+	Code0:	dc.b "(BUS_ERROR)",$00
+	Code1:	dc.b "(ADDRESS_ERROR)",$00
+	Code2:	dc.b "(ILLEGALINSTRUCTION_EXCEPTION)"
+	Code3:	dc.b "(DIVISIONBYZERO_EXCEPTION)"
+	Code4:	dc.b "(CHECK_EXCEPTION)",$00
+	Code5:	dc.b "(TRAPV_EXCEPTION)",$00
+	Code6:	dc.b "(PRIVILEGE_VIOLATION)",$00
+	Code7:	dc.b "(TRACE_EXCEPTION)",$00
+	Code8:	dc.b "(LINE1010_EMU)"
+	Code9:	dc.b "(LINE1111_EMU)"
+	Code10:	dc.b "(SPURIOUS_EXCEPTION)"
+	Code11:	dc.b "(TRAPxx_EXCEPTION)"
+	Code12:	dc.b "(UNKNOWN_ERROR)",$00
+	Code13:	dc.b "(MANUALLY_INITIATED_CRASH)"
+
 TextCodes:
-	dc.b 11
-	dc.b "(BUS_ERROR)"
-	dc.b 15
-	dc.b "(ADDRESS_ERROR)"
-	dc.b "(ILLEGALINSTRUCTION_EXCEPTION)"
-	dc.b "(DIVISIONBYZERO_EXCEPTION)"
-	dc.b "(CHECK_EXCEPTION)"
-	dc.b "(TRAPV_EXCEPTION)"
-	dc.b "(PRIVILEGE_VIOLATION)"
-	dc.b "(TRACE_EXCEPTION)"
-	dc.b "(LINE1010_EMU)"
-	dc.b "(LINE1111_EMU)"
-	dc.b "(SPURIOUS_EXCEPTION)"
-	dc.b "(TRAPxx_EXCEPTION)"
-	dc.b "(UNKNOWN_ERROR)"
-	dc.b "(MANUALLY_INITIATED_CRASH)"
+	dc.l Code0
+	dc.l Code1
+	dc.l Code2
+	dc.l Code3
+	dc.l Code4
+	dc.l Code5
+	dc.l Code6
+	dc.l Code7
+	dc.l Code8
+	dc.l Code9
+	dc.l Code10
+	dc.l Code11
+	dc.l Code12
+	dc.l Code13
+	dc.l TextCodes
 	
 Message5:	dc.b "Registers dump:"
