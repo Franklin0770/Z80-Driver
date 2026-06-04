@@ -13,12 +13,14 @@
 	listing purecode ; we sure want the listing file, but only the final code in expanded macros
 
 ; These switches enable the entire purpose of this driver and modifying them likely makes the playback similar to "traditional" DAC drivers
-smoothPlayback:	equ TRUE	; put it to FALSE to prevent 68k output during buffer load
-accurateSpeed:	equ TRUE	; put it to FALSE to ignore 68k sample increment calculation
+smoothPlayback:		equ TRUE	; put it to FALSE to prevent 68k output during buffer load
+accurateSpeed:		equ TRUE	; put it to FALSE to ignore 68k sample increment calculation
 ; I often use this switch to test how an ideal and perfect playback would sound, and it's pretty close compared to both 68k and Z80
-pureAudio:		equ FALSE		; put it to TRUE to make only the 68k output DAC samples to defy the whole puropose of this audio driver
+pureAudio:			equ FALSE	; put it to TRUE to make only the 68k output DAC samples to defy the whole puropose of this audio driver
 hardwareEarrape:	equ FALSE	; put this to TRUE to test the true power of the YM2612's DAC output (SW: EXTREMELY LOUD AUDIO)
-debugSoundRAM:	equ FALSE
+debugSoundRAM:		equ FALSE
+
+gensFix:	equ FALSE	; use this if you plan to use Gens, since it doesn't emulate the fast Z80 RAM read
 
 ROM_Start
 
@@ -120,7 +122,7 @@ ROM_Start
 
 BusError:
 	move.l	#$AAAAAAA1,d7
-	stop #$2700 ; Gens does not recognize this instruction
+	stop #$2700
 
 AddressError:
 	move.l	#$AAAAAAA2,d7
@@ -194,7 +196,13 @@ $$skip_pause:
 	moveq	#0,d0							; 4
 	waitZ80	d0,a0							; 12 (at best)
 	
-	move.w	(a1),d0			; get high byte of playedSamples. 8
+	if ~~gensFix
+		move.w	(a1),d0		; get high byte of playedSamples. 8
+	else
+		move.b	(a1),d0
+		lsl.w	#8,d0
+	endif
+
 	move.b	-(a1),d0		; get lower byte of playedSamples. 8
 	adda.l	d0,a5			; 8
 
@@ -734,9 +742,9 @@ Music
 	;binclude "Chris.raw" ; Chris
 	;binclude "Magnetic Circuit.raw" ; Notch what are you doing
 	;binclude "Lava Chicken.raw" ; Minecraft?
-	;binclude "Bad (2012 Remaster).raw" ; bad in a good way
+	binclude "Bad (2012 Remaster).raw" ; bad in a good way
 	;binclude "Smooth Criminal.raw" ; Annie are you okay
-	binclude "Billie Jean.raw" ; Billie Jean
+	;binclude "Billie Jean.raw" ; Billie Jean
 	;binclude "P.Y.T. (Pretty Young Thing).raw"
 	;binclude "Last Surprise.raw" ; a good discovery
 	;binclude "music.pcm" ; let's not talk about this

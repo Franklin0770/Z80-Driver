@@ -23,7 +23,9 @@ Z80ROM_Start
 	; Make the SP push the interrupt address to a specific address
 	ld	sp,interrputPc+2
 
+	im	1
 	ei
+
 	halt
 
 Init_EndSound:
@@ -36,7 +38,7 @@ RemainingSamples:
 $$loop_endSound:
 	ld	a,(bc)
 	ld	(de),a
-	rept 12
+	rept 10
 	nop
 	endm
 	inc	bc
@@ -120,7 +122,7 @@ Init_DacOnly:
 	rr	l				; 8
 
 ; This is where most of the debugging values get written to
-; RAM, so then the 68k can move then into its own RAM
+; RAM, so then the 68k can move them into its own RAM
 
 $$loop_DacOnly:
 	ld	a,(bc)
@@ -260,11 +262,13 @@ $$unused_DacAndFm3:	; ADPCM attempt
 Loop_Effects:
 	exx
 	ld	a,(bc)
-	inc	c
-	inc	c
 	ld	(hl),DAC_OUT
 	ld	(de),a
+	inc	bc
+	inc	bc
 	exx
+	ld	hl,1232
+	ld	a,(hl)
 EffectsOffset:
 	jp	EffectsTable
 
