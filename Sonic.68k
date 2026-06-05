@@ -20,7 +20,7 @@ pureAudio:			equ FALSE	; put it to TRUE to make only the 68k output DAC samples 
 hardwareEarrape:	equ FALSE	; put this to TRUE to test the true power of the YM2612's DAC output (SW: EXTREMELY LOUD AUDIO)
 debugSoundRAM:		equ FALSE
 
-gensFix:	equ FALSE	; use this if you plan to use Gens, since it doesn't emulate the fast Z80 RAM read
+gensFix:	equ TRUE	; use this if you plan to use Gens, since it doesn't emulate the fast Z80 RAM read
 
 bsodCpuLag: equ FALSE
 
@@ -1038,9 +1038,10 @@ Music
 	;binclude "Lava Chicken.raw" ; Minecraft?
 	;binclude "Bad (2012 Remaster).raw" ; bad in a good way
 	;binclude "Smooth Criminal.raw" ; Annie are you okay
-	binclude "Billie Jean.raw" ; Billie Jean
+	;binclude "Billie Jean.raw" ; Billie Jean
 	;binclude "P.Y.T. (Pretty Young Thing).raw"
 	;binclude "Last Surprise.raw" ; a good discovery
+	binclude "Roxanne.raw" ; ROOOOOOOxanne
 	;binclude "music.pcm" ; let's not talk about this
 	;binclude "My Summary.raw"
 	else
