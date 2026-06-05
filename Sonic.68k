@@ -22,14 +22,14 @@ debugSoundRAM:		equ FALSE
 
 gensFix:	equ FALSE	; use this if you plan to use Gens, since it doesn't emulate the fast Z80 RAM read
 
-bsodCpuLag: equ FALSE
+bsodCpuLag: equ TRUE
 
 ROM_Start
 
 	org 0
 
 ; ================================================================
-; 68000 vectors (with its error code in square brackets, AAAAAAxx)
+; 68000 vectors (with its error code in square brackets)
 ; ================================================================
 
 		dc.l M68K.STACK			; Initial stack pointer value (SP value)
@@ -44,42 +44,42 @@ ROM_Start
 		dc.l TRACEException		; TRACE exception					[8]
 		dc.l LineAEmulator		; Line-A emulator					[9]
 		dc.l LineFEmulator		; Line-F emulator					[10]
-		dc.l UnknownError		; Unused (reserved)					[14]
-		dc.l UnknownError		; Unused (reserved)					[14]
-		dc.l UnknownError		; Unused (reserved)					[14]
-		dc.l UnknownError		; Unused (reserved)					[14]
-		dc.l UnknownError		; Unused (reserved)					[14]
-		dc.l UnknownError		; Unused (reserved)					[14]
-		dc.l UnknownError		; Unused (reserved)					[14]
-		dc.l UnknownError		; Unused (reserved)					[14]
-		dc.l UnknownError		; Unused (reserved)					[14]
-		dc.l UnknownError		; Unused (reserved)					[14]
-		dc.l UnknownError		; Unused (reserved)					[14]
-		dc.l UnknownError		; Unused (reserved)					[14]
-		dc.l SpuriousException	; Spurious exception				[11]
-		dc.l $0					; IRQ level 1						[12]
-		dc.l $0					; IRQ level 2						[12]
-		dc.l $0					; IRQ level 3 						[12]
+		dc.l UnknownError		; Unused (reserved)					[32]
+		dc.l UnknownError		; Unused (reserved)					[32]
+		dc.l UnknownError		; Unused (reserved)					[32]
+		dc.l UnknownError		; Unused (reserved)					[32]
+		dc.l UnknownError		; Unused (reserved)					[32]
+		dc.l UnknownError		; Unused (reserved)					[32]
+		dc.l UnknownError		; Unused (reserved)					[32]
+		dc.l UnknownError		; Unused (reserved)					[32]
+		dc.l UnknownError		; Unused (reserved)					[32]
+		dc.l UnknownError		; Unused (reserved)					[32]
+		dc.l UnknownError		; Unused (reserved)					[32]
+		dc.l UnknownError		; Unused (reserved)					[32]
+		dc.l SpuriousException	; Spurious exception				[10]
+		dc.l InterruptRequest1	; IRQ level 1						[11]
+		dc.l InterruptRequest2	; IRQ level 2						[12]
+		dc.l InterruptRequest3	; IRQ level 3 						[13]
 		dc.l VDP_HBlank			; IRQ level 4 (horizontal retrace)
-		dc.l $0					; IRQ level 5						[12]
+		dc.l InterruptRequest5	; IRQ level 5						[14]
 		dc.l VDP_VBlank			; IRQ level 6 (vertical retrace)
-		dc.l $0					; IRQ level 7						[12]
-		dc.l TRAPException		; TRAP #00 exception				[13]
-		dc.l TRAPException		; TRAP #01 exception				[13]
-		dc.l TRAPException		; TRAP #02 exception				[13]
-		dc.l TRAPException		; TRAP #03 exception				[13]
-		dc.l TRAPException		; TRAP #04 exception				[13]
-		dc.l TRAPException		; TRAP #05 exception				[13]
-		dc.l TRAPException		; TRAP #06 exception				[13]
-		dc.l TRAPException		; TRAP #07 exception				[13]
-		dc.l TRAPException		; TRAP #08 exception				[13]
-		dc.l TRAPException		; TRAP #09 exception				[13]
-		dc.l TRAPException		; TRAP #10 exception				[13]
-		dc.l TRAPException		; TRAP #11 exception				[13]
-		dc.l TRAPException		; TRAP #12 exception				[13]
-		dc.l TRAPException		; TRAP #13 exception				[13]
-		dc.l TRAPException		; TRAP #14 exception				[13]
-		dc.l TRAPException		; TRAP #15 exception				[13]
+		dc.l InterruptRequest7	; IRQ level 7						[15]
+		dc.l TRAPException0		; TRAP #00 exception				[16]
+		dc.l TRAPException1		; TRAP #01 exception				[17]
+		dc.l TRAPException2		; TRAP #02 exception				[18]
+		dc.l TRAPException3		; TRAP #03 exception				[19]
+		dc.l TRAPException4		; TRAP #04 exception				[20]
+		dc.l TRAPException5		; TRAP #05 exception				[21]
+		dc.l TRAPException6		; TRAP #06 exception				[22]
+		dc.l TRAPException7		; TRAP #07 exception				[23]
+		dc.l TRAPException8		; TRAP #08 exception				[24]
+		dc.l TRAPException9		; TRAP #09 exception				[25]
+		dc.l TRAPException10	; TRAP #10 exception				[26]
+		dc.l TRAPException11	; TRAP #11 exception				[27]
+		dc.l TRAPException12	; TRAP #12 exception				[28]
+		dc.l TRAPException13	; TRAP #13 exception				[29]
+		dc.l TRAPException14	; TRAP #14 exception				[30]
+		dc.l TRAPException15	; TRAP #15 exception				[31]
 		dc.l UnknownError		; Unused (reserved)					[14]
 		dc.l UnknownError		; Unused (reserved)					[14]
 		dc.l UnknownError		; Unused (reserved)					[14]
@@ -123,104 +123,162 @@ ROM_Start
 ; ========================
 
 BusError:
-	movem.l	d0-a7,REG_DUMP	; we need to force the dump address
-	move sr,REG_DUMP+$40	; dump the status register also
-	moveq	#$0,d7
-	bra.w	VDP_BSOD
+	pea	0
+	bra	BsodHandler
 
 AddressError:
-	movem.l	d0-a7,REG_DUMP
-	move sr,REG_DUMP+$40
-	moveq	#$1,d7
-	bra.w	VDP_BSOD
+	pea	1
+	bra	BsodHandler
 
 IllegalInstruction:
-	movem.l	d0-a7,REG_DUMP
-	move sr,REG_DUMP+$40
-	moveq	#$2,d7
-	bra.w 	VDP_BSOD
+	pea	2
+	bra	BsodHandler
 
 DivisionByZero:
-	movem.l	d0-a7,REG_DUMP
-	move sr,REG_DUMP+$40
-	moveq	#$3,d7
-	bra.w 	VDP_BSOD
+	pea	3
+	bra	BsodHandler
 	
 CHKException:
-	movem.l	d0-a7,REG_DUMP
-	move sr,REG_DUMP+$40
-	moveq	#$4,d7
-	bra.w	VDP_BSOD
+	pea	4
+	bra	BsodHandler
 	
 TRAPVException:
-	movem.l	d0-a7,REG_DUMP
-	move sr,REG_DUMP+$40
-	moveq	#$5,d7
-	bra.w	VDP_BSOD
+	pea	5
+	bra	BsodHandler
 	
 PrivilegeViolation:
-	movem.l	d0-a7,REG_DUMP
-	move sr,REG_DUMP+$40
-	moveq	#$6,d7
-	bra.w	VDP_BSOD
+	pea	6
+	bra	BsodHandler
 	
 TRACEException:
-	movem.l	d0-a7,REG_DUMP
-	move sr,REG_DUMP+$40
-	moveq	#$7,d7
-	bra.s	VDP_BSOD
+	pea	7
+	bra	BsodHandler
 
 LineAEmulator:
-	movem.l	d0-a7,REG_DUMP
-	move sr,REG_DUMP+$40
-	moveq	#$8,d7
-	bra.s	VDP_BSOD
+	pea	8
+	bra	BsodHandler
 	
 LineFEmulator:
-	movem.l	d0-a7,REG_DUMP
-	move sr,REG_DUMP+$40
-	moveq	#$9,d7
-	bra.s	VDP_BSOD
+	pea	9
+	bra	BsodHandler
 	
 SpuriousException:
-	movem.l	d0-a7,REG_DUMP
-	move sr,REG_DUMP+$40
-	moveq	#$A,d7
-	bra.s	VDP_BSOD
+	pea	10
+	bra	BsodHandler
+
+InterruptRequest1:
+	pea	11
+	bra	BsodHandler
+
+InterruptRequest2:
+	pea	12
+	bra	BsodHandler
+
+InterruptRequest3:
+	pea	13
+	bra	BsodHandler
 	
-TRAPException:
-	movem.l	d0-a7,REG_DUMP
-	move sr,REG_DUMP+$40
-	moveq	#$B,d7
-	bra.s	VDP_BSOD
+InterruptRequest5:
+	pea	14
+	bra	BsodHandler
+
+InterruptRequest7:
+	pea	15
+	bra	BsodHandler
+	
+TRAPException0:
+	pea	16
+	bra	BsodHandler
+
+TRAPException1:
+	pea	17
+	bra	BsodHandler
+
+TRAPException2:
+	pea	18
+	bra	BsodHandler
+
+TRAPException3:
+	pea	19
+	bra	BsodHandler
+
+TRAPException4:
+	pea	20
+	bra	BsodHandler
+
+TRAPException5:
+	pea	21
+	bra	BsodHandler
+
+TRAPException6:
+	pea	22
+	bra	BsodHandler
+
+TRAPException7:
+	pea	23
+	bra	BsodHandler
+
+TRAPException8:
+	pea	24
+	bra	BsodHandler
+
+TRAPException9:
+	pea	25
+	bra	BsodHandler
+
+TRAPException10:
+	pea	26
+	bra	BsodHandler
+
+TRAPException11:
+	pea	27
+	bra	BsodHandler
+
+TRAPException12:
+	pea	28
+	bra	BsodHandler
+
+TRAPException13:
+	pea	29
+	bra	BsodHandler
+
+TRAPException14:
+	pea	30
+	bra	BsodHandler
+
+TRAPException15:
+	pea	31
+	bra	BsodHandler
 	
 UnknownError:
-	movem.l	d0-a7,REG_DUMP
-	move sr,REG_DUMP+$40
-	moveq	#$C,d7
-	bra.s	VDP_BSOD
+	pea	32
+	bra	BsodHandler
 	
 ManualCrash:
-	movem.l	d0-a7,REG_DUMP
-	move sr,REG_DUMP+$40
-	move.l	#$D,d7
+	pea	33
 
-VDP_BSOD:
-	lea	M68K.STACK,sp	; realign the stack pointer
+BsodHandler:
 	move #$2700,sr		; disable interrupts
+	movem.l	d0-a7,REG_DUMP
+	move.l	(sp)+,d7
 	addq.b	#6,REG_PREFIXES+$4B	; add the value back to sp dump value
 	lea VDP.CTRL,a0		; reset a0
 	lea VDP.DATA,a1		; reset a1
-	moveq	#0,d2		; clear slow down timer for CPU_ClearScreen
-	move.l	#$FF,d3		; update the slow down timer for CPU_ClearScreen
+	if bsodCpuLag
+		moveq	#0,d2		; clear slow down timer for CPU_ClearScreen
+		moveq	#$4F,d3		; update the slow down timer for CPU_ClearScreen
+	endif
 
 ; ---------------------------------------------------------------------------
 ; Subroutine to	clear the screen using CPU and load the font
 ; ---------------------------------------------------------------------------
-	
+
+	vdpSetColorSpace 16,(a0)
+	move.w	#$0EE0,(a1)
+
 	vdpSetVideoAddress VDP_VRAM.PLANEA,(a0)
 	move.w	#($1000/4)-1,d0	; clear the entire plane A ($1000 bytes)
-	moveq	#0,d1			; clear d1
+	move.l	#(PAL1)<<16|(PAL1),d1
 $$clear_screen:
 	move.l	d1,(a1)			; clear portion of screen by setting the background tiles
 	if bsodCpuLag
@@ -228,19 +286,20 @@ $$clear_screen:
 		bsr.w	CPU_Wait	; make the slow down effect
 	endif
 	dbf d0,$$clear_screen	; keep clearing until done
-	
-	if bsodCpuLag
-		move.w	#$2FFF,d2	; update the slow down timer
-		bsr.w	CPU_Wait	; a bit of lag
-	endif
 
 	vdpSetColorSpace 0,(a0)
 	move.l	#$0E000EEE,(a1)	; makes the background blue and the font white
 	
+	vdpSetVideoAddress VDP_VRAM.PLANEA,(a0)
+	move.w	#($1000/4)-1,d0	; clear the entire plane A ($1000 bytes)
+	moveq	#0,d1
+$$color_screen:
+	move.l	d1,(a1)			; clear portion of screen by setting the background tiles
 	if bsodCpuLag
-		move.l	#$2FFFF,d2	; update the slow down timer
-		bsr.w	CPU_Wait	; a bit of lag
+		move.w	d3,d2		; update the slow down timer for CPU_Wait
+		bsr.w	CPU_Wait	; make the slow down effect
 	endif
+	dbf d0,$$color_screen	; keep clearing until done
 	
 ; Load BSOD font
 	vdpSetVideoAddress $0000,(a0)
@@ -297,11 +356,10 @@ $$setup_message:
 ; ---------------------------------------------------------------------------
 
 	move.l	#vdpCoordinates(13,5),(a0)
-	move.l	#chars('A','A'),d0
-	move.l	d0,(a1)		; print "AA"
+	move.l	#chars('A','A'),(a1)	; print "AA"
 	
 	moveq	#0,d0
-	move.b	d7,d0		; move error code to be "Ax"
+	move.b	d7,d0
 	andi.b	#$F0,d0
 	lsr.b	#4,d0
 	swap	d0
