@@ -77,9 +77,28 @@ Messages:
 	Code8:	dc.b "(LINE1010_EMU)"
 	Code9:	dc.b "(LINE1111_EMU)"
 	Code10:	dc.b "(SPURIOUS_EXCEPTION)"
-	Code11:	dc.b "(TRAPxx_EXCEPTION)"
-	Code12:	dc.b "(UNKNOWN_ERROR)",$00
-	Code13:	dc.b "(MANUALLY_INITIATED_CRASH)"
+	Code11:	dc.b "(UNHANDLED_IRQ_LEVEL1)"
+	Code12:	dc.b "(UNHANDLED_IRQ_LEVEL2)"
+	Code13:	dc.b "(UNHANDLED_IRQ_LEVEL3)"
+	Code14:	dc.b "(UNHANDLED_IRQ_LEVEL5)"
+	Code15:	dc.b "(UNHANDLED_IRQ_LEVEL7)"
+	Code16:	dc.b "(TRAP0_EXCEPTION)",$00
+	Code17:	dc.b "(TRAP1_EXCEPTION)",$00
+	Code18:	dc.b "(TRAP2_EXCEPTION)",$00
+	Code19:	dc.b "(TRAP3_EXCEPTION)",$00
+	Code20:	dc.b "(TRAP4_EXCEPTION)",$00
+	Code21:	dc.b "(TRAP5_EXCEPTION)",$00
+	Code22:	dc.b "(TRAP6_EXCEPTION)",$00
+	Code23:	dc.b "(TRAP7_EXCEPTION)",$00
+	Code24:	dc.b "(TRAP8_EXCEPTION)",$00
+	Code25:	dc.b "(TRAP9_EXCEPTION)",$00
+	Code26:	dc.b "(TRAP10_EXCEPTION)"
+	Code27:	dc.b "(TRAP11_EXCEPTION)"
+	Code28:	dc.b "(TRAP12_EXCEPTION)"
+	Code29:	dc.b "(TRAP14_EXCEPTION)"
+	Code30:	dc.b "(TRAP15_EXCEPTION)"
+	Code31:	dc.b "(UNKNOWN_ERROR)",$00
+	Code32:	dc.b "(MANUALLY_INITIATED_CRASH)"
 
 TextCodes:
 	dc.l Code0
@@ -96,6 +115,24 @@ TextCodes:
 	dc.l Code11
 	dc.l Code12
 	dc.l Code13
+	dc.l Code14
+	dc.l Code16
+	dc.l Code17
+	dc.l Code18
+	dc.l Code19
+	dc.l Code20
+	dc.l Code21
+	dc.l Code22
+	dc.l Code23
+	dc.l Code24
+	dc.l Code25
+	dc.l Code26
+	dc.l Code27
+	dc.l Code28
+	dc.l Code29
+	dc.l Code30
+	dc.l Code31
+	dc.l Code32
 	dc.l TextCodes
 	
 Message5:	dc.b "Registers dump:"
