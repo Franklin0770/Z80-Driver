@@ -9,6 +9,7 @@ Z80ROM_Start
 
 	ld	bc,YM2612.CTRL0	; YM2612 bank 1 port
 	ld	hl,YM2612.DATA0	; YM2612 data port
+	ld	ix,Z80Init
 
 	if hardwareEarrape
 		ld	a,2Ch
@@ -20,52 +21,14 @@ Z80ROM_Start
 	ld	(hl),80h			; enable DAC
 	dec	a					; now a is 2Ah (DAC_IN)
 	ld	(bc),a				; switch to DAC data input
-	; Make the SP push the interrupt address to a specific address
-	ld	sp,interrputPc+2
 
-	im	1
-	ei
-
-	halt
-
-Init_EndSound:
-	ld	(hl),DAC_OUT
-	exx
-RemainingSamples:
-	; The 68k writes the remaining samples here
-	ld	bc,0000h
-	exx
-$$loop_endSound:
-	ld	a,(bc)
-	ld	(de),a
-	rept 10
-	nop
-	endm
-	inc	bc
-	inc bc
-	cp	0	; just for timing alignment
-	cp	0
-	exx
-	dec	bc
-	ld	a,b
-	or	c	; check if BC is 0
-	exx
-	jp	nz,$$loop_endSound
-
-	di
-	halt
-
-	rorg 38h - $	; can't use ORG while dephasing
-; ----- Z80 interrupt, ready for handoff -----
 Z80Init:
 	; Set registers for DAC register set
 	ld	bc,SampleBuffer
 	ld	de,YM2612.DATA0
 	ld	hl,YM2612.CTRL0
-	ld	sp,interrputPc+2	; re-align stack pointer correctly
-	ei
 .routineAddress:
-	jp	$	; get ready for handoff
+	jp	$
 
 ; At this point, we have register pairs that have different
 ; purpose: the normal one is for DAC, the shadow one is
@@ -107,15 +70,15 @@ Init_DacOnly:
 	inc	bc				; 6
 	inc	bc				; 6
 	; Make loop (basically placing $ next to JP)
-	ld	hl,Z80Init.routineAddress		; 10
-	ld	(Z80Init.routineAddress+1),hl	; 16
+	ld	hl,0018h					; 10
+	ld	(Z80Jump1),hl
+	ld	(Z80Jump2),hl
+	ld	hl,0EC18h
+	ld	(Z80Jump3),hl
+	ld	hl,DisableDacInjection		; 10
+	ld	(hl),12h					; 10
 
 	ld	h,b				; 4
-
-	ld	b,1
-	djnz $
-
-	ld	b,h
 	ld	l,c				; 4
 	res	4,h				; 8
 	srl	h				; 8
@@ -124,20 +87,67 @@ Init_DacOnly:
 ; This is where most of the debugging values get written to
 ; RAM, so then the 68k can move them into its own RAM
 
-$$loop_DacOnly:
+Loop_DacOnly:
 	ld	a,(bc)
-	inc hl
+DisableDacInjection:
 	ld	(de),a
+	inc hl
 	ld 	(playedSamples),hl
-	ld	(bufferIndex),bc
-	ld	a,r
-	ld	(refreshRegister),a
+Z80Jump1:
+	jr	$+2
 	inc	bc
 	inc bc
+Z80Jump2:
+	jr	$+2
+	ld	a,r
+	ld	(refreshRegister),a
+	ld	sp,hl
+Z80Jump3:
+	jr	Loop_DacOnly
+	
+Init_EndSound:
+	ld	(hl),DAC_OUT
+	exx
+RemainingSamples:
+	; The 68k writes the remaining samples here
+	ld	bc,0000h
+	exx
+$$loop_endSound:
+	ld	a,(bc)
+	ld	(de),a
+	rept 10
 	nop
-	nop
-	nop
-	jp	$$loop_DacOnly
+	endm
+	inc	bc
+	inc bc
+	cp	0	; just for timing alignment
+	cp	0
+	exx
+	dec	bc
+	ld	a,b
+	or	c	; check if BC is 0
+	exx
+	jp	nz,$$loop_endSound
+
+	di
+	halt
+
+Init_CrashDac:
+	ld	(hl),DAC_OUT
+	ld	hl,900h
+$$loop_crashDac:
+	ld	a,(hl)			; 7
+	ld	(de),a			; 7
+	inc	hl				; 6
+	ld	b,4				; 7
+	djnz $				; 13*3+8
+	bit	5,h				; 8
+	jp	z,$$no_loop		; 10
+	ld	hl,900h			; 10
+	jp	$$loop_crashDac	; 10
+$$no_loop:
+	jp	$+3				; 10
+	jp	$$loop_crashDac	; 10
 
 	dephase	; the rest of the labels are mapped normally
 

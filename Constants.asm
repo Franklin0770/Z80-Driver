@@ -21,7 +21,7 @@ BUFFER_ITERATIONS:	equ 7
 ; Mega Drive memory spaces
 M68K:
 .WRAM:		equ $FF0000		; 68000 memory start address
-.STACK:		equ $FF0000		; 68000 stack
+.STACK:		equ $FFF000		; 68000 stack
 .PSG:		equ $C00011		; PSG port
 JOY1:
 .CTRL:		equ $A10009		; Controller 1 control port
@@ -341,5 +341,5 @@ PSG_WHITE_MID:		equ $E5
 PSG_WHITE_LOW:		equ $E6
 PSG_WHITE_CH2:		equ $E7
 
-REG_DUMP:		equ $FF0000
-REG_PREFIXES:	equ $FF0042
+REG_DUMP:		equ $FF1000
+REG_PREFIXES:	equ $FF1050

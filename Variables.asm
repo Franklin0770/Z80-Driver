@@ -16,9 +16,8 @@ shouldStop:			ds.b 1	; It's zero when the execution continues
 noMoreFm:			ds.b 1
 shouldPause:		ds.b 1
 randomByte:			ds.b 1
-z80BufferIndex:		ds.w 1
-z80InterruptPc:		ds.w 1
 controllerStatus:	ds.w 1
+startHoldFrames:	ds.w 1
 
 ; ----------------------
 ;		Zilog Z80
@@ -32,7 +31,6 @@ playedSamples:		ds.w 1	; Little-endian
 refreshRegister:	ds.b 1	; Refresh register
 	odd
 bufferIndex:		ds.w 1	; BC in the last routine
-interrputPc:		ds.w 1	; PC right before interrupt
 
 	org $1000
 SampleBuffer	; Where the 68k buffers samples

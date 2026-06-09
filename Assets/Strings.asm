@@ -7,25 +7,23 @@ StaticText:
 	dfntxt "ROM Sample Index:", 0, 0
 	dfntxt "Z80 Samples Per-frame:", 0, 1
 	dfntxt "Last 68k Sample:", 0, 2
-	dfntxt "Z80 Buffer Index (BC):", 0, 3
-	dfntxt "Z80 PC Before Interrupt:", 0, 4
-	dfntxt "Z80 Refresh Register:", 0, 5
-	dfntxt "Frame Number:", 0, 6
+	dfntxt "Z80 Refresh Register:", 0, 3
+	dfntxt "Frame Number:", 0, 4
 
-	dfntxt "Press A to play a note", 0, 9
-	dfntxt "Hold B to play a note every frame", 0, 10
-	dfntxt "Press C to restart the music", 0, 11
-	dfntxt "Press Right or Up to skip forward", 0, 12
-	dfntxt "Press Left or Down to skip backward", 0, 13
-	dfntxt "Press Start to pause or resume playback", 0, 14
-	dfntxt "Press Start + C to crash the program", 0, 15
+	dfntxt "Press A to play a note", 0, 7
+	dfntxt "Hold B to play a note every frame", 0, 8
+	dfntxt "Press C to restart the music", 0, 9
+	dfntxt "Press Right or Up to skip forward", 0, 10
+	dfntxt "Press Left or Down to skip backward", 0, 11
+	dfntxt "Press Start to pause or resume playback", 0, 12
+	dfntxt "Hold Start to crash the program (5s)", 0, 13
 
 PauseMessage:
-	dfntxt "Playback paused.", 0, 20
+	dfntxt "Playback paused.", 0, 17
 
 HaltMessage:
-	dfntxt "All CPUs are halted now.", 0, 20
-	dfntxt "Please reset to re-listen.", 0, 21
+	dfntxt "All CPUs are halted now.", 0, 17
+	dfntxt "Please reset to re-listen.", 0, 18
 
 	restore
 
@@ -42,20 +40,12 @@ ValueInformation:
 	dc.l vdpCoordinates(25,2)
 	dc.w PrintByte-UpdateDebugger.base-2
 
-	dc.l z80BufferIndex
-	dc.l vdpCoordinates(25,3)
-	dc.w PrintWord-UpdateDebugger.base-2
-
-	dc.l z80InterruptPc
-	dc.l vdpCoordinates(25,4)
-	dc.w PrintWord-UpdateDebugger.base-2
-
 	dc.l randomByte
-	dc.l vdpCoordinates(25,5)
+	dc.l vdpCoordinates(25,3)
 	dc.w PrintByte-UpdateDebugger.base-2
 
 	dc.l frameCount
-	dc.l vdpCoordinates(25,6)
+	dc.l vdpCoordinates(25,4)
 	dc.w PrintLong-UpdateDebugger.base-2
 
 Messages:
@@ -63,7 +53,7 @@ Messages:
 	dfntxt "has crashed! I'm sorry :(", 0, 1
 	dfntxt "If you want to know more,", 0, 2
 	dfntxt "there's some useful information:", 0, 3
-	dfntxt "STOP_CODE: 0x", 0, 5
+	dfntxt "STOP_CODE: 0x", 2, 5
 	
 	align 2
 	Code0:	dc.b "(BUS_ERROR)",$00
@@ -95,10 +85,11 @@ Messages:
 	Code26:	dc.b "(TRAP10_EXCEPTION)"
 	Code27:	dc.b "(TRAP11_EXCEPTION)"
 	Code28:	dc.b "(TRAP12_EXCEPTION)"
-	Code29:	dc.b "(TRAP14_EXCEPTION)"
-	Code30:	dc.b "(TRAP15_EXCEPTION)"
-	Code31:	dc.b "(UNKNOWN_ERROR)",$00
-	Code32:	dc.b "(MANUALLY_INITIATED_CRASH)"
+	Code29:	dc.b "(TRAP13_EXCEPTION)"
+	Code30:	dc.b "(TRAP14_EXCEPTION)"
+	Code31:	dc.b "(TRAP15_EXCEPTION)"
+	Code32:	dc.b "(UNKNOWN_ERROR)",$00
+	Code33:	dc.b "(MANUALLY_INITIATED_CRASH)"
 
 TextCodes:
 	dc.l Code0
@@ -116,6 +107,7 @@ TextCodes:
 	dc.l Code12
 	dc.l Code13
 	dc.l Code14
+	dc.l Code15
 	dc.l Code16
 	dc.l Code17
 	dc.l Code18
@@ -133,6 +125,16 @@ TextCodes:
 	dc.l Code30
 	dc.l Code31
 	dc.l Code32
+	dc.l Code33
 	dc.l TextCodes
 	
 Message5:	dc.b "Registers dump:"
+
+	align 2
+RegisterDumpInformation:
+	dc.w SetupRegisters.address-SetupRegisters
+	dc.w SetupRegisters.ssp-SetupRegisters
+	dc.w SetupRegisters.usp-SetupRegisters
+	dc.w SetupRegisters.sr-SetupRegisters
+	dc.w SetupRegisters.pc-SetupRegisters
+	dc.w SetupRegisters.halt-SetupRegisters

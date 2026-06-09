@@ -20,7 +20,7 @@ pureAudio:			equ FALSE	; put it to TRUE to make only the 68k output DAC samples 
 hardwareEarrape:	equ FALSE	; put this to TRUE to test the true power of the YM2612's DAC output (SW: EXTREMELY LOUD AUDIO)
 debugSoundRAM:		equ FALSE
 
-gensFix:	equ TRUE	; use this if you plan to use Gens, since it doesn't emulate the fast Z80 RAM read
+gensFix:	equ FALSE	; use this if you plan to use Gens, since it doesn't emulate the fast Z80 RAM read
 
 bsodCpuLag: equ TRUE
 
@@ -255,46 +255,81 @@ UnknownError:
 	bra	BsodHandler
 	
 ManualCrash:
+	move	sr,REG_DUMP+$44		; dump SR
+	move.l	#ManualCrashPc<<8,REG_DUMP+$48
 	pea	33
+	bra.s	BsodHandler.skip_sr_and_pc
 
 BsodHandler:
-	move #$2700,sr		; disable interrupts
+	move.w	(4,sp),REG_DUMP+$44		; get SR
+	move.l	(12,sp),REG_DUMP+$48	; get PC too
+.skip_sr_and_pc:
+	lea Z80_CTRL.BUSREQ,a2
+	stopZ80 a2
+	move #$2700,sr					; disable interrupts
 	movem.l	d0-a7,REG_DUMP
-	move.l	(sp)+,d7
-	addq.b	#6,REG_PREFIXES+$4B	; add the value back to sp dump value
+	move.l	(sp)+,d7				; get the error code type
+	movea.l	usp,a0
+	move.l	a0,REG_DUMP+$40			; get USP
+	addq.b	#6,REG_PREFIXES+$3F		; add the value back to dumped SP value
+
+	waitZ80
+
+	move.w	#($2000-$900)-1,d0
+	movea.l	(sampleIndex),a0
+	lea	$900|Z80_CTRL.WRAM,a1
+$$copy_samples:
+	move.b	(a0)+,(a1)+
+	dbf	d0,$$copy_samples
+
+	lea	(Z80Init.routineAddress+1)|Z80_CTRL.WRAM,a0
+	move.b	#Init_CrashDac&$FF,(a0)+
+	move.b	#Init_CrashDac>>8,(a0)
+	lea	Z80Jump3|Z80_CTRL.WRAM,a0
+	move.b	#$DD,(a0)+
+	move.b	#$E9,(a0)
+
+	startZ80 a2
+
+	move.l	#$6FFFF,d2
+	bsr.w	CPU_Wait
+
 	lea VDP.CTRL,a0		; reset a0
 	lea VDP.DATA,a1		; reset a1
 	if bsodCpuLag
-		moveq	#0,d2		; clear slow down timer for CPU_ClearScreen
-		moveq	#$4F,d3		; update the slow down timer for CPU_ClearScreen
+		moveq	#0,d2	; clear slow down timer for CPU_ClearScreen
+		moveq	#$7F,d3	; update the slow down timer for CPU_ClearScreen
 	endif
 
 ; ---------------------------------------------------------------------------
 ; Subroutine to	clear the screen using CPU and load the font
 ; ---------------------------------------------------------------------------
 
-	vdpSetColorSpace 16,(a0)
-	move.w	#$0EE0,(a1)
+	vdpSetColorSpace 2,(a0)
+	move.w	#$0000,(a1)
+
+	vdpSetVideoSpace $70,(a0)
+	moveq	#(32/4)-1,d0
+	move.l	#$22222222,d1
+$$fill_tile:
+	move.l	d1,(a1)
+	dbf d0,$$fill_tile
 
 	vdpSetVideoAddress VDP_VRAM.PLANEA,(a0)
 	move.w	#($1000/4)-1,d0	; clear the entire plane A ($1000 bytes)
-	move.l	#(PAL1)<<16|(PAL1),d1
+	move.l	#$00700070,d1
 $$clear_screen:
 	move.l	d1,(a1)			; clear portion of screen by setting the background tiles
-	if bsodCpuLag
-		move.w	d3,d2		; update the slow down timer for CPU_Wait
-		bsr.w	CPU_Wait	; make the slow down effect
-	endif
 	dbf d0,$$clear_screen	; keep clearing until done
 
 	vdpSetColorSpace 0,(a0)
 	move.l	#$0E000EEE,(a1)	; makes the background blue and the font white
 	
 	vdpSetVideoAddress VDP_VRAM.PLANEA,(a0)
-	move.w	#($1000/4)-1,d0	; clear the entire plane A ($1000 bytes)
+	move.w	#($1000/4)-1,d0
 	moveq	#0,d1
 $$color_screen:
-	move.l	d1,(a1)			; clear portion of screen by setting the background tiles
+	move.l	d1,(a1)
 	if bsodCpuLag
 		move.w	d3,d2		; update the slow down timer for CPU_Wait
 		bsr.w	CPU_Wait	; make the slow down effect
@@ -334,28 +369,19 @@ $$load_letters:
 $$setup_message:
 	move.l	(a2)+,(a0)	; set coordinates
 	move.w	(a2)+,d0	; get string length
+
 	if bsodCpuLag
-		move.w	#$7FF,d3	; update the slow down timer for VDP_PrintText
+		moveq	#$7F,d3	; update the slow down timer for VDP_PrintText
 	endif
 
 	bsr.w	VDP_PrintText
-	
-	if bsodCpuLag
-		move.w	#$1FFF,d2	; update the slow down timer
-		bsr.w	CPU_Wait	; a bit of lag
-	endif
 	dbf d4,$$setup_message
-	
-	if bsodCpuLag
-		move.w	#$2FFF,d2	; update the slow down timer
-		bsr.w	CPU_Wait	; a bit of lag
-	endif
 
 ; ---------------------------------------------------------------------------
 ; Subroutine to	print on screen the error code in hexadecimal
 ; ---------------------------------------------------------------------------
 
-	move.l	#vdpCoordinates(13,5),(a0)
+	move.l	#vdpCoordinates(15,5),(a0)
 	move.l	#chars('A','A'),(a1)	; print "AA"
 	
 	moveq	#0,d0
@@ -368,11 +394,6 @@ $$setup_message:
 
 	addi.l	#$00600060,d0
 	move.l	d0,(a1)		; print the rest of the error code
-	
-	if bsodCpuLag
-		move.w	#$FFFF,d2	; update the slow down timer
-		bsr.w	CPU_Wait	; a bit of lag
-	endif
 
 ; ---------------------------------------------------------------------------
 ; Subroutine to	print on screen the error code in text
@@ -386,18 +407,13 @@ $$setup_message:
 	move.l	(a3),d0
 	sub.l	d2,d0		; get length
 	subq.w	#1,d0
-	move.l	#vdpCoordinates(0,6),(a0)
-	
+	move.l	#vdpCoordinates(2,6),(a0)
+
 	if bsodCpuLag
-		move.w	#$8FF,d3	; update the slow down timer for VDP_PrintText
+		moveq	#$7F,d3	; update the slow down timer for VDP_PrintText
 	endif
 
 	bsr.w	VDP_PrintText
-	
-	if bsodCpuLag
-		move.w	#$FFFF,d2	; update the slow down timer
-		bsr.w	CPU_Wait	; a bit of lag
-	endif
 	
 ; ---------------------------------------------------------------------------
 ; Subroutine to	print on screen the register names (or prefixes)
@@ -406,98 +422,113 @@ $$setup_message:
 	lea	Message5,a2		; points to the string address directly
 	moveq	#15-1,d0	; this string is 15 characters long
 	move.l	#vdpCoordinates(0,9),(a0)
-	if bsodCpuLag
-		move.w	#$AFF,d3	; update the slow down timer for VDP_PrintText
-	endif
 	
 	bsr.w	VDP_PrintText
 
-	if bsodCpuLag
-		move.w	#$5FFF,d2	; update the slow down timer
-		bsr.w	CPU_Wait	; a bit of lag
-	endif
+	lea REG_DUMP,a2			; load register dump pointer
+	lea	RegisterDumpInformation,a3
+	lea	SetupRegisters,a4
 
-	moveq	#8-1,d0		; 8 registers to write
-	moveq	#8-1,d6		; 8 digits to print
-	moveq	#0,d5
-	lea	REG_PREFIXES+10,a2; start from this point to write down the prefixes
-	lea REG_DUMP,a3			; load register dump pointer
-	; write the prefixes in RAM in opposite order
-	move.l	#chars('0','x'),-(a2)
-	move.w	#':'-$20,-(a2)
-	move.l	#chars('d','0'),-(a2)
-	move.l	#vdpCoordinates(2,12),d1	; set on-screen register dump coordinates
+SetupRegisters
+; Set up data registers
+	moveq	#8-1,d0						; 8 registers to write
+	moveq	#8-1,d1						; 8 digits to print
+	move.l	#vdpCoordinates(2,12),d3	; set on-screen register dump coordinates
+	move.l	#('0'-$20)<<8|'d'-$20,d4
+	bra.s	PrintRegisters
+
+.address:
+	moveq	#7-1,d0						; 7 registers to print
+	moveq	#8-1,d1						; 8 digits to print
+	move.l	#vdpCoordinates(19,12),d3	; update coordinates
+	move.l	#('0'-$20)<<8|'a'-$20,d4
+	bra.s	PrintRegisters
+
+.ssp:
+	moveq	#1-1,d0						; 1 register to print
+	moveq	#8-1,d1						; 8 digits to print
+	move.l	#vdpCoordinates(19,22),d3
+	move.l	#('p'-$20)<<16|('s'-$20)<<8|'s'-$20,d4
+	bra.s	PrintRegisters
+
+.usp:
+	moveq	#1-1,d0						; 1 register to print
+	move.l	#8-1,d1						; 8 digits to print
+	move.l	#vdpCoordinates(19,23),d3
+	move.l	#('p'-$20)<<16|('s'-$20)<<8|'u'-$20,d4
+	bra.s	PrintRegisters
+
+.sr:
+	moveq	#1-1,d0						; 1 register to print
+	move.l	#4-1,d1						; 4 digits to print
+	move.l	#vdpCoordinates(2,22),d3
+	move.l	#('r'-$20)<<8|'s'-$20,d4
+	bra.s	PrintRegisters
+
+.pc:
+	moveq	#1-1,d0						; 1 register to print
+	moveq	#6-1,d1						; 6 digits to print
+	move.l	#vdpCoordinates(2,23),d3
+	move.l	#('c'-$20)<<8|'p'-$20,d4
+	bra.s	PrintRegisters
+
+.halt:
+	stop #$2700		; halt the CPU indefinitely
 
 ;============================================================================
 
-$$print_registers:
-	move.l	d1,(a0)		; update the plane coordinates
+; Print a register (prefix + value)
 
-	moveq	#5-1,d3		; 5 prefixes to print
+PrintRegisters:
+	move.l	d3,(a0)			; update the plane coordinates
+
+; Print on screen the register prefix
+	move.l	d4,d5
+	moveq	#0,d6
 $$print_prefix:
-	move.w	(a2)+,(a1)	; print register number
-	if bsodCpuLag
-		move.w	#$FFF,d2	; update the slow down timer
-		bsr.w	CPU_Wait	; a bit of lag
-	endif
-	dbf d3,$$print_prefix
-	
-	subaq	10,a2		; reposition a2 to the prefixes' start
-	
-; ---------------------------------------------------------------------------
-; Subroutine to	print on screen the register values from dump
-; ---------------------------------------------------------------------------
+	move.b	d5,d6
+	move.w	d6,(a1)			; print register number
 
-    move.l	d6,d3		; update the digit counter
-	move.l	(a3)+,d4	; get the register dumped value
+	if bsodCpuLag
+		moveq	#$7F,d2		; update the slow down timer
+		bsr.s	CPU_Wait	; a bit of lag
+	endif
+
+	lsr.l	#8,d5			; next character (also clear the one we just printed)
+	bne.s	$$print_prefix	; if D5 is 0 there are no more characters to print
+
+	move.w	#':'-$20,(a1)
+	move.l	#chars('0','x'),(a1)
+		
+; Print on screen the register digits from dump
+    move.w	d1,d5			; update the digit counter
+	move.l	(a2)+,d6		; get the register dumped value
+	moveq	#0,d7
 $$print_value:
-	rol.l	#4,d4		; rotate the digits on the left
-	move.b	d4,d5		; move the digits in ascending order to d5
-	andi.b	#$F,d5		; remove the other digit
-	addi.w	#$60,d5
+	rol.l	#4,d6			; rotate the digits on the left
+	move.b	d6,d7			; move the digits in ascending order to d5
+	andi.b	#$F,d7			; remove the other digit
+	addi.w	#$60,d7
 	
-	move.w	d5,(a1)		; update the plane A
-	
-	dbf d3,$$print_value	; loop until printed all digits
-	
-	addq.b	#1,REG_PREFIXES+3	; increment register number character
-	addi.l	#$800000,d1			; new line by adding coordinates
-	
-	if bsodCpuLag
-		move.w	#$1FFF,d2			; update the slow down timer
-		bsr.w	CPU_Wait			; a bit of lag
-	endif
-	dbf d0,$$print_registers
+	move.w	d7,(a1)			; update the plane A
 
-; Print address registers
-	cmpa.l	#REG_DUMP+$20,a3	; has the VDP already printed the address registers?
-	bhi.s	$$print_sp			; if yes, print stack pointer
-	moveq	#7-1,d0				; 7 registers to print
-	moveq	#8-1,d6				; 8 digits to print
-	subq.b	#3,REG_PREFIXES+1	; change prefix from 'd' to 'a'
-	subq.b	#8,REG_PREFIXES+3	; restart the count from 0
-	move.l	#vdpCoordinates(19,12),d1	; update coordinates
-	bra.w	$$print_registers	; print address register dump
+	if bsodCpuLag
+		moveq	#$7F,d2		; update the slow down timer
+		bsr.s	CPU_Wait	; a bit of lag
+	endif
 	
-$$print_sp:
-	cmpa.l	#REG_DUMP+$3C,a3	; has the VDP already printed the stack pointer?
-	bhi.s	$$print_sr			; if yes, print the status register
-	moveq	#1-1,d0				; 1 register to write
-	moveq	#8-1,d6				; 8 digits to print
-	move.l	#chars('s','p'),(a2); use "sp" prefix
-	bra.w	$$print_registers	; print sp
-	
-$$print_sr:
-	cmpa.l	#REG_DUMP+$40,a3	; has the VDP already printed the stack pointer?
-	bhi.s 	Halt_CPU			; if yes, stop the execution
-	moveq	#1-1,d0				; 1 register to write
-	moveq	#4-1,d6				; 4 digits to print
-	move.l	#chars('s','r'),(a2)		; use "sr" prefix
-	move.l	#vdpCoordinates(2,22),d1	; set fixed coordinates
-	bra.w	$$print_registers
+	dbf d5,$$print_value	; loop until printed all digits
+
+	addi.l	#$800000,d3		; new line by adding coordinates
+	addi.w	#$100,d4		; increment register number character
+
+	dbf d0,PrintRegisters
+
+	move.w	(a3)+,d0
+	jmp (a4,d0.w)
 	
 ; ---------------------------------------------------------------------------
-; Subroutine to	draw text on screen (a3: string pointer, d0: length)
+; Subroutine to	draw text on screen (a2: string pointer, d0: length)
 ; ---------------------------------------------------------------------------
 
 VDP_PrintText:
@@ -520,23 +551,27 @@ CPU_Wait:
 	subi.l	#1,d2		; purposefully using a slower instruction
 	bne.s	CPU_Wait	; wait until done (dbf subs only word-wise, which is not suitable)
 	rts
-	
-Halt_CPU:
-	stop #$2700		; halt the CPU indefinitely
 
 ; ==========================
 
 ; 240 68k cycles for every ~32 kHz sample
 
 VDP_VBlank:
-	; DPLC loading queues
-; --- Variable cycles ---
-	stopZ80									; initiate Z80 stop. 20
 	tst.b	(shouldPause)
 	beq.s	$$skip_pause
 	clr.w	(z80Samples)
+	stopZ80
 	rte
 $$skip_pause:
+	vdpSetColorSpace 0, VDP.CTRL
+	move.w	#$000E,VDP.DATA
+	; DPLC loading queues
+	moveq	#0,d0
+	move.b	(randomByte),d0
+	lsl.w	#2,d0
+	dbf	d0,*
+; --- Variable cycles ---
+	stopZ80									; initiate Z80 stop. 20
 	lea Z80_CTRL.BUSREQ,a0					; 8
 	lea	playedSamples+1|Z80_CTRL.WRAM,a1	; 8
 	movea.l	(sampleIndex),a5				; 16
@@ -674,21 +709,27 @@ $$skip_sound:
 	move.b	#Init_DacOnly>>8,(a0)					; 12
 
 UpdateRoutine:
-	lea	(bufferIndex+1|Z80_CTRL.WRAM),a0
-	lea z80BufferIndex,a1
+	move.b	#$DD,d0
+	move.b	#$E9,d1
+	lea	Z80Jump1|Z80_CTRL.WRAM,a0
+	lea	Z80Jump2|Z80_CTRL.WRAM,a1
+	lea	Z80Jump3|Z80_CTRL.WRAM,a2
+	move.b	d0,(a0)+
+	move.b	d1,(a0)
+	move.b	d0,(a1)+
+	move.b	d1,(a1)
+	move.b	d0,(a2)+
+	move.b	d1,(a2)
+	clr.b	(DisableDacInjection|Z80_CTRL.WRAM)
 	move.b	(refreshRegister|Z80_CTRL.WRAM),(randomByte)
-	move.w	(a0),d0		; get high byte. 8
-	move.b	-(a0),d0	; get lower byte. 8
-	move.w	d0,(a1)+
-	lea	(interrputPc+1|Z80_CTRL.WRAM),a0
-	move.w	(a0),d0		; get high byte. 8
-	move.b	-(a0),d0	; get lower byte. 8
-	move.w	d0,(a1)
 
-	move.l	d4,(sampleIndex)	; 20
+	move.l	d4,(sampleIndex)	; 16
 	st	(noMoreFm)
 
 	startZ80	; restart Z80
+
+	vdpSetColorSpace 0, VDP.CTRL
+	move.w	#$0000,VDP.DATA
 
 	rte
 
@@ -750,7 +791,7 @@ $$skip_tmss:
 
 ; Prints static text on screen
 	lea	StaticText,a2
-	moveq	#14-1,d0	; number of strings to print
+	moveq	#12-1,d0	; number of strings to print
 $$next_text:
 	moveq	#0,d2		; no flip, palette 0, low priority for the next tilemap values
 	move.l	(a2)+,(a0)	; set coordinates
@@ -832,9 +873,15 @@ ReadJoypad:
 	; 0: pressed, 1: not pressed
 	move.w	(a1),d1	; get previous joypad state
 	move.w	d0,(a1)	; update joypad state
+	
+	move.w	d0,d2
+	move.w	d1,d3
 
 	not.w	d0
 	and.w   d0,d1	; just pressed = ~now & before
+
+	not.w	d3
+	and.w	d3,d2	; just released = now & ~before
 ; D0: held buttons, D1: pressed buttons
 	btst	#JOY.A,d1
 	bne.w	PlayNote
@@ -850,16 +897,18 @@ ReadJoypad:
 	bne.w	JumpForward
 	btst	#JOY.D,d1
 	bne.w	JumpBackward
-	btst	#JOY.START,d1
+	btst	#JOY.START,d2
 	bne.w	PauseOrResume
-	cmpi.w	#$01D3,(a1)
-	beq.l	ManualCrash
+	btst	#JOY.START,d0
+	bne.w	StartHoldHandler
+
+	clr.w	(startHoldFrames)
 
 ; Prints dynamic RAM values that get updated each frame next to static text
 UpdateDebugger
 .init:
 	moveq	#0,d2	; no flip, palette 0, low priority for the next tilemap values
-	moveq	#7-1,d3	; number of values to print
+	moveq	#5-1,d3	; number of values to print
 	lea	VDP.CTRL,a0
 	lea	VDP.DATA,a1
 	lea	ValueInformation,a2
@@ -910,6 +959,9 @@ $$print_long:
 	dbf d3,UpdateDebugger.loop
 
 WaitInterrupt:
+	moveq	#0,d0
+	move.w	(z80Samples),d0
+	chk #$21C,d0			; check if there's a buffer overrun
 	stop	#$2500			; wait until next frame
 	tst.b	(shouldStop)	; is the audio ended?
 	bne.w	DisableCpu		; if yes, stop the CPU
@@ -917,11 +969,11 @@ WaitInterrupt:
 	bra.w	ReadJoypad		; go back to check buttons
 PlayNote:
 	sf	(noMoreFm)
-	bra.w	UpdateDebugger.init
+	bra.w	UpdateDebugger
 
 RestartSample:
 	move.l	#Music,(sampleIndex)	; reset sample index
-	bra.w	UpdateDebugger.init
+	bra.w	UpdateDebugger
 
 SkipForward:
 	move.l	(sampleIndex),d0
@@ -948,12 +1000,12 @@ JumpBackward:
 IsOutOfBound:
 	cmp.l	#Music.end,d0
 ; Ignore press if the sample index is too big (over ROM size limit)
-	bhi.w	UpdateDebugger.init	
+	bhi.w	UpdateDebugger
 	cmp.l	#Music,d0
 ; Ignore press if the sample index is too small (on code and assets)
-	blo.w	UpdateDebugger.init
+	blo.w	UpdateDebugger
 	move.l	d0,(sampleIndex)	; apply the result if no boundaries are hit
-	bra.w	UpdateDebugger.init
+	bra.w	UpdateDebugger
 
 PauseOrResume:
 	moveq	#0,d1
@@ -968,13 +1020,22 @@ PauseOrResume:
 $$clear_text:
 	move.w	d1,(a1)
 	dbf d0,$$clear_text
-	bra.w	UpdateDebugger.init
+	bra.w	UpdateDebugger
 ; Print pause text
 $$print_text:
 	move.b	(a2)+,d1
 	move.w	d1,(a1)
 	dbf d0,$$print_text
-	bra.w	UpdateDebugger.init
+	bra.w	UpdateDebugger
+
+StartHoldHandler:
+	move.w	(startHoldFrames),d0
+	addq.w	#1,d0
+	cmpi.w	#60*5,d0
+ManualCrashPc:
+	bhs.l	ManualCrash
+	move.w	d0,(startHoldFrames)
+	bra.w	UpdateDebugger
 
 DisableCpu:
 	lea VDP.CTRL,a0
