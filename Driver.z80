@@ -22,6 +22,9 @@ Z80ROM_Start
 	dec	a					; now a is 2Ah (DAC_IN)
 	ld	(bc),a				; switch to DAC data input
 
+	rorg 38h - $
+; Z80 interrupt
+
 Z80Init:
 	; Set registers for DAC register set
 	ld	bc,SampleBuffer

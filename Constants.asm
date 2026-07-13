@@ -1,7 +1,7 @@
 ; ---------------------------------
 ;      Code-specific constants
 ; ---------------------------------
-BUFFER_ITERATIONS:	equ 7
+BUFFER_ITERATIONS:	equ 26
 
 ; M68K: Motorola 68000 related constant
 ; Z80: Z80 related constant

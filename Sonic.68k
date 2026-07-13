@@ -568,7 +568,7 @@ $$skip_pause:
 	; DPLC loading queues
 	moveq	#0,d0
 	move.b	(randomByte),d0
-	lsl.w	#2,d0
+	lsl.w	#6,d0
 	dbf	d0,*
 ; --- Variable cycles ---
 	stopZ80									; initiate Z80 stop. 20
@@ -959,9 +959,9 @@ $$print_long:
 	dbf d3,UpdateDebugger.loop
 
 WaitInterrupt:
-	moveq	#0,d0
-	move.w	(z80Samples),d0
-	chk #$21C,d0			; check if there's a buffer overrun
+	;moveq	#0,d0
+	;move.w	(z80Samples),d0
+	;chk #$21C,d0			; check if there's a buffer overrun
 	stop	#$2500			; wait until next frame
 	tst.b	(shouldStop)	; is the audio ended?
 	bne.w	DisableCpu		; if yes, stop the CPU
@@ -1154,13 +1154,13 @@ Music
 	;binclude "Droopy likes your face.raw" ; underrated
 	;binclude "Chris.raw" ; Chris
 	;binclude "Magnetic Circuit.raw" ; Notch what are you doing
-	;binclude "Lava Chicken.raw" ; Minecraft?
+	binclude "Lava Chicken.raw" ; Minecraft?
 	;binclude "Bad (2012 Remaster).raw" ; bad in a good way
 	;binclude "Smooth Criminal.raw" ; Annie are you okay
 	;binclude "Billie Jean.raw" ; Billie Jean
 	;binclude "P.Y.T. (Pretty Young Thing).raw"
 	;binclude "Last Surprise.raw" ; a good discovery
-	binclude "Roxanne.raw" ; ROOOOOOOxanne
+	;binclude "Roxanne.raw" ; ROOOOOOOxanne
 	;binclude "music.pcm" ; let's not talk about this
 	;binclude "My Summary.raw"
 	else
