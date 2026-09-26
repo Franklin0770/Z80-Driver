@@ -4,7 +4,8 @@ Hello there! I've finally found the time to write a README, where I explain the 
 > Please note that this driver is still in experimentation and development. Not all features are here, at least for now.
 
 ## The purpose
-So, as you might have read in the description, this driver aims to provide smooth 32000 Hz audio playback in the Sega Mega Drive, which nearly hits the hardware limit. Actually, due to CPU synchronization timing, the sample rate sits at ~31960 Hz, which is more or less the same, since the tiny quality loss is indistinguishable. A classic remark goes to most retro drivers written for games at the time: jittery and overall unbearable streaming sounds. This driver does its best to ensure none of this ever happens.
+A classic remark goes to most retro drivers written for games at the time: jittery and overall unbearable streaming sounds. This driver does its best to ensure none of this ever happens.  
+So, as you might have read in the description, this driver aims to provide smooth 32000 Hz PCM playback in the Sega Mega Drive, which nearly hits the hardware limit. Actually, due to CPU synchronization timing, the sample rate sits at ~31960 Hz, which is more or less the same, since the tiny quality loss is indistinguishable.  
 
 You have two modes to achieve double simultaneous audio playback:
 - By halving sample rate (to 15980 Hz), but keeping the bit-depth the same (to 8-bit);

@@ -320,6 +320,106 @@ subaq: macro v0,r0
 ; How to check a substring in a string: substr(*string*,*starting index*,*ending index*) -> string containing the range provided
 ; How to check a character from a string charfromstr(*string*,*character position*) -> character
 
+loopTest1: macro pitch
+	lea	(YM2612.CTRL0|Z80_CTRL.WRAM),a2
+	lea	(YM2612.DATA0|Z80_CTRL.WRAM),a1
+	move.b	#DAC_ENABLE,(a2)
+	move.b	#$80,(a1)
+	move.b	#DAC_OUT,(a2)
+	lea	Music,a0
+$$loop:
+	move.b	(a0)+,(a1)	; 12 cycles
+	cmp.l	d0,d0		; 6 cycles
+	rept pitch
+	nop		; 4 cycles
+	endm
+	bra.w	$$loop	; 10 cycles
+	endm
+
+loopTest2: macro
+	moveq	#0,d2
+
+	lea	$FFF000,a0
+	lea	$0000|Z80_CTRL.WRAM,a1
+	lea	(YM2612.CTRL0|Z80_CTRL.WRAM),a2
+	lea	Music,a5
+	lea	(YM2612.DATA0|Z80_CTRL.WRAM),a6
+
+	move.b	#DAC_ENABLE,(a2)
+	move.b	#$80,(a6)
+	move.b	#DAC_OUT,(a2)
+
+$$loop:
+	move.b	(a5)+,(a6)	; output sample. 12
+
+	move.l	(a0),d0
+	movep.l d0,(0,a1)
+
+	move.l	(a0),d0
+	movep.l	d0,(8,a1)
+
+	move.l	(a0),d0
+	movep.l	d0,(16,a1)
+
+	move.l	(a0),d0
+	movep.l	d0,(24,a1)
+
+	move.l	(a0),d0
+	movep.l	d0,(32,a1)
+
+	rept 3
+	nop
+	endm
+
+	bra.s	$$loop
+
+	endm
+
+dfntxt: macro text, x, y
+	dc.l vdpCoordinates(x,y)
+
+length set strlen(text)
+	; The AND operator is there to avoid making
+	; the length odd and thus crashing the CPU
+	dc.w length + length&1 - 1	; -1 because of DBF loop
+	dc.b text
+	endm
+
+even: macro byte
+	if "byte" = ""
+		; If there's no byte specified, use the filling one instead
+		if MOMCPUNAME = "68000"
+			rorg *&1
+		else
+			rorg $&1
+		endif
+	elseif MOMCPUNAME = "68000"
+		dc.b	[*&1],byte
+	else
+		db	$&1 dup byte
+	endif
+	endm
+
+; Opposite of the "even" macro
+odd: macro byte
+	if "byte" = ""
+		; If there's no byte specified, use the filling one instead
+		if MOMCPUNAME = "68000"
+			rorg (~*)&1
+		else
+			rorg (~$)&1
+		endif
+	elseif MOMCPUNAME = "68000"
+		dc.b	[(~*)&1],byte
+	else
+		db	(~$)&1 dup byte
+	endif
+	endm
+
+chars function c1,c2,((c1-$20)<<16)|(c2-$20)
+
+	if FALSE
+
 loadSamples: macro
 	; --- 118 cycles in total ---
 i set 0
@@ -416,40 +516,6 @@ i set 16
 i set i + 152
 	endm
 	endm
-
-loopTest: macro pitch
-	lea	(YM2612.CTRL0|Z80_CTRL.WRAM),a2
-	lea	(YM2612.DATA0|Z80_CTRL.WRAM),a1
-	move.b	#DAC_ENABLE,(a2)
-	move.b	#$80,(a1)
-	move.b	#DAC_OUT,(a2)
-	lea	Music,a0
-$$loop:
-	move.b	(a0)+,(a1)	; 12 cycles
-	cmp.l	d0,d0		; 6 cycles
-	rept pitch
-	nop		; 4 cycles
-	endm
-	bra.w	$$loop	; 10 cycles
-	endm
-
-dfntxt: macro text, x, y
-	dc.l vdpCoordinates(x,y)
-
-length set strlen(text)
-	; The AND operator is there to avoid making
-	; the length odd and thus crashing the CPU
-	dc.w length + length&1 - 1	; -1 because of DBF loop
-	dc.b text
-	endm
-
-odd: macro
-	rorg	(~*)&1	; opposite of the "even" macro
-	endm
-
-chars function c1,c2,((c1-$20)<<16)|(c2-$20)
-
-	if FALSE
 
 loadSamplesAlt: macro
 	

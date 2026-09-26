@@ -1,7 +1,11 @@
 ; ---------------------------------
 ;      Code-specific constants
 ; ---------------------------------
-BUFFER_ITERATIONS:	equ 26
+	if ~~stressTest
+BUFFER_ITERATIONS:	equ 26	; default: 26, max: 103
+	else
+BUFFER_ITERATIONS:	equ 45
+	endif
 
 ; M68K: Motorola 68000 related constant
 ; Z80: Z80 related constant

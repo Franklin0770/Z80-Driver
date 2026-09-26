@@ -1,6 +1,6 @@
 ; For more additional details and explanations, check the Wiki: https://github.com/Franklin0770/Z80-Driver/wiki
 
-	cpu Z80
+	cpu Z80UNDOC
 Z80ROM_Start
 
     phase 0	; Set label addresses to the start of Z80 RAM
@@ -9,7 +9,6 @@ Z80ROM_Start
 
 	ld	bc,YM2612.CTRL0	; YM2612 bank 1 port
 	ld	hl,YM2612.DATA0	; YM2612 data port
-	ld	ix,Z80Init
 
 	if hardwareEarrape
 		ld	a,2Ch
@@ -22,16 +21,13 @@ Z80ROM_Start
 	dec	a					; now a is 2Ah (DAC_IN)
 	ld	(bc),a				; switch to DAC data input
 
-	rorg 38h - $
-; Z80 interrupt
-
 Z80Init:
 	; Set registers for DAC register set
-	ld	bc,SampleBuffer
-	ld	de,YM2612.DATA0
-	ld	hl,YM2612.CTRL0
+	ld	bc,SampleBuffer	; 10
+	ld	de,YM2612.DATA0	; 10
+	ld	hl,YM2612.CTRL0	; 10
 .routineAddress:
-	jp	$
+	jp	$				; 10
 
 ; At this point, we have register pairs that have different
 ; purpose: the normal one is for DAC, the shadow one is
@@ -66,26 +62,48 @@ $$loop_DacAndFm:
 	jp	pe,$$loop_DacAndFm	; checks if the P flag is 0
 
 Init_DacOnly:
-	ld	a,(bc)			; 7
 	ld	(hl),DAC_OUT	; 10
+	ld	a,(bc)			; 7
 	ld	(de),a			; 7
 
-	inc	bc				; 6
-	inc	bc				; 6
-	; Make loop (basically placing $ next to JP)
-	ld	hl,0018h					; 10
-	ld	(Z80Jump1),hl
-	ld	(Z80Jump2),hl
-	ld	hl,0EC18h
-	ld	(Z80Jump3),hl
-	ld	hl,DisableDacInjection		; 10
-	ld	(hl),12h					; 10
+; --- Restart ---
 
-	ld	h,b				; 4
-	ld	l,c				; 4
-	res	4,h				; 8
-	srl	h				; 8
-	rr	l				; 8
+	inc	bc	; 6
+	inc	bc	; 6
+
+	; Restore JR precision jumps
+	ld	hl,0018h	; JR $+2			; 10
+	ld	(Z80Jump1),hl					; 16
+	ld	(Z80Jump2),hl					; 16
+	; Restore JR loop
+	ld	hl,0EC18h	; JR Loop_DacOnly	; 10
+	ld	(Z80Jump3),hl					; 16
+
+	;ld	iy,0	; 14
+	;nop			; 4
+
+; --- 98 cycles ---
+
+	ld	a,(bc)	; 7
+	ld	(de),a	; 7
+	inc	bc		; 6
+	inc	bc		; 6
+
+	; Get the number of played samples from the
+	; buffer index register: HL = (BC-1000h)/2
+	ld	h,b		; 4
+	ld	l,c		; 4
+	res	4,h		; 8
+	srl	h		; 8
+	rr	l		; 8
+
+	ld	(playedSamples),hl	; 16
+
+	; Also restore OP code (now it's NOP)
+	ld	a,12h								; 7
+	ld	(DisableDacInjection),a	; LD (DE),A	; 13
+
+	ld	ix,Z80Init	; 14
 
 ; This is where most of the debugging values get written to
 ; RAM, so then the 68k can move them into its own RAM
@@ -104,7 +122,9 @@ Z80Jump2:
 	jr	$+2
 	ld	a,r
 	ld	(refreshRegister),a
-	ld	sp,hl
+; There aren't any other registers available to increment
+; to make a specific 6-cycle padding, so SP will do
+	inc	sp
 Z80Jump3:
 	jr	Loop_DacOnly
 	
@@ -132,7 +152,6 @@ $$loop_endSound:
 	exx
 	jp	nz,$$loop_endSound
 
-	di
 	halt
 
 Init_CrashDac:
@@ -145,11 +164,11 @@ $$loop_crashDac:
 	ld	b,4				; 7
 	djnz $				; 13*3+8
 	bit	5,h				; 8
-	jp	z,$$no_loop		; 10
-	ld	hl,900h			; 10
+	jp	nz,$$restart	; 10
+	inc	ix				; 10
 	jp	$$loop_crashDac	; 10
-$$no_loop:
-	jp	$+3				; 10
+$$restart:	; Restarts the sound chunk playback
+	ld	hl,900h			; 10
 	jp	$$loop_crashDac	; 10
 
 	dephase	; the rest of the labels are mapped normally
@@ -212,23 +231,24 @@ $$loop_DacAndEffects:
 	djnz $$loop_DacAndEffects
 	; 112 cycles per loop
 
-$$unused_DacAndFm1:
-	ld	(bc),a
-	ld	a,(hl)
-	inc	hl
-	add a,(hl)
-	rra
-	ld	(de),a
-	exx
-	ldi
-	ld	a,(hl)
-	ld	(de),a
-	inc	de
-	dec	hl
-	exx
-	ld	a,0
-	ld	a,DAC_OUT
-	jp	pe,$$unused_DacAndFm1
+	ld	iyl,DAC_OUT
+$$mixing_DacAndFm:
+	ld	(bc),a		; 7
+	ld	a,(hl)		; 7
+	inc	hl			; 6
+	add a,(hl)		; 7
+	inc	hl			; 6
+	rra				; 4
+	ld	(de),a		; 7
+	exx				; 4
+	ldi				; 16
+	ld	a,(hl)		; 7
+	ld	(de),a		; 7
+	inc	de			; 6
+	dec	hl			; 6
+	exx				; 4
+	ld	a,iyl		; 8
+	jp	pe,$$mixing_DacAndFm	; 10
 
 $$unused_DacAndFm2:
 	ld	a,(de)

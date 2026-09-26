@@ -9,13 +9,17 @@
 	org M68K.WRAM
 
 sampleIndex:		ds.l 1	; Samples after Z80 routine execution
+m68kSamples:		ds.w 1
 z80Samples:			ds.w 1
+sampleRate:			ds.w 1
 frameCount:			ds.l 1
 lastSample:			ds.b 1
 shouldStop:			ds.b 1	; It's zero when the execution continues
 noMoreFm:			ds.b 1
 shouldPause:		ds.b 1
 randomByte:			ds.b 1
+SamplesEvery15Fr:	ds.w 1
+FrameCounter15:		ds.b 1
 controllerStatus:	ds.w 1
 startHoldFrames:	ds.w 1
 

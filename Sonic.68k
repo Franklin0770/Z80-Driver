@@ -6,6 +6,8 @@
 
 	listing off
 
+stressTest:		equ FALSE	; performs a very heavy and randomized stress test
+
 	include "Constants.asm"
 	include "Macros.asm"
 	include "Variables.asm"
@@ -20,9 +22,11 @@ pureAudio:			equ FALSE	; put it to TRUE to make only the 68k output DAC samples 
 hardwareEarrape:	equ FALSE	; put this to TRUE to test the true power of the YM2612's DAC output (SW: EXTREMELY LOUD AUDIO)
 debugSoundRAM:		equ FALSE
 
-gensFix:	equ FALSE	; use this if you plan to use Gens, since it doesn't emulate the fast Z80 RAM read
+gensFix:		equ FALSE	; use this if you plan to use Gens, since it doesn't emulate the fast Z80 RAM read
 
-bsodCpuLag: equ TRUE
+bsodCpuLag: 	equ TRUE
+
+ramBufferLoop:	equ FALSE
 
 ROM_Start
 
@@ -291,11 +295,13 @@ $$copy_samples:
 
 	startZ80 a2
 
-	move.l	#$6FFFF,d2
-	bsr.w	CPU_Wait
+	if bsodCpuLag
+		move.l	#$6FFFF,d2
+		bsr.w	CPU_Wait
+	endif
 
-	lea VDP.CTRL,a0		; reset a0
-	lea VDP.DATA,a1		; reset a1
+	lea VDP.CTRL,a0		; reset A0
+	lea VDP.DATA,a1		; reset A1
 	if bsodCpuLag
 		moveq	#0,d2	; clear slow down timer for CPU_ClearScreen
 		moveq	#$7F,d3	; update the slow down timer for CPU_ClearScreen
@@ -543,18 +549,27 @@ $$update_display:
 	dbf	d0,$$update_display
 	rts
 
+	if bsodCpuLag
+
 ; ---------------------------------------------------------------------------
 ; Subroutine to	hang the CPU for a given time (d2: timer)
 ; ---------------------------------------------------------------------------
 
 CPU_Wait:
+;	movea.l	d2,a6
+;	move.b	(randomByte),d2
+;	lsl.l	#1,d2
+;	adda.l	d2,a6
+;	move.l	a6,d2
+
+$$wait:	
 	subi.l	#1,d2		; purposefully using a slower instruction
-	bne.s	CPU_Wait	; wait until done (dbf subs only word-wise, which is not suitable)
+	bne.s	CPU_Wait	; wait until done (DBF subs only word-wise, which is not suitable)
 	rts
 
-; ==========================
+	endif
 
-; 240 68k cycles for every ~32 kHz sample
+; ============================================================================
 
 VDP_VBlank:
 	tst.b	(shouldPause)
@@ -566,10 +581,12 @@ $$skip_pause:
 	vdpSetColorSpace 0, VDP.CTRL
 	move.w	#$000E,VDP.DATA
 	; DPLC loading queues
-	moveq	#0,d0
-	move.b	(randomByte),d0
-	lsl.w	#6,d0
-	dbf	d0,*
+	if stressTest
+		moveq	#$5A,d0
+		move.b	(randomByte),d0
+		lsl.w	#6,d0
+		dbf	d0,*
+	endif
 ; --- Variable cycles ---
 	stopZ80									; initiate Z80 stop. 20
 	lea Z80_CTRL.BUSREQ,a0					; 8
@@ -596,19 +613,16 @@ $$skip_pause:
 		nop
 	endif
 
-; --- Cycle count restarts ---
-
 	move.w	d0,(z80Samples)	; 12
 	movea.l	a5,a0	; 4
 
 	if accurateSpeed
-		addaq	(BUFFER_ITERATIONS*3)+3,a0	; sample index after 68k routine execution (A2 at the end, basically). 8
+		addaq	BUFFER_ITERATIONS+4,a0	; sample index after 68k routine execution (A5 at the end, basically). 8
 	endif
 
 	move.l	a0,d4	; D4 is now the updated sample index. 4
 
 	lea	SampleBuffer|Z80_CTRL.WRAM,a1	; 8
-; --- 24 cycles in total ---
 
 	btst	#0,d4				; is the sample index even? 6
 	beq.s	$$skip_alignment	; if yes, skip the alignment. 10
@@ -616,13 +630,42 @@ $$skip_pause:
 	addq.l	#2,a1				; 8
 	move.l	a0,d4	; D4 is now the updated sample index. 4
 $$skip_alignment:
-	nop				; 4
-	nop				; 4
-	nop				; 4
+	rept 4
+	nop				; 4*4
+	endm
 
-	loadSamples	; D0 and D1 break here
+	moveq	#BUFFER_ITERATIONS-1,d1
+	;moveq	#$0,d2
 
-	move.b	d0,(lastSample)
+; We have to assume that every time the 68k writes on Z80 RAM there's a one-cycle penalty.
+; This is due to the different clock phases of the 68k (7.67 MHz) and Z80 buses (3.58 MHz).
+
+$$buffer_loop:
+	if smoothPlayback
+		move.b	(a5)+,(a6)	; output sample. 12
+	elseif accurateSpeed
+		addq.l	#1,a5
+		nop
+	endif
+
+	move.l	(a0)+,d0		; 12
+	movep.l d0,(0,a1)		; ~29
+
+	move.l	(a0)+,d0		; 12
+	movep.l	d0,(8,a1)		; ~29
+
+	move.l	(a0)+,d0		; 12
+	movep.l	d0,(16,a1)		; ~29
+
+	move.l	(a0)+,d0		; 12
+	movep.l	d0,(24,a1)		; ~29
+
+	move.l	(a0)+,d0		; 12
+	movep.l	d0,(32,a1)		; ~29
+
+	adda.w	#40,a1			; 12
+
+	dbf d1,$$buffer_loop	; 10
 
 	if smoothPlayback
 		move.b	(a5)+,(a6)	; output sample. 12
@@ -669,6 +712,10 @@ $$load_remainder:
 	dbf d3,$$load_remainder
 
 $$skip_remainder:
+	move.b	(a5)+,d0
+	move.b	d0,(a6)
+	move.b	d0,(lastSample)
+
 	if smoothPlayback
 		move.b	(a5)+,(a6)	; output sample. 12
 	elseif accurateSpeed
@@ -677,9 +724,9 @@ $$skip_remainder:
 	endif
 
 	move.l	#Music.end,d0	; 12
-	sub.l	d4,d0
-	moveq	#0,d1
-	move.w	(z80Samples),d1
+	sub.l	d4,d0			; 8
+	moveq	#0,d1			; 4
+	move.w	(z80Samples),d1	; 12
 	sub.l	d1,d0	; is the audio about to end (ends on Z80 buffer)? 8
 	bpl.s	SkipTracking		; 10 cycles on branch, 8 cycles no branch
 
@@ -693,15 +740,15 @@ $$skip_remainder:
 	lsr.w	#8,d0								; 22
 	move.b	d0,(a0)								; 8
 	st	(shouldStop)							; 16
-	bra.s	UpdateRoutine							; 10
+	bra.s	UpdateRoutine						; 10
 
 SkipTracking:
-	tst.b	(noMoreFm)
-	bne.s	$$skip_sound
+	tst.b	(noMoreFm)								; 12
+	bne.s	$$skip_sound							; 10
 	lea	(Z80Init.routineAddress+1)|Z80_CTRL.WRAM,a0	; 8
 	move.b	#Init_DacAndFm&$FF,(a0)+				; 12
 	move.b	#Init_DacAndFm>>8,(a0)					; 12
-	bra.s	UpdateRoutine
+	bra.s	UpdateRoutine							; 10
 
 $$skip_sound:
 	lea	(Z80Init.routineAddress+1)|Z80_CTRL.WRAM,a0	; 8
@@ -709,27 +756,38 @@ $$skip_sound:
 	move.b	#Init_DacOnly>>8,(a0)					; 12
 
 UpdateRoutine:
-	move.b	#$DD,d0
-	move.b	#$E9,d1
-	lea	Z80Jump1|Z80_CTRL.WRAM,a0
-	lea	Z80Jump2|Z80_CTRL.WRAM,a1
-	lea	Z80Jump3|Z80_CTRL.WRAM,a2
-	move.b	d0,(a0)+
-	move.b	d1,(a0)
-	move.b	d0,(a1)+
-	move.b	d1,(a1)
-	move.b	d0,(a2)+
-	move.b	d1,(a2)
-	clr.b	(DisableDacInjection|Z80_CTRL.WRAM)
-	move.b	(refreshRegister|Z80_CTRL.WRAM),(randomByte)
+	; Replaces JR jumps with JP (IX)
+	move.b	#$DD,d0					; 8
+	move.b	#$E9,d1					; 8
+	lea	Z80Jump1|Z80_CTRL.WRAM,a0	; 8
+	lea	Z80Jump2|Z80_CTRL.WRAM,a1	; 8
+	lea	Z80Jump3|Z80_CTRL.WRAM,a2	; 8
+	move.b	d0,(a0)+				; 8
+	move.b	d1,(a0)					; 8
+	move.b	d0,(a1)+				; 8
+	move.b	d1,(a1)					; 8
+	move.b	d0,(a2)+				; 8
+	move.b	d1,(a2)					; 8
+
+	clr.b	(DisableDacInjection|Z80_CTRL.WRAM)				; 16
+	nop
+
+	if smoothPlayback
+		move.b	(a5)+,(a6)	; output sample. 12
+	elseif accurateSpeed
+		addq.l	#1,a5
+		nop
+	endif
+
+	move.b	(refreshRegister|Z80_CTRL.WRAM),(randomByte)	; 16
+
+	startZ80	; restart Z80. 16
 
 	move.l	d4,(sampleIndex)	; 16
-	st	(noMoreFm)
+	st	(noMoreFm)				; 16
 
-	startZ80	; restart Z80
-
-	vdpSetColorSpace 0, VDP.CTRL
-	move.w	#$0000,VDP.DATA
+	vdpSetColorSpace 0, VDP.CTRL	; 24
+	move.w	#$0000,VDP.DATA			; 16
 
 	rte
 
@@ -789,9 +847,14 @@ $$skip_tmss:
 
 	dmaFillVRAM $00, VDP_VRAM.PLANEA, $1000, (a0), (a1) ; clears characters at every soft reset
 
+	move.w	(a0),d0
+	btst	#$0,d0
+	bne.w	PalScreen
+
+Init_Driver:
 ; Prints static text on screen
 	lea	StaticText,a2
-	moveq	#12-1,d0	; number of strings to print
+	moveq	#14-1,d0	; number of strings to print
 $$next_text:
 	moveq	#0,d2		; no flip, palette 0, low priority for the next tilemap values
 	move.l	(a2)+,(a0)	; set coordinates
@@ -813,8 +876,10 @@ $$print_text:
 	deassertZ80Reset d2,a2	; release reset
 	; We can do more stuff while the Z80 is theoretically stopping
 	move.l 	#Music,(sampleIndex)
+	move.w	#BUFFER_ITERATIONS+3,(m68kSamples)
 	clr.l 	(frameCount)
-	move.w	#(Z80ROM_End-Z80ROM_Start)-1,d0
+	clr.w	(SamplesEvery15Fr)
+	clr.b	(FrameCounter15)
 	lea playedSamples|Z80_CTRL.WRAM,a0
 	clr.b	(a0)+	; only a byte at time when writing to Z80 WRAM
 	clr.b	(a0)
@@ -825,10 +890,20 @@ $$print_text:
 
 	lea Z80ROM_Start,a0
 	lea Z80_CTRL.WRAM,a1
+	move.w	#(Z80ROM_End-Z80ROM_Start)-1,d0
 
 $$copy_program:
 	move.b	(a0)+,(a1)+
 	dbf d0,$$copy_program
+
+; Fills entire buffer with $80s so then it won't sound awful when it overruns
+	lea	Z80_CTRL.WRAM|$1000,a0
+	move.w	#$500,d0
+	move.b	#$80,d1
+$$fill_buffer:
+	move.b	d1,(a0)+
+	dbf	d0,$$fill_buffer
+
 
 	if debugSoundRAM
 		lea	SampleBuffer|Z80_CTRL.WRAM,a0
@@ -849,10 +924,25 @@ $$copy_program:
 	deassertZ80Reset d2,a2	; release reset
 
 	if pureAudio
-		loopTest 52
+		loopTest1 52
 	endif
 
+	if ramBufferLoop
+	move.w	#(loopRamTest.end-loopRamTest)/4,d0
+	lea	loopRamTest,a0
+	lea	$FFA000,a1
+
+$$load_code:
+	move.l	(a0)+,(a1)+
+	dbf	d0,$$load_code
+
+	jmp	$FFA000
+	endif
+
+	;loopTest2
+
 	startZ80 a3	; release bus
+	bra.s	UpdateButtons
 
 ;=================================================================================
 ; Code that runs every frame
@@ -882,6 +972,10 @@ ReadJoypad:
 
 	not.w	d3
 	and.w	d3,d2	; just released = now & ~before
+	rts
+
+UpdateButtons:
+	bsr.s	ReadJoypad
 ; D0: held buttons, D1: pressed buttons
 	btst	#JOY.A,d1
 	bne.w	PlayNote
@@ -904,11 +998,34 @@ ReadJoypad:
 
 	clr.w	(startHoldFrames)
 
+UpdateDebugger:
+; Update samples per second (sample rate) every 15 frames
+	lea SamplesEvery15Fr,a0
+	lea FrameCounter15,a1
+
+	move.w	(m68kSamples),d0
+	move.w	(z80Samples),d1
+
+	add.w	d0,d1
+
+	add.w	(a0),d1
+	move.w	d1,(a0)
+
+	move.b	(a1),d0
+	addq.b	#1,d0
+	cmpi.b	#15,d0
+	ble.s	+
+	moveq	#0,d0
+	move.w	d0,(a0)
+	lsl.w	#2,d1
+	move.w	d1,(sampleRate)
++
+	move.b	d0,(a1)
+
 ; Prints dynamic RAM values that get updated each frame next to static text
-UpdateDebugger
 .init:
 	moveq	#0,d2	; no flip, palette 0, low priority for the next tilemap values
-	moveq	#5-1,d3	; number of values to print
+	moveq	#7-1,d3	; number of values to print
 	lea	VDP.CTRL,a0
 	lea	VDP.DATA,a1
 	lea	ValueInformation,a2
@@ -966,7 +1083,7 @@ WaitInterrupt:
 	tst.b	(shouldStop)	; is the audio ended?
 	bne.w	DisableCpu		; if yes, stop the CPU
 	addq.l	#1,(frameCount)	; update frame counter
-	bra.w	ReadJoypad		; go back to check buttons
+	bra.w	UpdateButtons	; go back to check buttons
 PlayNote:
 	sf	(noMoreFm)
 	bra.w	UpdateDebugger
@@ -1054,16 +1171,97 @@ $$print_text:
 
 	stop	#$2700	; halt indefinitely
 
+PalScreen:
+	st	(shouldPause)
+
+	lea	PalWarning,a2
+	moveq	#5-1,d0		; number of strings to print
+$$next_text:
+	moveq	#0,d2		; no flip, palette 0, low priority for the next tilemap values
+	move.l	(a2)+,(a0)	; set coordinates
+	move.w	(a2)+,d1	; get string length
+$$print_text1:
+	move.b	(a2)+,d2		; get character
+	move.w	d2,(a1)			; put it to the tilemap
+	dbf d1,$$print_text1	; next character
+	dbf d0,$$next_text		; next string
+
+	move.w	#$00FF,d0
+
+$$wait:
+	stop #$2500
+	dbf	d0,$$wait
+
+	move.l	(a2)+,(a0)	; set coordinates
+	move.w	(a2)+,d0	; get string length
+
+$$print_text2:
+	move.b	(a2)+,d2		; get character
+	move.w	d2,(a1)			; put it to the tilemap
+	dbf d0,$$print_text2	; next character
+
+$$check_controller:
+	stop #$2500
+	bsr.w	ReadJoypad
+	cmpi.w	#$FF1C,d0
+	bne.w	$$check_controller
+
+	lea VDP.CTRL,a0
+	lea	VDP.DATA,a1
+	dmaFillVRAM $00, VDP_VRAM.PLANEA, $1000, (a0), (a1)
+	bra.w	Init_Driver
+
 ;=================================================================================
 
 ; Assets section
+	if ramBufferLoop
+loopRamTest
+	moveq	#0,d2
+
+	lea	$FFF000,a0
+	lea	$0000|Z80_CTRL.WRAM,a1
+	lea	(YM2612.CTRL0|Z80_CTRL.WRAM),a2
+	lea	Music,a5
+	lea	(YM2612.DATA0|Z80_CTRL.WRAM),a6
+
+	move.b	#DAC_ENABLE,(a2)
+	move.b	#$80,(a6)
+	move.b	#DAC_OUT,(a2)
+
+$$loop:
+	move.b	(a5)+,(a6)	; output sample. 12
+
+	move.l	(a0),d0
+	movep.l d0,(0,a1)
+
+	move.l	(a0),d0
+	movep.l	d0,(8,a1)
+
+	move.l	(a0),d0
+	movep.l	d0,(16,a1)
+
+	move.l	(a0),d0
+	movep.l	d0,(24,a1)
+
+	move.l	(a0),d0
+	movep.l	d0,(32,a1)
+
+	rept 3
+	nop
+	endm
+
+	bra.s	$$loop
+loopRamTest.end
+	endif
 
 	include "Strings.asm"
 	
 	align 2
+	listing off
 PAT_BodyFont:	include "Body Font.asm"
 .SIZE:	equ 96*32
 
+	listing on
 	include "Driver.z80"
 
 	padding off
@@ -1144,6 +1342,7 @@ FmData
 Music
 	if ~~hardwareEarrape
 	;binclude "continuity_test.bin" ; test with increasing bytes to make sure no samples get skipped
+	;binclude "sinewave.bin"
 
 	;binclude "24. Time Rift Shift ~ Vs. Metal Sonic.raw" ; great music right here
 	;binclude "Don't Stand So Close To Me.raw" ; another banger
@@ -1154,13 +1353,14 @@ Music
 	;binclude "Droopy likes your face.raw" ; underrated
 	;binclude "Chris.raw" ; Chris
 	;binclude "Magnetic Circuit.raw" ; Notch what are you doing
-	binclude "Lava Chicken.raw" ; Minecraft?
+	;binclude "Lava Chicken.raw" ; Minecraft?
 	;binclude "Bad (2012 Remaster).raw" ; bad in a good way
 	;binclude "Smooth Criminal.raw" ; Annie are you okay
 	;binclude "Billie Jean.raw" ; Billie Jean
 	;binclude "P.Y.T. (Pretty Young Thing).raw"
 	;binclude "Last Surprise.raw" ; a good discovery
 	;binclude "Roxanne.raw" ; ROOOOOOOxanne
+	binclude "DARE.raw" ; It's coming up
 	;binclude "music.pcm" ; let's not talk about this
 	;binclude "My Summary.raw"
 	else
