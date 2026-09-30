@@ -9,6 +9,7 @@ Z80ROM_Start
 
 	ld	bc,YM2612.CTRL0	; YM2612 bank 1 port
 	ld	hl,YM2612.DATA0	; YM2612 data port
+	ld	ix,Z80Init	; 14
 
 	if hardwareEarrape
 		ld	a,2Ch
@@ -23,9 +24,10 @@ Z80ROM_Start
 
 Z80Init:
 	; Set registers for DAC register set
-	ld	bc,SampleBuffer	; 10
+	ld	bc,YM2612.CTRL0	; 10
 	ld	de,YM2612.DATA0	; 10
-	ld	hl,YM2612.CTRL0	; 10
+	ld	hl,SampleBuffer	; 10
+	ld	a,DAC_OUT
 .routineAddress:
 	jp	$				; 10
 
@@ -42,9 +44,10 @@ FmIterations:
 	ld	de,YM2612.CTRL0
 	ld	hl,CommandBuffer
 	exx
+	ld	iyl,DAC_OUT
 $$loop_DacAndFm:
-	ld	a,(bc)
-	ld	(hl),DAC_OUT
+	ld	(bc),a
+	ld	a,(hl)
 	ld	(de),a
 	exx		; switch register pair to "FM mode"
 	ldi
@@ -55,78 +58,76 @@ $$loop_DacAndFm:
 	exx		; switch register pair to "DAC mode"
 	nop
 	nop
-	nop
-	nop
-	inc	bc	; advance DAC buffer pointer
-	inc	bc
+	inc	hl	; advance DAC buffer pointer
+	inc	hl
+	ld	a,iyl
 	jp	pe,$$loop_DacAndFm	; checks if the P flag is 0
 
 Init_DacOnly:
-	ld	(hl),DAC_OUT	; 10
-	ld	a,(bc)			; 7
+	ld	(bc),a			; 7
+	ld	a,(hl)			; 7
 	ld	(de),a			; 7
 
 ; --- Restart ---
 
-	inc	bc	; 6
-	inc	bc	; 6
+	inc	hl	; 6
+	inc	hl	; 6
+
+	exx
 
 	; Restore JR precision jumps
 	ld	hl,0018h	; JR $+2			; 10
-	ld	(Z80Jump1),hl					; 16
-	ld	(Z80Jump2),hl					; 16
+	ld	(Loop_DacOnly.jump1),hl			; 16
+	ld	(Loop_DacOnly.jump2),hl			; 16
 	; Restore JR loop
-	ld	hl,0EC18h	; JR Loop_DacOnly	; 10
-	ld	(Z80Jump3),hl					; 16
+	ld	hl,0EB18h	; JR Loop_DacOnly	; 10
+	ld	(Loop_DacOnly.jump3),hl			; 16
 
-	;ld	iy,0	; 14
-	;nop			; 4
+	exx
 
-; --- 98 cycles ---
+; --- 98+8 cycles ---
 
-	ld	a,(bc)	; 7
+	ld	a,(hl)	; 7
 	ld	(de),a	; 7
-	inc	bc		; 6
-	inc	bc		; 6
+	inc	hl		; 6
+	inc	hl		; 6
 
 	; Get the number of played samples from the
 	; buffer index register: HL = (BC-1000h)/2
-	ld	h,b		; 4
-	ld	l,c		; 4
+	ld	b,h		; 4
+	ld	c,l		; 4
 	res	4,h		; 8
 	srl	h		; 8
 	rr	l		; 8
 
-	ld	(playedSamples),hl	; 16
+	ld	a,r
+	ld	(refreshRegister),a
 
 	; Also restore OP code (now it's NOP)
 	ld	a,12h								; 7
-	ld	(DisableDacInjection),a	; LD (DE),A	; 13
-
-	ld	ix,Z80Init	; 14
+	ld	(Loop_DacOnly.disable_dac),a	; LD (DE),A	; 13
 
 ; This is where most of the debugging values get written to
 ; RAM, so then the 68k can move them into its own RAM
 
 Loop_DacOnly:
-	ld	a,(bc)
-DisableDacInjection:
-	ld	(de),a
-	inc hl
-	ld 	(playedSamples),hl
-Z80Jump1:
-	jr	$+2
-	inc	bc
-	inc bc
-Z80Jump2:
-	jr	$+2
-	ld	a,r
-	ld	(refreshRegister),a
-; There aren't any other registers available to increment
-; to make a specific 6-cycle padding, so SP will do
-	inc	sp
-Z80Jump3:
-	jr	Loop_DacOnly
+	ld	a,(bc)				; 7
+.disable_dac:
+	ld	(de),a				; 7
+	inc hl					; 6
+	ld 	(playedSamples),hl	; 16
+.jump1:
+	jr	$+2					; 12
+	inc	bc					; 6
+	inc bc					; 6
+	nop
+.jump2:
+	jr	$+2					; 12
+	rept 6
+		nop
+	endm
+.jump3:
+	jr	Loop_DacOnly		; 12
 	
 Init_EndSound:
 	ld	(hl),DAC_OUT
@@ -153,6 +154,76 @@ $$loop_endSound:
 	jp	nz,$$loop_endSound
 
 	halt
+
+; ===================================
+
+Init_MixingDacOnly:
+	ld	(bc),a		; 7
+	ld	a,(hl)		; 7
+	inc	hl			; 6
+	add	a,(hl)
+	rra
+	ld	(de),a		; 7
+	inc	hl			; 6
+
+	exx
+
+	; Restore JR precision jumps
+	ld	hl,0018h	; JR $+2			; 10
+	ld	(Mixing_DacOnly.jump1),hl		; 16
+	ld	(Mixing_DacOnly.jump2),hl		; 16
+	; Restore JR loop
+	ld	hl,0EC18h	; JR Loop_DacOnly	; 10
+	ld	(Mixing_DacOnly.jump3),hl		; 16
+
+	exx
+
+; --- 98 cycles ---
+
+	ld	(bc),a		; 7
+	ld	a,(hl)		; 7
+	inc	hl			; 6
+	add	a,(hl)
+	rra
+	ld	(de),a		; 7
+	inc	hl			; 6
+
+	; Get the number of played samples from the
+	; buffer index register: HL = (BC-1000h)/2
+	ld	b,h		; 4
+	ld	c,l		; 4
+	res	4,h		; 8
+	srl	h		; 8
+	rr	l		; 8
+
+	inc	bc					; 6
+
+	; Also restore OP code (now it's NOP)
+	ld	a,12h								; 7
+	ld	(Loop_DacOnly.disable_dac),a	; LD (DE),A	; 13
+
+	ld	a,r					; 9
+	ld	(refreshRegister),a	; 13
+
+Mixing_DacOnly:
+	ld	a,(hl)				; 7
+	inc	hl					; 6
+	add a,(hl)				; 7
+	rra						; 4
+.jump1:
+	jr	$+2					; 12
+	ld	(de),a				; 7
+	ld	(playedSamples),bc	; 20
+.jump2:
+	jr	$+2					; 12
+	inc	hl					; 6
+	inc	bc					; 6
+	ld	a,0					; 7
+	nop						; 4
+.jump3:
+	jr	Mixing_DacOnly		; 12
+
+; ===================================
 
 Init_CrashDac:
 	ld	(hl),DAC_OUT

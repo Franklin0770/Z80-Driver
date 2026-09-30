@@ -38,7 +38,7 @@ PalWarning:
 	restore
 
 ValueInformation:
-	dc.l sampleIndex						; variable address
+	dc.l sampleIndex1						; variable address
 	dc.l vdpCoordinates(25,0)				; VDP coordinates
 	dc.w PrintLong-UpdateDebugger.base-2	; jump offset
 

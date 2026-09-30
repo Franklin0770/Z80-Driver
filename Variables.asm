@@ -8,7 +8,8 @@
 
 	org M68K.WRAM
 
-sampleIndex:		ds.l 1	; Samples after Z80 routine execution
+sampleIndex1:		ds.l 1	; Samples after Z80 routine execution
+sampleIndex2:		ds.l 1
 m68kSamples:		ds.w 1
 z80Samples:			ds.w 1
 sampleRate:			ds.w 1
@@ -22,6 +23,7 @@ SamplesEvery15Fr:	ds.w 1
 FrameCounter15:		ds.b 1
 controllerStatus:	ds.w 1
 startHoldFrames:	ds.w 1
+doublePcmMode:		ds.b 0
 
 ; ----------------------
 ;		Zilog Z80
